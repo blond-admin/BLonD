@@ -45,7 +45,7 @@ struct particle {
 extern "C" void music_track(real_t *__restrict__ beam_dt,
                             real_t *__restrict__ beam_dE,
                             real_t *__restrict__ induced_voltage,
-                            real_t *__restrict__ array_parameters,
+                            real_t *__restrict__ parameter_array,
                             const int n_macroparticles,
                             const real_t alpha,
                             const real_t omega_bar,
@@ -67,7 +67,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
         Initial energies [V]
     induced_voltage : float array
         array used to store the output of the computation
-    array_parameters : float array
+    parameter_array : float array
         See documentation in music.py
     n_macroparticles : int
         number of macro-particles
@@ -123,9 +123,9 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
         input_second_component = product_second_component;
     }
 
-    array_parameters[0] = input_first_component;
-    array_parameters[1] = input_second_component;
-    array_parameters[3] = beam_dt[n_macroparticles - 1];
+    parameter_array[0] = input_first_component;
+    parameter_array[1] = input_second_component;
+    parameter_array[3] = beam_dt[n_macroparticles - 1];
 
 }
 
@@ -133,7 +133,7 @@ extern "C" void music_track(real_t *__restrict__ beam_dt,
 extern "C" void music_track_multiturn(real_t *__restrict__ beam_dt,
                                       real_t *__restrict__ beam_dE,
                                       real_t *__restrict__ induced_voltage,
-                                      real_t *__restrict__ array_parameters,
+                                      real_t *__restrict__ parameter_array,
                                       const int n_macroparticles,
                                       const real_t alpha,
                                       const real_t omega_bar,
@@ -165,20 +165,20 @@ extern "C" void music_track_multiturn(real_t *__restrict__ beam_dt,
 
     // First computation of MuSiC relative to the voltage coming from the
     // previous turn
-    const real_t time_difference_0 = beam_dt[0] + array_parameters[2] - array_parameters[3];
+    const real_t time_difference_0 = beam_dt[0] + parameter_array[2] - parameter_array[3];
     const real_t exp_term = FAST_EXP(-alpha * time_difference_0);
     const real_t cos_term = FAST_COS(omega_bar * time_difference_0);
     const real_t sin_term = FAST_SIN(omega_bar * time_difference_0);
 
     const real_t product_first_component =
         exp_term * ((cos_term + coeff1 * sin_term)
-                    * array_parameters[0] + coeff2 * sin_term
-                    * array_parameters[1]);
+                    * parameter_array[0] + coeff2 * sin_term
+                    * parameter_array[1]);
 
     const real_t product_second_component =
-        exp_term * (coeff3 * sin_term * array_parameters[0]
+        exp_term * (coeff3 * sin_term * parameter_array[0]
                     + (cos_term + coeff4 * sin_term)
-                    * array_parameters[1]);
+                    * parameter_array[1]);
 
     induced_voltage[0] = cnst * (0.5 + product_first_component);
     beam_dE[0] += induced_voltage[0];
@@ -208,7 +208,7 @@ extern "C" void music_track_multiturn(real_t *__restrict__ beam_dt,
         input_second_component = product_second_component;
     }
 
-    array_parameters[0] = input_first_component;
-    array_parameters[1] = input_second_component;
-    array_parameters[3] = beam_dt[n_macroparticles - 1];
+    parameter_array[0] = input_first_component;
+    parameter_array[1] = input_second_component;
+    parameter_array[3] = beam_dt[n_macroparticles - 1];
 }

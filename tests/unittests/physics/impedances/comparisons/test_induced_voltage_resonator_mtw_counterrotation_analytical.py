@@ -25,7 +25,9 @@ from blond import (
     mu_minus,
     mu_plus,
 )
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.handle_results.observables_as_elements import (
     InducedVoltageObservationCR,
 )
@@ -34,6 +36,7 @@ from blond.physics.impedances.solvers import (
     MultiPoleSparseSolve,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 
 
 def gauss(x, width, center):
@@ -66,7 +69,7 @@ def nonperiodic_wake(time_array, f0, R, Q):
 DEBUG_PLOTTING = False
 
 
-class TestInducedVoltageResonatorPhysics(unittest.TestCase):
+class TestInducedVoltageResonatorPhysics(BLonDTestCase):
     def setUp(self):
         self.n_slices = 2**12
         self.cut_left = 0
@@ -141,7 +144,9 @@ class TestInducedVoltageResonatorPhysics(unittest.TestCase):
         shc_list = []
         cav_obs_list = []
         profile_list = []
-        prof._hist_y = gauss(prof.hist_x, self.sigma_bunch, self.bunch_offset)
+        prof.hist_y[:] = gauss(
+            prof.hist_x, self.sigma_bunch, self.bunch_offset
+        )
 
         mocked_profile = Mock(spec=StaticProfile)
         mocked_profile.cut_left = prof.cut_left

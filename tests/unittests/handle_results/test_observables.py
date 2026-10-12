@@ -20,10 +20,15 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.flags import BeamFlags
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.distributed.distributed_array import DistributedArray
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -32,6 +37,7 @@ from blond.handle_results.observables import (
     BeamStatisticsOncePerTurn,
     DriftObservation,
     DynamicProfileConstNBinsObservation,
+    ObservablesBaseClass,
     ObservablesOncePerTurnBase,
     RFStationPhaseObservation,
     SimulationObservation,
@@ -39,11 +45,13 @@ from blond.handle_results.observables import (
     StaticProfileObservation,
     WakeFieldObservation,
 )
+from blond.physics.drifts import DriftExact
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
+from blond.testing.backend_testing import BLonDTestCase
 from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )
@@ -91,7 +99,19 @@ class ObservablesHelper(ObservablesOncePerTurnBase):
         pass
 
 
-class TestDenseArrayRecorder(unittest.TestCase):
+class ObservablesBaseHelper(ObservablesBaseClass):
+    def update(self) -> None:
+        pass
+
+
+class TestObservablesBaseClass(BLonDTestCase):
+    def test___init___default_folder(self) -> None:
+        """The default ``folder=""`` must not crash the constructor."""
+        observables = ObservablesBaseHelper()
+        self.assertTrue(observables.common_filepath.endswith("last"))
+
+
+class TestDenseArrayRecorder(BLonDTestCase):
     def test___init__(self):
         DenseArrayRecorder(
             filepath=callers_relative_path("not_exists.txt", stacklevel=1),
@@ -118,7 +138,7 @@ class TestDenseArrayRecorder(unittest.TestCase):
             )
 
 
-class TestObservables(unittest.TestCase):
+class TestObservables(BLonDTestCase):
     def setUp(self) -> None:
         self.observables = ObservablesHelper(
             each_turn_i=1,
@@ -215,7 +235,7 @@ class TestObservables(unittest.TestCase):
             obs_helper.assert_lateinit()
 
 
-class TestBeamObservation(unittest.TestCase):
+class TestBeamObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
@@ -312,6 +332,7 @@ class TestBeamObservation(unittest.TestCase):
         )
 
     def test_lossy_simulation(self):
+        DEV_DRAW = False
         for intensity in (0, 1e9):
             ring = Ring(26658.883)
 
@@ -394,7 +415,7 @@ class TestBeamObservation(unittest.TestCase):
                 ),
             )
             plt.plot(phase_observation.phases)
-            plt.figure()
+            fig = plt.figure()
             for i in range(bunch_observation.dts.shape[0]):
                 plt.clf()
                 sel = ~np.isnan(bunch_observation.dts[i, :])
@@ -404,11 +425,67 @@ class TestBeamObservation(unittest.TestCase):
                     bins=256,
                     # range=[[0, 2.5e-9], [-4e8, 4e8]],
                 )
-            obs_beam_hist2d.plot(result_idx=-1)
-            obs_beam_hist2d.plot_fancy(result_idx=-1)
+            obs_beam_hist2d.plot(
+                result_idx=-1
+            )  # tests that the plots are functional
+            obs_beam_hist2d.plot_fancy(
+                result_idx=-1
+            )  # tests that the plot are functional
+            plt.close("all")
+        plt.show()
 
 
-class TestBunchStatistics(unittest.TestCase):
+class TestBeamHist2dOncePerTurn(BLonDTestCase):
+    def setUp(self) -> None:
+        rng = np.random.default_rng(seed=1)
+        self.dt = rng.normal(loc=1e-9, scale=1e-10, size=1000)
+        self.dE = rng.normal(loc=0.0, scale=1e8, size=1000)
+        self.beam = Beam(intensity=1e10, particle_type=proton)
+        self.beam.setup_beam(
+            dt=self.dt.copy(),
+            dE=self.dE.copy(),
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+        self.obs = BeamHist2dOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            bins=(16, 8),
+        )
+        self.obs.on_init_simulation(simulation=simulation)
+        self.obs.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        self.obs.update()
+
+    def test_getters_match_numpy_histogram2d(self) -> None:
+        hist2d, xedges, yedges = np.histogram2d(
+            self.dt, self.dE, bins=(16, 8), density=True
+        )
+        self.assertEqual(self.obs.hist2d.shape, (1, 16, 8))
+        self.assertEqual(self.obs.xedges.shape, (1, 17))
+        self.assertEqual(self.obs.yedges.shape, (1, 9))
+        np.testing.assert_allclose(self.obs.hist2d[0], hist2d)
+        np.testing.assert_allclose(self.obs.xedges[0], xedges)
+        np.testing.assert_allclose(self.obs.yedges[0], yedges)
+
+    def test_getters_of_scalars(self) -> None:
+        np.testing.assert_allclose(self.obs.intensity, [1e10])
+        np.testing.assert_allclose(self.obs.reference_time, [0.8])
+        np.testing.assert_allclose(self.obs.reference_total_energy, [11])
+
+    def test_plot_uses_default_cmap(self) -> None:
+        image = self.obs.plot(result_idx=-1)
+        self.assertEqual(image.get_cmap().name, DEFAULT_CMAP)
+        plt.close(image.axes.figure)
+
+    def test_plot_fancy_uses_default_cmap(self) -> None:
+        ax_main, _, _ = self.obs.plot_fancy(result_idx=-1)
+        self.assertEqual(ax_main.images[0].get_cmap().name, DEFAULT_CMAP)
+        plt.close(ax_main.figure)
+
+
+class TestBunchStatistics(BLonDTestCase):
     def setUp(self) -> None:
         self.beam = Beam(
             intensity=100,
@@ -509,8 +586,45 @@ class TestBunchStatistics(unittest.TestCase):
             self.bunch_statistics.reference_total_energy,
         )
 
+    def test_mean_dE(self) -> None:
+        dE = np.linspace(-1e6, 3e6, 128)
+        self.beam.setup_beam(
+            dt=np.ones(128, dtype=float),
+            dE=dE,
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+        self.bunch_statistics.on_init_simulation(simulation=simulation)
+        self.bunch_statistics.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        self.bunch_statistics.update()
+        np.testing.assert_allclose(self.bunch_statistics.mean_dE, [1e6])
 
-class TestRFStationPhaseObservation(unittest.TestCase):
+    def test_macroparticle_counts(self) -> None:
+        flags = np.full(128, BeamFlags.ACTIVE.value, dtype=np.int32)
+        flags[:10] = BeamFlags.LOST.value
+        self.beam.setup_beam(
+            dt=np.ones(128, dtype=float),
+            dE=np.ones(128, dtype=float),
+            flags=flags,
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+        self.bunch_statistics.on_init_simulation(simulation=simulation)
+        self.bunch_statistics.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        self.bunch_statistics.update()
+        np.testing.assert_array_equal(
+            self.bunch_statistics.n_macroparticles, [128]
+        )
+        np.testing.assert_array_equal(
+            self.bunch_statistics.n_active_macroparticles, [118]
+        )
+
+
+class TestRFStationPhaseObservation(BLonDTestCase):
     def setUp(self) -> None:
         rf_station = Mock(
             SingleHarmonicRFStation,
@@ -587,12 +701,15 @@ class TestRFStationPhaseObservation(unittest.TestCase):
         )
 
 
-class TestStaticProfileObservation(unittest.TestCase):
+class TestStaticProfileObservation(BLonDTestCase):
     def setUp(self) -> None:
         profile = Mock(StaticProfile)
         profile.n_bins = 12
         type(profile).hist_y = PropertyMock(
             return_value=np.ones(profile.n_bins, dtype=float)
+        )
+        type(profile).hist_x = PropertyMock(
+            return_value=np.arange(profile.n_bins, dtype=float)
         )
         # no changeback required, as this is changed on mocked object
         self.static_profile_observation = StaticProfileObservation(
@@ -644,8 +761,30 @@ class TestStaticProfileObservation(unittest.TestCase):
 
         assert len(self.static_profile_observation.hist_y) == 1
 
+    def test_plot_waterfall(self) -> None:
+        self.static_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.static_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        self.static_profile_observation.update()
 
-class TestWakeFieldObservation(unittest.TestCase):
+        from matplotlib.collections import QuadMesh
+
+        mesh = self.static_profile_observation.plot_waterfall()
+        assert isinstance(mesh, QuadMesh)
+        np.testing.assert_allclose(
+            mesh.get_array().data.ravel(),
+            self.static_profile_observation.hist_y.ravel(),
+        )
+        self.assertEqual(mesh.get_cmap().name, DEFAULT_CMAP)
+        plt.close(mesh.axes.figure)
+
+
+class TestWakeFieldObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.wakefield = Mock(WakeField)
         self.wakefield._profile = Mock(StaticProfile)
@@ -720,7 +859,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
 
 
-class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
+class TestDynamicProfileConstNBinsObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.profile = Mock(DynamicProfileConstNBins)
         self.profile.n_bins = 12
@@ -776,8 +915,30 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
             self.profile.hist_x, self.dynamic_profile_observation.hist_x[0]
         )
 
+    def test_plot_waterfall(self) -> None:
+        self.dynamic_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.dynamic_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        self.dynamic_profile_observation.update()
 
-class TestStaticMultiProfileObservation(unittest.TestCase):
+        from matplotlib.collections import QuadMesh
+
+        mesh = self.dynamic_profile_observation.plot_waterfall()
+        assert isinstance(mesh, QuadMesh)
+        np.testing.assert_allclose(
+            mesh.get_array().data.ravel(),
+            self.dynamic_profile_observation.hist_y.ravel(),
+        )
+        self.assertEqual(mesh.get_cmap().name, DEFAULT_CMAP)
+        plt.close(mesh.axes.figure)
+
+
+class TestStaticMultiProfileObservation(BLonDTestCase):
     def setUp(self) -> None:
         self.profile = Mock(StaticProfile)
         self.profile.n_bins = 12
@@ -830,6 +991,23 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
                 )
             )
 
+    def test_on_run_simulation_each_turn_i_2(self) -> None:
+        """With ``each_turn_i=2`` every one of the ``n_turns / 2``
+        observations must fit into the recorder."""
+        obs = StaticMultiProfileObservation(
+            each_turn_i=2,
+            profiles=[self.profile, self.profile_2],
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+        obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=100,
+        )
+        for _ in range(50):
+            obs._update()
+        self.assertEqual(len(obs.hist_y), 50)
+
     def test_from_disk(self) -> None:
         self.static_multi_profile_observation.on_init_simulation(
             simulation=simulation
@@ -876,7 +1054,7 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         )
 
 
-class TestSimulationObservation(unittest.TestCase):
+class TestSimulationObservation(BLonDTestCase):
     def setUp(self):
         self.obs = SimulationObservation(each_turn_i=2)
 
@@ -901,8 +1079,32 @@ class TestSimulationObservation(unittest.TestCase):
         self.assertEqual(self.obs.t_revs[0], 123)
         self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
 
+    def test_separatrices(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=10,
+        )
+        self.obs._update()
+        self.assertEqual(self.obs.separatrices.shape, (1, 2, 256))
+        np.testing.assert_allclose(self.obs.separatrices[0, 0], dE_sep)
+        np.testing.assert_allclose(self.obs.separatrices[0, 1], -dE_sep)
 
-class TestDriftObservation(unittest.TestCase):
+    def test_separatrix_dts(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=10,
+        )
+        self.obs._update()
+        self.assertEqual(self.obs.separatrix_dts.shape, (1, 256))
+        np.testing.assert_allclose(
+            self.obs.separatrix_dts[0],
+            np.linspace(beam.dt_min, beam.dt_max, 256),
+        )
+
+
+class TestDriftObservation(BLonDTestCase):
     def setUp(self):
         drift = Mock(DriftSimple)
         drift._last_eta_0 = 222
@@ -928,6 +1130,33 @@ class TestDriftObservation(unittest.TestCase):
         self.obs._update()
         self.assertEqual(self.obs.eta_0s[0], 222)
         self.assertEqual(len(self.obs.eta_0s), 2)  # two updates before
+
+    def test_update_drift_exact(self):
+        """``DriftExact`` is a ``DriftSimple``; observing it after a track
+        must record its ``eta_0``."""
+        drift = DriftExact.headless(
+            orbit_length=100,
+            section_index=0,
+            momentum_compaction_factor=1e-3,
+            higher_order_alpha=None,
+            turn_counter=DynamicParameter(0),
+        )
+        probe_beam = ProbeBeam(
+            dE=np.array([1e6, -1e6]),
+            dt=np.array([1e-9, -1e-9]),
+            reference_total_energy=1e10,
+            reference_time=0,
+            particle_type=proton,
+        )
+        drift.track(probe_beam)
+        obs = DriftObservation(each_turn_i=1, drift=drift)
+        obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=1,
+        )
+        obs._update()
+        self.assertEqual(obs.eta_0s[0], drift._last_eta_0)
 
 
 if __name__ == "__main__":

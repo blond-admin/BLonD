@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 import time
 from typing import TYPE_CHECKING
@@ -17,11 +18,14 @@ from typing import TYPE_CHECKING
 import cupy as cp  # type: ignore
 import numpy as np
 
-from blond.core.backends.backend import Specials
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.backend import INDEX_DTYPE, Specials
+from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
+from blond.core.beam.flags import BeamFlags
+from blond.generals.compiled_cache import mark_used
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability
@@ -30,12 +34,8 @@ FLOAT = np.float64
 
 folder = os.path.dirname(os.path.abspath(__file__))
 
-hash_ = hash_in_folder(
-    folder=folder,
-    extensions=(".py", ".cu"),
-    recursive=False,
-)
-_basepath = str(os.path.join(folder, "compiled", hash_))
+# Same toolchain-aware directory the compiler writes to.
+_basepath = str(cuda_compiled_dir(folder))
 
 
 path = os.path.join(
@@ -58,8 +58,11 @@ if not os.path.isfile(path):
 gpu_module = cp.RawModule(
     path=path,
 )
+# Refresh the LRU stamp on the cache dir we loaded from.
+mark_used(_basepath)
 
 _drift_simple = gpu_module.get_function("drift_simple")
+_drift_like_line_segment = gpu_module.get_function("drift_like_line_segment")
 _drift_exact = gpu_module.get_function("drift_exact")
 _beam_phase = gpu_module.get_function("beam_phase")
 _kick_multi_harmonic = gpu_module.get_function("kick_multi_harmonic")
@@ -68,6 +71,12 @@ _sm_histogram = gpu_module.get_function("sm_histogram")
 _hybrid_histogram = gpu_module.get_function("hybrid_histogram")
 _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
 _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
+_gm_linear_interp_kick_sparse_help = gpu_module.get_function(
+    "lik_sparse_gm_copy"
+)
+_gm_linear_interp_kick_sparse_comp = gpu_module.get_function(
+    "lik_sparse_gm_comp"
+)
 _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
@@ -87,6 +96,29 @@ blocks = int(os.environ.get("GPU_BLOCKS", default_blocks))
 threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
 block_size = (threads, 1, 1)
+# Bytes per bin of the shared-memory histogram counters (`block_hist` in
+# kernels.cu), which are `int` wide -- deliberately *not* `index_t`: a
+# 64-bit counter would halve the number of bins that fit in shared memory
+# for no benefit, since CUDA has no signed 64-bit `atomicAdd` anyway.
+_HIST_COUNT_ITEMSIZE = np.dtype(np.int32).itemsize
+# Per-harmonic RF parameters are passed to `kick_multi_harmonic` by value,
+# as a struct in the kernel's parameter space (`RFParamsBatch` in
+# kernels.cu): no host-to-device copy per turn. Both must match their
+# counterparts in kernels.cu.
+# The 32 is unrelated to the warp size: every thread loops over all
+# harmonics of the batch. It is bounded by the kernel parameter limit
+# (4 KiB before CUDA 12.1 / Volta), which would fit ~160 harmonics at
+# 64 bit; 32 keeps the struct small (768 B) while still covering any
+# realistic RF system in a single launch.
+MAX_RF_HARMONICS_PER_LAUNCH = 32
+_RF_PARAMS_BATCH_DTYPE = np.dtype(
+    [
+        ("voltage", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+        ("omega_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+        ("phi_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
+    ]
+)
+_quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -122,21 +154,17 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert dE.dtype == FLOAT
         assert flags.dtype == np.int32
 
-        assert isinstance(e_max, FLOAT)
-        assert isinstance(e_min, FLOAT)
-        assert isinstance(t_min, FLOAT)
-        assert isinstance(t_max, FLOAT)
-
         _loss_box(
             args=(
-                e_max,
-                e_min,
-                t_min,
-                t_max,
+                FLOAT(e_max),
+                FLOAT(e_min),
+                FLOAT(t_min),
+                FLOAT(t_max),
                 dt,
                 dE,
                 flags,
-                np.int32(len(dE)),  # n_macroparticles
+                np.int32(BeamFlags.LOST.value),  # flag_lost
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -169,7 +197,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 FLOAT(voltage),  # voltage
                 FLOAT(omega_rf),  # omega_RF
                 FLOAT(phi_rf),  # phi_RF
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
                 FLOAT(acceleration_kick),  # acc_kick
             ),
             block=block_size,
@@ -180,52 +208,53 @@ class CudaSpecials(Specials):  # NOQA: D101
     def kick_multi_harmonic(  # NOQA: D102
         dt: CupyArray,
         dE: CupyArray,
-        voltage: CupyArray,
-        omega_rf: CupyArray,
-        phi_rf: CupyArray,
+        voltage: NumpyArray,
+        omega_rf: NumpyArray,
+        phi_rf: NumpyArray,
         charge: float,
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
-        assert phi_rf.device != "cpu", (
-            f"Requires Cupy array, but got {type(phi_rf)}."
-        )
-        assert voltage.device != "cpu", (
-            f"Requires Cupy array, but got {type(voltage)}."
-        )
-        assert omega_rf.device != "cpu", (
-            f"Requires Cupy array, but got {type(omega_rf)}."
-        )
+        # The per-harmonic parameters stay on the host: they are passed to
+        # the kernel by value, see `_RF_PARAMS_BATCH_DTYPE`.
+        assert isinstance(voltage, np.ndarray), type(voltage)
+        assert isinstance(omega_rf, np.ndarray), type(omega_rf)
+        assert isinstance(phi_rf, np.ndarray), type(phi_rf)
 
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
-        assert phi_rf.dtype == FLOAT
-        assert voltage.dtype == FLOAT
-        assert omega_rf.dtype == FLOAT
 
         assert dt.flags.c_contiguous
         assert dE.flags.c_contiguous
-        assert voltage.flags.c_contiguous
-        assert omega_rf.flags.c_contiguous
-        assert phi_rf.flags.c_contiguous
 
-        _kick_multi_harmonic(
-            args=(
-                dt,  # beam_dt
-                dE,  # beam_dE
-                np.int32(len(voltage)),  # n_rf
-                FLOAT(charge),  # charge
-                voltage,  # voltage
-                omega_rf,  # omega_RF
-                phi_rf,  # phi_RF
-                np.int32(len(dE)),  # n_macroparticles
-                FLOAT(acceleration_kick),  # acc_kick
-            ),
-            block=block_size,
-            grid=grid_size,
-        )
+        assert len(voltage) == len(omega_rf) == len(phi_rf) == n_rf
+
+        # One launch per `MAX_RF_HARMONICS_PER_LAUNCH` harmonics, and at
+        # least one so that `acceleration_kick` is applied for n_rf == 0.
+        # Each launch adds its harmonics to `dE`; only the last one adds
+        # `acceleration_kick`.
+        for first in range(0, max(n_rf, 1), MAX_RF_HARMONICS_PER_LAUNCH):
+            last = min(first + MAX_RF_HARMONICS_PER_LAUNCH, n_rf)
+            rf_params_batch = np.zeros((), dtype=_RF_PARAMS_BATCH_DTYPE)
+            rf_params_batch["voltage"][: last - first] = voltage[first:last]
+            rf_params_batch["omega_rf"][: last - first] = omega_rf[first:last]
+            rf_params_batch["phi_rf"][: last - first] = phi_rf[first:last]
+            is_last_launch = last == n_rf
+            _kick_multi_harmonic(
+                args=(
+                    dt,  # beam_dt
+                    dE,  # beam_dE
+                    rf_params_batch,  # rf_params_batch
+                    np.int32(last - first),  # n_rf_in_batch
+                    FLOAT(charge),  # charge
+                    INDEX_DTYPE(len(dE)),  # n_macroparticles
+                    FLOAT(acceleration_kick if is_last_launch else 0.0),
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
     @staticmethod
     def sum_1d_array(array: CupyArray) -> float:
@@ -279,7 +308,45 @@ class CudaSpecials(Specials):  # NOQA: D101
                 eta_0,  # eta_zero
                 beta,  # beta
                 energy,  # energy
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
+            ),
+            block=block_size,
+            grid=grid_size,
+        )
+
+    @staticmethod
+    def drift_like_line_segment(  # NOQA: D102
+        dt: CupyArray,
+        dE: CupyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
+        assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
+
+        assert dt.dtype == FLOAT
+        assert dE.dtype == FLOAT
+
+        assert dt.flags.c_contiguous
+        assert dE.flags.c_contiguous
+
+        # Cast Python floats to backend floattype
+        T = FLOAT(T)
+        eta_0 = FLOAT(eta_0)
+        beta = FLOAT(beta)
+        energy = FLOAT(energy)
+
+        _drift_like_line_segment(
+            args=(
+                dt,  # beam_dt
+                dE,  # beam_dE
+                T,  # T
+                eta_0,  # eta_zero
+                beta,  # beta
+                energy,  # energy
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -322,7 +389,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(higher_alpha)),  # n_alpha
                 beta,  # beta
                 energy,  # energy
-                np.int32(len(dE)),  # n_macroparticles
+                INDEX_DTYPE(len(dE)),  # n_macroparticles
             ),
             block=block_size,
             grid=grid_size,
@@ -338,6 +405,12 @@ class CudaSpecials(Specials):  # NOQA: D101
         bin_centers: CupyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: CupyArray | None = None,
+        bucket_index_to_memory_index: CupyArray | None = None,
     ) -> None:
         assert dt.device != "cpu", f"Requires Cupy array, but got {type(dt)}."
         assert dE.device != "cpu", f"Requires Cupy array, but got {type(dE)}."
@@ -361,32 +434,87 @@ class CudaSpecials(Specials):  # NOQA: D101
         charge = FLOAT(charge)
         acceleration_kick = FLOAT(acceleration_kick)
 
+        if first_left_cut is None:
+            n_slices = bin_centers.size
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
+
+            glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
+            _gm_linear_interp_kick_help(
+                args=(
+                    dt,
+                    dE,
+                    voltage,
+                    bin_centers,
+                    charge,
+                    np.int32(bin_centers.size),
+                    INDEX_DTYPE(dt.size),
+                    acceleration_kick,
+                    glob_vkick_factor,
+                ),
+                grid=grid_size,
+                block=block_size,
+            )
+
+            _gm_linear_interp_kick_comp(
+                args=(
+                    dt,
+                    dE,
+                    voltage,
+                    bin_centers,
+                    FLOAT(charge),
+                    np.int32(bin_centers.size),
+                    INDEX_DTYPE(dt.size),
+                    acceleration_kick,
+                    glob_vkick_factor,
+                ),
+                grid=grid_size,
+                block=block_size,
+            )
+            return
+
+        assert filling_pattern.device != "cpu", (
+            f"Requires Cupy array, but got {type(filling_pattern)}."
+        )
+        assert bucket_index_to_memory_index.device != "cpu", (
+            f"Requires Cupy array, but got "
+            f"{type(bucket_index_to_memory_index)}."
+        )
+        assert filling_pattern.dtype == np.bool_
+        assert bucket_index_to_memory_index.dtype == np.int32
+        assert filling_pattern.flags.c_contiguous
+        assert bucket_index_to_memory_index.flags.c_contiguous
+
         glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), FLOAT)
-        _gm_linear_interp_kick_help(
+        _gm_linear_interp_kick_sparse_help(
             args=(
-                dt,
-                dE,
                 voltage,
                 bin_centers,
                 charge,
                 np.int32(bin_centers.size),
-                np.int32(dt.size),
                 acceleration_kick,
+                FLOAT(cut_width),
+                np.int32(bins_per_profile),
                 glob_vkick_factor,
             ),
             grid=grid_size,
             block=block_size,
         )
 
-        _gm_linear_interp_kick_comp(
+        _gm_linear_interp_kick_sparse_comp(
             args=(
                 dt,
                 dE,
-                voltage,
-                bin_centers,
-                FLOAT(charge),
-                np.int32(bin_centers.size),
-                np.int32(dt.size),
+                INDEX_DTYPE(dt.size),
+                FLOAT(first_left_cut),
+                FLOAT(left_cut_distance),
+                FLOAT(cut_width),
+                np.int32(bins_per_profile),
+                np.int32(len(filling_pattern)),
+                filling_pattern,
+                bucket_index_to_memory_index,
                 acceleration_kick,
                 glob_vkick_factor,
             ),
@@ -420,7 +548,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         n_slices = array_write.size
         array_write.fill(0)
 
-        if 4 * n_slices < max_shared_memory_per_block:
+        if _HIST_COUNT_ITEMSIZE * n_slices < max_shared_memory_per_block:
             _sm_histogram(
                 args=(
                     array_read,
@@ -428,11 +556,11 @@ class CudaSpecials(Specials):  # NOQA: D101
                     start,
                     stop,
                     np.uint32(n_slices),
-                    np.uint32(len(array_read)),
+                    INDEX_DTYPE(len(array_read)),
                 ),
                 grid=grid_size,
                 block=block_size,
-                shared_mem=4 * n_slices,
+                shared_mem=_HIST_COUNT_ITEMSIZE * n_slices,
             )
         else:
             _hybrid_histogram(
@@ -442,8 +570,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                     start,
                     stop,
                     np.uint32(n_slices),
-                    np.uint32(len(array_read)),
-                    np.int32(max_shared_memory_per_block / 4),
+                    INDEX_DTYPE(len(array_read)),
+                    np.int32(
+                        max_shared_memory_per_block // _HIST_COUNT_ITEMSIZE
+                    ),
                 ),
                 grid=grid_size,
                 block=block_size,
@@ -470,6 +600,10 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert hist_y.dtype == FLOAT
         assert hist_x.flags.c_contiguous
         assert hist_y.flags.c_contiguous
+        assert len(hist_x) >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule, "
+            f"got {len(hist_x)}"
+        )
 
         # Cast Python floats to backend floattype
         alpha = FLOAT(alpha)
@@ -478,6 +612,11 @@ class CudaSpecials(Specials):  # NOQA: D101
         bin_size = FLOAT(bin_size)
 
         result = cp.zeros(2, dtype=FLOAT)
+        # The kernel reduces each block in shared memory instead of
+        # striding over the array like the other kernels, so it needs one
+        # block per `threads` bins: the fixed `grid_size` would silently
+        # drop every bin beyond `blocks * threads`.
+        n_blocks = (len(hist_x) + threads - 1) // threads
         _beam_phase(
             args=(
                 hist_x,  # hist_x
@@ -490,10 +629,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                 np.int32(len(hist_x)),  # n_bins
             ),
             block=block_size,
-            grid=grid_size,
+            grid=(n_blocks, 1, 1),
             shared_mem=2 * block_size[0] * np.dtype(FLOAT).itemsize,
         )
-        return FLOAT(result[0].get() / result[1].get())
+        return FLOAT((result[0] / result[1]).get())
 
     @staticmethod
     def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
@@ -537,7 +676,7 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         damping_factor = FLOAT(1.0 - 2.0 / longitudinal_damping_time)
         energy_lost_typed = FLOAT(energy_lost)
-        n_macroparticles = np.int32(len(beam_dE))
+        n_macroparticles = INDEX_DTYPE(len(beam_dE))
         if disable_quantum_excitation:
             _apply_sr_without_quantum_excitation(
                 args=(
@@ -556,11 +695,10 @@ class CudaSpecials(Specials):  # NOQA: D101
                 / float(np.sqrt(longitudinal_damping_time))
                 * total_energy
             )
-            # Per-call seed: monotonic-clock nanoseconds give a fresh
-            # uncorrelated stream every invocation without keeping any
-            # global state. Each thread uses its tid as the cuRAND
-            # subsequence to stay decorrelated from the others.
-            base_seed = np.uint64(time.monotonic_ns())
+            # The counter guarantees a distinct seed per launch even on
+            # platforms where consecutive clock reads return the same value.
+            # Each thread uses its tid as the cuRAND subsequence.
+            base_seed = np.uint64(next(_quantum_excitation_seed_counter))
             _apply_sr_with_quantum_excitation(
                 args=(
                     beam_dE,
@@ -597,7 +735,7 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert flags.dtype == np.int32
         assert dt.dtype == FLOAT
         assert dE.dtype == FLOAT
-        assert ids.dtype == np.int32
+        assert ids.dtype == INDEX_DTYPE
 
         select = flags == flag
         order = cp.argsort(select)
@@ -607,7 +745,9 @@ class CudaSpecials(Specials):  # NOQA: D101
         dE[:] = dE[order]
         ids[:] = ids[order]
 
-        n_new = len(ids) - cp.sum(select)
+        # Host `int` like the other backends. The device sync is
+        # unavoidable: the caller slices the arrays with `n_new`.
+        n_new = len(ids) - int(cp.sum(select))
         return n_new
 
     @staticmethod
@@ -653,7 +793,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 FLOAT(cut_width),  # cut_width
                 np.int32(bins_per_profile),  # bins_per_profile
                 np.int32(len(filling_pattern)),  # n_buckets
-                np.int32(len(x)),  # n_macroparticles
+                INDEX_DTYPE(len(x)),  # n_macroparticles
                 filling_pattern,  # input
                 bucket_index_to_memory_index,  # input
             ),
@@ -790,7 +930,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 profile_dts,
                 poles_r,
                 residues_r,
-                np.int32(1 if is_counterrotating_beam else 0),
+                np.bool_(is_counterrotating_beam),
                 counterrotating_pole_signs,
                 update_on_bin,
                 FLOAT(factor),
@@ -804,3 +944,25 @@ class CudaSpecials(Specials):  # NOQA: D101
             block=(threads_per_block, 1, 1),
             grid=(blocks_poles, 1, 1),
         )
+        # `t_start` of the next call, set only after every pole thread has
+        # read the current one. Queued on the device, no host sync.
+        states[-1] = profile_dts[-1]
+
+        @staticmethod
+        def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+            beam_dt: CupyArray,
+            beam_dE: CupyArray,
+            induced_voltage: CupyArray,
+            parameter_array: CupyArray,
+            alpha: float,
+            omega_bar: float,
+            const: float,
+            coeff1: float,
+            coeff2: float,
+            coeff3: float,
+            coeff4: float,
+            time_since_last_track: float,
+            multiturn: bool,
+        ) -> None:
+            # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+            raise NotImplementedError

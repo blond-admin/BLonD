@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
@@ -23,6 +24,7 @@ from blond import (
     mu_plus,
     proton,
 )
+from blond.acc_math.analytic.conversions import momentum_to_total_energy
 from blond.core.backends.backend import Numpy64Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
@@ -32,7 +34,7 @@ from blond.core.simulation.execution_models.conterrotating_beams import (
     MainloopCounterRotatingBeams,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -42,13 +44,14 @@ from blond.handle_results.observables import (
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import beam_mock
 
 if TYPE_CHECKING:  # pragma: no cover
     pass  # type: ignore
 
 
-class TestSimulation(unittest.TestCase):
+class TestSimulation(BLonDTestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
@@ -77,7 +80,9 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=450e9,
+            reference_total_energy=momentum_to_total_energy(
+                450e9, proton.mass
+            ),
         )
         self.simulation = Simulation.from_locals(locals())
         self.simulation._beams = (beam1,)
@@ -128,7 +133,8 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
-            reference_total_energy=63e9,
+            # The cycle below is given as kinetic energy.
+            reference_total_energy=63e9 + mu_plus.mass,
         )
         beam_CR = Beam(
             intensity=1e9, particle_type=mu_minus, is_counter_rotating=True
@@ -137,7 +143,8 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
-            reference_total_energy=63e9,
+            # The cycle below is given as kinetic energy.
+            reference_total_energy=63e9 + mu_minus.mass,
         )
         n_cavities = 2
 
@@ -376,10 +383,15 @@ class TestSimulation(unittest.TestCase):
             observe=(observation,),
             common_name="newname",
         )
-        self.simulation.load_results(
-            **kwargs,
-            common_name="newname",
-        )
+        # FIXME: load_results() calls finalize(), which resets the
+        # caller's ramped beam to the initial cycle energy just to load
+        # files. Like the profiling() side effect fixed upstream, this
+        # warning should go away once that is fixed.
+        with self.assertWarns(UserWarning):
+            self.simulation.load_results(
+                **kwargs,
+                common_name="newname",
+            )
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
@@ -430,6 +442,51 @@ class TestSimulation(unittest.TestCase):
             stats_lines=None,
         )
 
+    def test_profiling_leaves_beam_untouched(self):
+        dt_before = copy_to_cpu(self.beam.read_partial_dt()).copy()
+        dE_before = copy_to_cpu(self.beam.read_partial_dE()).copy()
+        reference_time_before = self.beam.reference.time
+        total_energy_before = self.beam.reference.total_energy
+
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=1,
+        )
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam.read_partial_dt()), dt_before
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(self.beam.read_partial_dE()), dE_before
+        )
+        self.assertEqual(self.beam.reference.time, reference_time_before)
+        self.assertEqual(self.beam.reference.total_energy, total_energy_before)
+
+    def _user_warnings_of_profiling(self) -> list[str]:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.simulation.profiling(
+                start_turn_i=10,
+                n_turns=20,
+                beams=(self.beam,),
+                stats_lines=1,
+            )
+        return [
+            str(warning.message)
+            for warning in caught
+            if issubclass(warning.category, UserWarning)
+        ]
+
+    def test_profiling_twice_warns_identically(self):
+        """A second ``profiling`` call must see the beam as the first did,
+        so it must not warn about a total energy left over from the
+        first call."""
+        warnings_first_call = self._user_warnings_of_profiling()
+        warnings_second_call = self._user_warnings_of_profiling()
+        self.assertEqual(warnings_second_call, warnings_first_call)
+
     def test_ring(self):
         self.assertIsInstance(self.simulation.ring, Ring)
 
@@ -449,6 +506,20 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
         )
         mock_func.assert_called()
+
+    def test_run_simulation_twice_raises(self):
+        """Resuming is not implemented, so a second ``run_simulation`` must
+        fail loudly instead of silently re-initialising observables."""
+        self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+        with self.assertRaisesRegex(NotImplementedError, "mainloop"):
+            self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+
+    def test_run_simulation_after_finalize(self):
+        """``load_results`` finalizes before falling back to
+        ``run_simulation``; no turn was tracked yet, so this must work."""
+        self.simulation.finalize(beams=(self.beam,), n_turns=2)
+        self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
+        self.assertEqual(self.simulation.turn_counter.value, 2)
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
@@ -740,8 +811,8 @@ class TestSimulation(unittest.TestCase):
                 callers_relative_path("hist_y_override.txt", stacklevel=1),
             )
             wakefield = sim.simulation.ring.elements.get_element(WakeField)
-            wakefield.profile._hist_y = backend.array(
-                hist_y_override, dtype=wakefield.profile._hist_y.dtype
+            wakefield.profile.hist_y[:] = backend.array(
+                hist_y_override, dtype=wakefield.profile.hist_y.dtype
             )
             wakefield.profile.hist_y_to_density_factor = 1e-05
             sim.simulation.intensity_effect_manager.set_profiles(False)

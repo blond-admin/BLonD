@@ -34,7 +34,7 @@ import skrf as rf
 from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
-from blond.core.simulation.simulation import Simulation
+from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
@@ -45,10 +45,11 @@ from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
+    from blond.generals.typing_ import AnyArray
 
 
 def fit_poles(
@@ -57,6 +58,7 @@ def fit_poles(
     n_pole: int,
     max_iterations: int | None = None,
     plot_result: bool = False,
+    n_pole_real: int = 0,
 ):
     """
     Use vector fitting to get a `VectorFittedModel`.
@@ -68,11 +70,16 @@ def fit_poles(
     Z
         Impedance array to be fitted, in [Ω].
     n_pole
-        Number of poles to fit.
+        Number of complex-conjugate pole pairs to fit.
     max_iterations
         Maximum number of iterations.
     plot_result
         Whether to plot the result (needs ``plt.show()``).
+    n_pole_real
+        Number of real poles to fit. Unlike a complex pole (which stands
+        in for an implicit, unstored conjugate partner), a real pole has
+        no conjugate and must not be doubled when its wake/impedance is
+        reconstructed.
 
     Returns
     -------
@@ -94,7 +101,7 @@ def fit_poles(
     if max_iterations is not None:
         vf.max_iterations = max_iterations
     vf.vector_fit(
-        n_poles_real=0,
+        n_poles_real=n_pole_real,
         n_poles_cmplx=n_pole,
         fit_constant=True,
         fit_proportional=True,
@@ -108,65 +115,6 @@ def fit_poles(
     rms_error = vf.get_rms_error()
 
     return poles, residues, rms_error, vf.proportional_coeff, vf.constant_coeff
-
-
-def get_hash(array1d: NumpyArray | CupyArray) -> int:
-    """
-    Compute a lightweight, approximate hash value for a 1D NumPy array.
-
-    The function samples a few representative elements of the input array
-    (first, second, middle, and last), along with the array length, and computes
-    a Python built-in hash from this tuple. The result is intended for quick,
-    approximate identification of arrays rather than exact equality or integrity
-    verification.
-
-    Parameters
-    ----------
-    array1d : numpy.ndarray
-        One-dimensional NumPy array of numeric values.
-
-    Returns
-    -------
-    int
-        An integer hash value derived from selected elements of the array.
-
-    Warnings
-    --------
-    - This function is **not collision-resistant**. Different arrays may yield
-      identical hash values, especially if they share similar boundary values or
-      lengths.
-    - Not suitable for **data integrity**, **deduplication**, or **security**
-      purposes. Use `hashlib` (e.g., SHA-256) for robust, deterministic hashing.
-    - Assumes a 1D numeric array; no validation is performed. Multi-dimensional
-      or non-numeric inputs may cause unexpected behavior or errors.
-    - Python’s built-in hash is **not stable across sessions** due to hash
-      randomization (unless `PYTHONHASHSEED` is fixed).
-
-    Notes
-    -----
-    - **Time complexity:** O(1) — the function samples only four elements
-      regardless of array size.
-    - **Memory usage:** O(1) — constant space overhead.
-    - Designed for fast, approximate fingerprinting in performance-sensitive
-      contexts where occasional collisions are acceptable.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    >>> get_hash(arr)
-    2398472938472938  # Example output (varies by session)
-    """
-    len_ = len(array1d)
-    return hash(
-        (
-            float(array1d[0]),
-            float(array1d[1]),
-            float(array1d[int(len_ // 2)]),
-            float(array1d[-1]),
-            len_,
-        )
-    )
 
 
 class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
@@ -195,6 +143,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        hist_step: float | None = None,
     ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
@@ -207,6 +156,12 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
+        hist_step
+            Bin width of the time-domain signal the impedance will be
+            applied to, in [s]. If not given, it is reconstructed from
+            `freq_x` assuming an even signal length (the `irfft`
+            default), which is wrong for odd lengths — pass `hist_step`
+            whenever it is known.
 
         Returns
         -------
@@ -228,11 +183,15 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         """
         T = simulation.ring.circumference / beam.reference.velocity
         z_over_n = self.Z_over_n
-        derivative_kernel = self._get_derivative_impedance(freq_x)
+        derivative_kernel = self._get_derivative_impedance(
+            freq_x, hist_step=hist_step
+        )
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
 
     def _get_derivative_impedance(
-        self, freq_x: NumpyArray | CupyArray
+        self,
+        freq_x: NumpyArray | CupyArray,
+        hist_step: float | None = None,
     ) -> NumpyArray | CupyArray:
         """
         Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x)).
@@ -241,26 +200,37 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         ----------
         freq_x
             Frequency axis.
+        hist_step
+            Bin width of the time-domain signal, in [s]. If not given,
+            it is reconstructed from `freq_x` assuming an even signal
+            length (wrong for odd lengths).
 
         Returns
         -------
         derivative
             Derivative impedance in frequency domain.
         """
-        # Recalculate only if `freq_x` is changed
-        hash_ = get_hash(freq_x)
+        # Recalculate only if `freq_x` or `hist_step` is changed
+        hash_ = hash_linspace(freq_x, salt=hist_step)
         if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
-        df = float(freq_x[1] - freq_x[0])  # frequency spacing
-        n = 2 * (len(freq_x) - 1)  # original signal length (for irfft)
-        dx = 1 / (n * df)
-        h = dx
+        if hist_step is None:
+            # The signal length is ambiguous from the half spectrum
+            # alone; assume the even-length `irfft` default, i.e. that
+            # freq_x[-1] is the Nyquist frequency, so that
+            # hist_step = 1 / (2 * f_nyquist). This only holds for an
+            # `rfftfreq` axis, which starts at zero and increases.
+            assert float(freq_x[0]) == 0.0, (
+                "`freq_x` must be a half spectrum starting at 0 Hz."
+            )
+            assert float(freq_x[-1]) > 0.0, (
+                "`freq_x` must be a half spectrum with a positive Nyquist frequency."
+            )
+            hist_step = 0.5 / float(freq_x[-1])
+        h = hist_step
         k = 2 * np.pi * freq_x
-        assert np.isclose(
-            np.fft.rfftfreq(n, d=dx)[1] - np.fft.rfftfreq(n, d=dx)[0], df
-        ), "Contact dev"  # TODO remove after testing
-        # central finite difference (f(x+h) - g(x-h)) / 2h
+        # central finite difference (f(x+h) - f(x-h)) / 2h
         # expressed in frequency domain
         derivative = 1j * backend.sin(k * h) / h
 
@@ -297,7 +267,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         """
         # Recalculate only if `time` is changed
 
-        hash_ = get_hash(time)
+        hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
         freq = backend.fft.rfftfreq(n_fft, d=time[1] - time[0])
@@ -305,6 +275,7 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
             freq_x=freq,
             simulation=simulation,
             beam=beam,
+            hist_step=float(time[1] - time[0]),
         ) / (time[1] - time[0])
         self._cache_impedance_from_wake_hash = hash_
         self._cache_impedance_from_wake = impedance_from_wake
@@ -325,7 +296,8 @@ class Resonators(
     center_frequencies
         Center frequencies of the resonances, in [Hz].
     quality_factors
-        Quality factors (Q) of the resonances, dimensionless.
+        Quality factors (Q) of the resonances, dimensionless. Must be
+        greater than 0.5 (only underdamped resonators are supported).
     shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
 
@@ -339,12 +311,12 @@ class Resonators(
 
     def __init__(
         self,
-        shunt_impedances: ArrayLike | float | int,
-        center_frequencies: ArrayLike | float | int,
-        quality_factors: ArrayLike | float | int,
+        shunt_impedances: AnyArray | float | int,
+        center_frequencies: AnyArray | float | int,
+        quality_factors: AnyArray | float | int,
         shunt_impedances_counter_rotating: NumpyArray
         | float
-        | ArrayLike
+        | AnyArray
         | None = None,
     ):
         super().__init__(is_dynamic=False)
@@ -407,18 +379,20 @@ class Resonators(
                     "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
                 )
 
+        # Only the underdamped case Q > 0.5 is implemented. At Q = 0.5
+        # omega_bar = 0 and the wake / vector fit divide by zero; Q < 0.5
+        # would need the overdamped (cosh/sinh, real poles) formulas.
+        # Checked before omega_bar, whose sqrt would warn on Q < 0.5.
+        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
+            raise ValueError("All quality factors Q must be greater than 0.5")
+
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
         self._alpha = self._omega / (2 * self._quality_factors)
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
-        # Test if one or more quality factors is smaller than 0.5.
-        if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
-            raise RuntimeError(
-                "All quality factors Q must be greater or equal 0.5"
-            )
         if backend.sum(self._center_frequencies < 0) > 0:
-            raise RuntimeError(
+            raise ValueError(
                 "All center frequencies must be greater or equal 0"
             )
 
@@ -469,7 +443,7 @@ class Resonators(
         get_impedance_from_wake_freq : Function used to calculate the corresponding frequency.
         """
         # Recalculate only if `time` has changed
-        hash_ = get_hash(time)
+        hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
 
@@ -510,7 +484,8 @@ class Resonators(
             Wake impedance in frequency domain for counter-rotating mode.
         """
         # Recalculate only if `time` has changed
-        hash_ = get_hash(time + 1)  # to distinguish between counterrotation
+        hash_ = hash_linspace(time, salt=1)  # to distinguish between
+        # counterrotation
         if hash_ == self._cache_impedance_from_wake_counter_rotation_hash:
             return self._cache_impedance_from_wake_counter_rotation
 
@@ -733,6 +708,7 @@ class Resonators(
         simulation: Simulation,
         beam: BeamBaseClass,
         counter_rotation: bool = False,
+        hist_step: float | None = None,
     ) -> NumpyArray | CupyArray:
         """
         Return the analytically calculated impedance in the frequency domain.
@@ -747,6 +723,9 @@ class Resonators(
             Simulation `Beam` object.
         counter_rotation
             Checkbox if the counter-rotating or corotating impedance should be used.
+        hist_step
+            Bin width of the time-domain signal, in [s]. Unused for this
+            analytic source (part of the `FreqDomain` API).
 
         Returns
         -------
@@ -755,7 +734,7 @@ class Resonators(
         """
         # Recalculate only if `freq_x` is changed
 
-        hash_ = get_hash(freq_x + counter_rotation)
+        hash_ = hash_linspace(freq_x, salt=counter_rotation)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
@@ -881,6 +860,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        hist_step: float | None = None,
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -893,6 +873,9 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
+        hist_step
+            Bin width of the time-domain signal, in [s]. Unused for this
+            table-based source (part of the `FreqDomain` API).
 
         Returns
         -------
@@ -900,7 +883,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
             Complex impedance array.
         """
         # Recalculate only if `freq_x` is changed
-        hash_ = get_hash(freq_x)
+        hash_ = hash_linspace(freq_x)
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
         impedance = backend.interp(
@@ -1009,7 +992,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         impedance_from_wake
             Wake impedance in frequency domain.
         """
-        hash_ = get_hash(time)
+        hash_ = hash_linspace(time)
         if hash_ == self._cache_impedance_from_wake_hash:
             return self._cache_impedance_from_wake
         if time.min() < self._wake_x.min():
@@ -1087,9 +1070,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        R_S: float | ArrayLike,
-        frequency_R: float | ArrayLike,
-        a_factor: float | ArrayLike,
+        R_S: float | AnyArray,
+        frequency_R: float | AnyArray,
+        a_factor: float | AnyArray,
     ):
         if hasattr(R_S, "__len__"):
             assert len(R_S) == len(frequency_R), (
@@ -1174,11 +1157,35 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
         impedance_from_wake = backend.fft.rfft(wake, n=n_fft)
         return impedance_from_wake
 
+    @staticmethod
+    def _shape(arg: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+        """
+        Normalised impedance shape of one TWC sideband.
+
+        Parameters
+        ----------
+        arg
+            ``a_factor * (f -+ f_R)``.
+
+        Returns
+        -------
+        shape
+            ``sinc(arg / 2 pi)**2 - 2j (arg - sin(arg)) / arg**2``, with the
+            limit 1 at ``arg == 0`` instead of 0/0.
+        """
+        # (arg - sin arg) / arg**2 -> arg / 6 -> 0; a dummy denominator
+        # avoids the 0/0 there.
+        safe_arg = backend.where(arg == 0, 1.0, arg)
+        return (backend.sinc(arg * 0.5 / np.pi)) ** 2 - 2j * (
+            arg - backend.sin(arg)
+        ) / safe_arg**2
+
     def get_impedance(
         self,
         freq_x: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        hist_step: float | None = None,
     ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
@@ -1191,6 +1198,9 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object.
+        hist_step
+            Bin width of the time-domain signal, in [s]. Unused for this
+            analytic source (part of the `FreqDomain` API).
 
         Returns
         -------
@@ -1203,17 +1213,10 @@ class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
 
         for i in range(0, len(self.R_S)):
             arg2_minus = self.a_factor[i] * (freq_x - self.frequency_R[i])
-            Zminus = self.R_S[i] * (
-                (backend.sinc(arg2_minus * 0.5 / np.pi)) ** 2
-                - 2j * (arg2_minus - backend.sin(arg2_minus)) / arg2_minus**2
-            )
+            Zminus = self.R_S[i] * self._shape(arg2_minus)
 
             arg2_plus = self.a_factor[i] * (freq_x + self.frequency_R[i])
-            Zplus = self.R_S[i] * (
-                (backend.sinc(arg2_plus * 0.5 / np.pi)) ** 2
-                - 2j * (arg2_plus - backend.sin(arg2_plus)) / arg2_plus**2
-            )
-            Zminus[freq_x == self.frequency_R[i]] = self.R_S[i]
+            Zplus = self.R_S[i] * self._shape(arg2_plus)
             imp = Zplus + Zminus
             impedance += imp
         return impedance

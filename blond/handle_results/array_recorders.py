@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike

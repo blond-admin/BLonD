@@ -6,7 +6,20 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `NumbaSpecials` and helper functions."""
+"""Holds `NumbaSpecials` and helper functions.
+
+Precondition for every kernel in this module: coordinates are finite.
+The beam coordinates (`dt`, `dE`) and the profile coordinates
+(`bin_centers`, cut edges) must contain neither NaN nor +/-Inf. Nothing
+here checks for it -- the check would not be free in a per-particle
+loop, and the kernels are compiled with ``fastmath=True``, which already
+licenses the compiler to assume no non-finite values. Note that the
+guards protecting the conversion of a bin index to `int` are written as
+``index < lo or index >= hi``: a NaN index compares False against both
+bounds, passes the guard and reaches the conversion. The caller must not
+produce non-finite coordinates. See `Specials` in
+`blond/core/backends/backend.py`.
+"""
 # pragma: no cover
 
 from __future__ import annotations
@@ -19,7 +32,7 @@ import numba  # type: ignore
 import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
-from blond.core.backends.backend import Specials
+from blond.core.backends.backend import INDEX_DTYPE, Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
@@ -153,6 +166,20 @@ sig_kick_interpolated = void(
     sig_charge,
     sig_acceleration_kick,
 )
+sig_kick_interpolated_sparse = void(
+    sig_dt,
+    sig_dE,
+    sig_voltage,
+    sig_bin_centers,
+    sig_charge,
+    sig_acceleration_kick,
+    nb_f,  # first_left_cut
+    nb_f,  # left_cut_distance
+    nb_f,  # cut_width
+    numba.int32,  # bins_per_profile
+    numba.bool[:],  # filling_pattern
+    numba.int32[:],  # bucket_index_to_memory_index
+)
 sig_array_read = nb_f[:]
 sig_array_write = nb_f[:]
 sig_start = nb_f
@@ -196,8 +223,9 @@ sig_beam_phase = nb_f(
 
 sig_flag = numba.int32
 sig_flags = numba.int32[:]
-sig_ids = nb_i[:]
-sig_move_flagged_elements_to_end = nb_i(
+nb_index = numba.from_dtype(np.dtype(INDEX_DTYPE))
+sig_ids = nb_index[:]
+sig_move_flagged_elements_to_end = nb_index(
     sig_flag,
     sig_flags,
     sig_dt,
@@ -224,6 +252,109 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
     _move_flagged_elements_to_end_py
 )
 _lost = BeamFlags.LOST.value
+
+
+@njit(
+    sig_kick_interpolated,
+    parallel=True,
+    fastmath=True,
+    cache=True,
+)
+def _kick_interpolated_dense_nb(  # NOQA PLR0915 # pragma: no cover
+    dt: NumpyArray,
+    dE: NumpyArray,
+    voltage: NumpyArray,
+    bin_centers: NumpyArray,
+    charge: float,
+    acceleration_kick: float,
+) -> None:
+    if len(bin_centers) < 2:  # noqa: PLR2004
+        # A single-bin (or empty) `bin_centers` has no width to
+        # interpolate across. The wrapper asserts this, so it is reached
+        # only under `python -O`; refuse outright rather than apply
+        # `acceleration_kick` alone, which would be only part of the kick
+        # (and rather than the bare `ZeroDivisionError` of the
+        # `len(bin_centers) - 1` division below).
+        raise ValueError(
+            "kick_interpolated needs at least 2 bins to interpolate across"
+        )
+    dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
+    inv_dx = 1 / dx
+    x_min = bin_centers[0]
+    x_max = bin_centers[-1]
+    for i in prange(len(dE)):
+        x = dt[i]
+
+        # Range-check the coordinate before `int()` turns it into an
+        # index: a far-out particle scales past the integer range, where
+        # the conversion is undefined and would index out of bounds.
+        if x < x_min or x >= x_max:
+            # Only the interpolated voltage is undefined out of range;
+            # the reference energy change still applies.
+            dE[i] += acceleration_kick
+            continue
+        else:
+            idx = int((x - x_min) * inv_dx)
+            x0 = x_min + idx * dx
+            y0 = voltage[idx]
+            y1 = voltage[idx + 1]
+
+            v = y0 + (y1 - y0) * inv_dx * (x - x0)
+            dE[i] += charge * v + acceleration_kick
+
+
+@njit(
+    sig_kick_interpolated_sparse,
+    parallel=True,
+    fastmath=True,
+    cache=True,
+)
+def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
+    dt: NumpyArray,
+    dE: NumpyArray,
+    voltage: NumpyArray,
+    bin_centers: NumpyArray,
+    charge: float,
+    acceleration_kick: float,
+    first_left_cut: float,
+    left_cut_distance: float,
+    cut_width: float,
+    bins_per_profile: int,
+    filling_pattern: NumpyArray,
+    bucket_index_to_memory_index: NumpyArray,
+) -> None:
+    n_buckets = len(filling_pattern)
+    inv_hist_dist = 1.0 / left_cut_distance
+    inv_bin_width = bins_per_profile / cut_width
+    bin_width = cut_width / bins_per_profile
+    for i in prange(len(dE)):
+        x = dt[i]
+        # Range-check in floating point *before* the conversion -- see
+        # `_kick_interpolated_dense_nb`.
+        bucket_real = np.floor((x - first_left_cut) * inv_hist_dist)
+        # A particle with no interpolated voltage still receives
+        # `acceleration_kick` -- in particular one in an *unfilled* bucket,
+        # which is fully inside the turn.
+        if bucket_real < 0.0 or bucket_real >= n_buckets:
+            dE[i] += acceleration_kick
+            continue
+        bucket_i = int(bucket_real)
+        if not filling_pattern[bucket_i]:
+            dE[i] += acceleration_kick
+            continue
+        cut_left = first_left_cut + bucket_i * left_cut_distance
+        bucket_bin_center0 = cut_left + bin_width / 2.0
+        local_bin_real = np.floor((x - bucket_bin_center0) * inv_bin_width)
+        if local_bin_real < 0.0 or local_bin_real >= bins_per_profile - 1:
+            dE[i] += acceleration_kick
+            continue
+        local_bin = int(local_bin_real)
+        idx = bucket_index_to_memory_index[bucket_i] + local_bin
+        v = voltage[idx] + (
+            voltage[idx + 1] - voltage[idx]
+        ) * inv_bin_width * (x - bin_centers[idx])
+        dE[i] += charge * v + acceleration_kick
+
 
 sig_apply_sr_without_quantum_excitation = void(sig_dE, nb_f, nb_f)
 sig_apply_sr_with_quantum_excitation = void(sig_dE, nb_f, nb_f, nb_f)
@@ -299,6 +430,9 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         bin_size: float,
     ) -> float:
         n = len(hist_x)
+        assert n >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule"
+        )
 
         f_sin = np.zeros_like(hist_x)
         f_cos = np.zeros_like(hist_x)
@@ -347,11 +481,16 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         array_write[:] = 0
         for i in prange(len(array_read)):
             curr_thread = numba.get_thread_id()
-            if array_read[i] == stop:
-                array_tmp[curr_thread, -1] += 1
-                continue
             idx = (array_read[i] - start) * inv_bin_step
-            if idx < 0 or idx >= n_bins:
+            # Scaling is not exact: a value at or just below `stop` can
+            # land on `n_bins`. Fold it back into the last bin, as
+            # `np.histogram` does, instead of dropping the particle.
+            if idx >= n_bins and array_read[i] <= stop:
+                idx = n_bins - 1
+            # Range-check before `int()` turns the index into an
+            # integer: a far-out particle scales past the integer range,
+            # where the conversion is undefined.
+            if idx < 0.0 or idx >= n_bins:
                 continue
             else:
                 array_tmp[curr_thread, int(idx)] += 1
@@ -430,6 +569,40 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         coeff = T * eta_0 / (beta * beta * energy)
         for i in prange(len(dt)):
             dt[i] += coeff * dE[i]
+
+    @staticmethod
+    @enforce_precision(FLOAT)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def drift_like_line_segment(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        """Drift with linear slip factor and exact relativistic delta."""
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        for i in prange(len(dt)):
+            dEi = dE[i]
+            delta = (
+                np.sqrt(
+                    1.0
+                    + inv_beta_sq
+                    * (
+                        dEi * dEi * inv_energy * inv_energy
+                        + 2.0 * dEi * inv_energy
+                    )
+                )
+                - 1.0
+            )
+            dt[i] += T * eta_0 * delta
 
     @staticmethod
     @enforce_precision(FLOAT)
@@ -527,39 +700,44 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
     @staticmethod
     @enforce_precision(FLOAT)
-    @njit(
-        sig_kick_interpolated,
-        parallel=True,
-        fastmath=True,
-        cache=True,
-    )
-    def kick_interpolated(  # NOQA PLR0915 # NOQA: D102
+    def kick_interpolated(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
-        dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
-        inv_dx = 1 / dx
-        x_min = bin_centers[0]
-        x_max = bin_centers[-1]
-        for i in prange(len(dE)):
-            x = dt[i]
-
-            if x < x_min or x >= x_max:
-                continue
-            else:
-                idx = int((x - x_min) * inv_dx)
-                x0 = x_min + idx * dx
-                # x1 = x0 + dx
-                y0 = voltage[idx]
-                y1 = voltage[idx + 1]
-
-                # Linear interpolation
-                v = y0 + (y1 - y0) * inv_dx * (x - x0)
-                dE[i] += charge * v + acceleration_kick
+        if first_left_cut is None:
+            n_slices = len(bin_centers)
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
+            _kick_interpolated_dense_nb(
+                dt, dE, voltage, bin_centers, charge, acceleration_kick
+            )
+            return
+        _kick_interpolated_sparse_nb(
+            dt,
+            dE,
+            voltage,
+            bin_centers,
+            charge,
+            acceleration_kick,
+            first_left_cut,
+            left_cut_distance,
+            cut_width,
+            np.int32(bins_per_profile),
+            filling_pattern,
+            bucket_index_to_memory_index,
+        )
 
     @staticmethod
     def move_flagged_elements_to_end(  # NOQA PLR0915 # NOQA: D102
@@ -639,10 +817,12 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
 
             xi = x[i]
 
-            bucket_i = int((xi - first_left_cut) * ive_profile_dist)
-
-            if bucket_i < 0 or bucket_i >= n_buckets:
+            # Range-check in floating point *before* the conversion --
+            # see `histogram`.
+            bucket_real = (xi - first_left_cut) * ive_profile_dist
+            if bucket_real < 0.0 or bucket_real >= n_buckets:
                 continue
+            bucket_i = int(bucket_real)
             if not filling_pattern[bucket_i]:
                 continue
 
@@ -664,10 +844,11 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             if xi < start_loc or xi >= stop_loc:
                 continue
 
-            idx = int((xi - start_loc) * inv_bin_step)
-            if idx < 0 or idx >= bins_per_profile:
+            idx_real = (xi - start_loc) * inv_bin_step
+            if idx_real < 0.0 or idx_real >= bins_per_profile:
                 continue
             else:
+                idx = int(idx_real)
                 write_idx = int(bucket_index_to_memory_index[bucket_i] + idx)
                 array_tmp[thread_i, write_idx] += 1
 
@@ -765,7 +946,8 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
                 cr_pole_flip = -1.0
 
             # y[n] = profile[n] + exp(p * dt) * y[n-1]
-            # V[n] = 2 * Re(r * y[n])
+            # V[n] = 2 * Re(r * y[n]) for a complex pole (stands in for its
+            # unstored conjugate); V[n] = Re(r * y[n]) for a real pole.
             # state = 0.0 + 0.0j
             i_update = 0
             # empty `update_on_bin` means "never update"; `decay` stays 0
@@ -778,11 +960,16 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             state = complex(states[pole_i])
             decay = 0.0 + 0.0j
 
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only a pole with imag != 0 stands in for an
+            # unstored conjugate partner and needs the doubled injection.
+            injection_factor = factor if pole.imag == 0 else two_factor
+
             t_start = states[-1]
 
             for bin_i in range(n_bins):
                 profile_i_half = (
-                    cr_pole_flip * 0.5 * profile[bin_i] * two_factor
+                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
                 )
 
                 if bin_i == update_on_bin_i:
@@ -835,3 +1022,22 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
             _apply_sr_with_quantum_excitation(
                 beam_dE, damping_factor, energy_lost_typed, noise_scale
             )
+
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: NumpyArray,
+        beam_dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        parameter_array: NumpyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        # TODO 20260629.0 : Fix Notes when implementing CUDA/NUMBA backend
+        raise NotImplementedError

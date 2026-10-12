@@ -13,16 +13,56 @@ from __future__ import annotations
 import argparse
 import ctypes
 import os
-import platform
 import subprocess
 import sys
 
-from blond.generals.hashing_ import hash_in_folder
+from blond.core.backends.cpp.compiled_dir_handler import (
+    cpp_compiled_dir,
+    save_build_options,
+)
+from blond.generals.compiled_cache import mark_used, prune_siblings
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
 default_libname = "libblond"
+
+#: Handles of the directories already put on the Windows DLL search path,
+#: keyed by normalised absolute path. Kept alive for the process lifetime
+#: (see `add_dll_directory_once`); never closed on purpose, because the
+#: loaded library must stay resolvable for as long as the process runs.
+_added_dll_directory_keys: set = set()
+
+
+def add_dll_directory_once(directory: str) -> None:
+    """
+    Put a directory on the Windows DLL search path at most once.
+
+    ``os.add_dll_directory`` *appends* an entry to the process-wide DLL
+    search path and returns a handle that keeps it alive. Adding the same
+    directory again on every C++ backend (re)load makes that internal path
+    grow without bound until Windows rejects further additions with
+    ``OSError`` (``WinError 206``, "The filename or extension is too
+    long") -- naming the directory just offered, so a perfectly short path
+    appears to be at fault. Callers re-load the backend often (every
+    ``backend.set_specials("cpp")``), so the addition is cached here: the
+    directory stays searchable for the process lifetime and repeat calls
+    are no-ops.
+
+    Does nothing on platforms without ``os.add_dll_directory`` (POSIX).
+
+    Parameters
+    ----------
+    directory
+        Directory holding the compiled library.
+    """
+    if not hasattr(os, "add_dll_directory"):
+        return
+    key = os.path.normcase(os.path.abspath(directory))
+    if key not in _added_dll_directory_keys:
+        os.add_dll_directory(directory)
+        _added_dll_directory_keys.add(key)
+
 
 cpp_files = [
     "kick.cpp",
@@ -30,7 +70,7 @@ cpp_files = [
     "linear_interp_kick.cpp",
     "histogram.cpp",
     "drift_exact.cpp",
-    # "music_track.cpp",
+    "music_track.cpp",
     # "blondmath.cpp",
     "blondmath_new.cpp",
     # "fast_resonator.cpp",
@@ -42,6 +82,7 @@ cpp_files = [
     "synchrotron_radiation_and_quantum_excitation.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
+    "index_abi.cpp",  # reports the compiled index_t ABI back to Python
 ]
 cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 
@@ -82,8 +123,9 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    optimize: bool = True,
+    optimize_for_local_cpu: bool = True,
     libname: str | None = None,
+    limit_cachesize: bool = False,
 ) -> None:
     """
     Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
@@ -108,11 +150,18 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         Additional libraries required for compilation, provided as a space-separated string.
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
-    optimize : bool
-        If True (default), add `-march=native`, `-ffast-math` and
-        CPU-specific vectorization flags (AVX/SSE/FMA).
+    optimize_for_local_cpu : bool
+        If True (default), tune the binary to the build machine by adding
+        `-march=native`, `-ffast-math` and CPU-specific vectorization flags
+        (AVX/SSE/FMA). The resulting library may not run on other CPUs.
+        This is independent of the compiler optimization level (`-O3`),
+        which is always used.
     libname : str
         Path and name of the output library (without file extension).
+    limit_cachesize : bool
+        If True, evict least-recently-used sibling builds after compiling so
+        the ``compiled/`` tree stays bounded (intended for CI). If False
+        (default), every build is kept and nothing is removed.
 
     Returns
     -------
@@ -124,71 +173,78 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    for parallel in (False, True):
-        if parallel:
-            print("\nTrying to compile parallel C++ backend.")
-        else:
-            print("\nTrying to compile single core C++ backend.")
+    compiled_ok = True
 
-        if libname is None:
-            folder = os.path.dirname(os.path.abspath(__file__))
+    build_options = {
+        "compiler": compiler,
+        "optimize_for_local_cpu": optimize_for_local_cpu,
+        "flags": flags,
+        "libs": libs,
+        "with_fftw": with_fftw,
+        "with_fftw_threads": with_fftw_threads,
+        "with_fftw_omp": with_fftw_omp,
+        "with_fftw_lib": with_fftw_lib,
+        "with_fftw_header": with_fftw_header,
+        "boost": boost,
+    }
+    # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
+    #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
-            hash_ = hash_in_folder(
-                folder=folder,
-                extensions=(".py", ".h", ".cpp"),
-                recursive=False,
-            )
-            target = os.path.join(folder, "compiled", hash_)
-            os.makedirs(target, exist_ok=True)
-            libname = os.path.join(target, default_libname)
-        # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
-        #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
+    libname, compiled_dir, folder = _get_libname(libname, build_options)
 
-        cflags = [
-            "-O3",
-            "-std=c++11",
-            "-shared",
-            "-funroll-loops",  # Aggressive loop unrolling
-            "-ftree-vectorize",
+    source_cflags = [
+        "-O3",
+        "-std=c++11",
+        "-shared",
+        "-funroll-loops",  # Aggressive loop unrolling
+        "-ftree-vectorize",
+    ]
+    if optimize_for_local_cpu:
+        # CPU-specific; --no-optimize-for-local-cpu keeps the binary portable
+        source_cflags += ["-march=native"]
+    # Some additional warning reporting related flags
+    source_cflags += [
+        "-Wall",
+        "-Wno-unknown-pragmas",
+        # Necessary on windows, as here the M_PI etc.
+        # are not defined by mingw without the flag.
+        "-D_USE_MATH_DEFINES",
+    ]
+
+    # Get boost path
+    boost_path = None
+    if boost is not None:
+        boost_path = os.path.abspath(boost) if boost else ""
+        source_cflags += ["-I", boost_path, "-DBOOST"]
+
+    with_fftw = any(
+        [
+            with_fftw,
+            with_fftw_threads,
+            with_fftw_omp,
+            with_fftw_lib,
+            with_fftw_header,
         ]
-        if optimize:
-            # CPU-specific; --no-optimize keeps the binary portable
-            cflags += ["-march=native"]
-        # Some additional warning reporting related flags
-        cflags += [
-            "-Wall",
-            "-Wno-unknown-pragmas",
-            # Necessary on windows, as here the M_PI etc.
-            # are not defined by mingw without the flag.
-            "-D_USE_MATH_DEFINES",
-        ]
+    )
+
+    libs_ = libs.split() if libs else []
+
+    split_flags = flags.split() if flags else []
+
+    loop_flags = {
+        "parallel": source_cflags
+        + ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
+        + split_flags,
+        "single core": source_cflags + split_flags,
+    }
+
+    for parallel, style in zip(
+        (False, True), ("single core", "parallel"), strict=True
+    ):
+        print(f"\nTrying to compile {style} C++ backend.")
 
         for file in cpp_files:
             assert os.path.isfile(file), f"{file=}"
-
-        with_fftw = any(
-            [
-                with_fftw,
-                with_fftw_threads,
-                with_fftw_omp,
-                with_fftw_lib,
-                with_fftw_header,
-            ]
-        )
-
-        # Get boost path
-        boost_path = None
-        if boost is not None:
-            boost_path = os.path.abspath(boost) if boost else ""
-            cflags += ["-I", boost_path, "-DBOOST"]
-
-        libs_ = libs.split() if libs else []
-
-        if parallel:
-            cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
-
-        if flags:
-            cflags += flags.split()
 
         fftw_cflags, fftw_libs = _prepare_fftw(
             with_fftw=with_fftw,
@@ -199,10 +255,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         )
 
         cflags, libname_double = _prepare_cflags(
-            cflags=cflags,
+            cflags=loop_flags[style],
             compiler=compiler,
             libname=libname,
-            optimize=optimize,
+            optimize_for_local_cpu=optimize_for_local_cpu,
             parallel=parallel,
         )
 
@@ -233,6 +289,15 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         print("Compiler flags: ", " ".join(cflags))
         print("Extra libraries: ", " ".join(libs_))
 
+        # Reuse a previously built library when present. This is only safe
+        # because `libname_double` lives in a `compiled/<hash>/` dir whose
+        # hash encodes the toolchain and host CPU (see `cpp_compiled_dir`):
+        # an existing binary here was built for an identical environment, so
+        # it cannot be an incompatible-CPU artifact.
+        if os.path.isfile(libname_double):
+            print(f"Reusing cached C++ library: {libname_double}")
+            continue
+
         command = (
             [compiler]
             + cflags
@@ -246,6 +311,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         ret = run_compile(command, libname_double)
         if ret != 0:
             print("There was a compilation error.")
+            compiled_ok = False
         else:
             # Verify that the libraries have been compiled
             try:
@@ -259,15 +325,45 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             except Exception as exception:
                 print("Compilation failed.")
                 print(exception)
+                compiled_ok = False
+
+    # Record use of this build's directory. Skipped when a custom libname
+    # bypassed the hashed directory layout. Eviction of least-recently-used
+    # sibling builds is opt-in (--limit-cachesize, e.g. in CI); by default
+    # every build is kept.
+    if compiled_dir is not None:
+        mark_used(compiled_dir)
+        if limit_cachesize:
+            prune_siblings(compiled_dir)  # evict old siblings; keep this one
+        if compiled_ok:
+            save_build_options(folder, **build_options)
+
+
+def _get_libname(
+    libname: str, build_options: dict[str, bool | str]
+) -> tuple[str, str | None, str | None]:
+
+    compiled_dir = None
+    folder = None
+    if libname is None:
+        folder = os.path.dirname(os.path.abspath(__file__))
+
+        # Toolchain/CPU/flags-aware directory, computed identically by the
+        # loader (callables.py) so it finds exactly what we build here.
+        compiled_dir = cpp_compiled_dir(folder, **build_options)
+        os.makedirs(compiled_dir, exist_ok=True)
+        libname = os.path.join(compiled_dir, default_libname)
+
+    return libname, compiled_dir, folder
 
 
 def _prepare_cflags(
     cflags: list[str],
     compiler: str,
     libname: str,
-    optimize: bool,
+    optimize_for_local_cpu: bool,
     parallel: bool,
-) -> tuple[list[str], str, str]:
+) -> tuple[list[str], str]:
     """
     Prepare compiler flags and library names.
 
@@ -279,8 +375,8 @@ def _prepare_cflags(
         The C++ compiler to use.
     libname
         Base name of the output library.
-    optimize
-        If True, enable optimization flags.
+    optimize_for_local_cpu
+        If True, add `-ffast-math` and CPU-specific vectorization flags.
     parallel
         Whether or not to use parallel compiler.
 
@@ -294,13 +390,8 @@ def _prepare_cflags(
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
         cflags += ["-fPIC"]
-        if optimize:
-            if "-ffast-math" not in cflags:
-                cflags += ["-ffast-math"]
-            cflags = _add_avx_flags(
-                cflags=cflags,
-                compiler=compiler,
-            )
+        if optimize_for_local_cpu and "-ffast-math" not in cflags:
+            cflags += ["-ffast-math"]
 
         root, ext = os.path.splitext(libname)
         if not ext:
@@ -310,14 +401,9 @@ def _prepare_cflags(
         )
 
     elif "win" in sys.platform:
-        # Add optimization flags for Windows (same as POSIX)
-        if optimize:
-            if "-ffast-math" not in cflags:
-                cflags += ["-ffast-math"]
-            cflags = _add_avx_flags(
-                cflags=cflags,
-                compiler=compiler,
-            )
+        # Add optimize-for-local-cpu flags for Windows (same as POSIX)
+        if optimize_for_local_cpu and "-ffast-math" not in cflags:
+            cflags += ["-ffast-math"]
 
         root, ext = os.path.splitext(libname)
         if not ext:
@@ -327,9 +413,8 @@ def _prepare_cflags(
             root + "_double" + parallel_suffix + ext
         )
 
-        if hasattr(os, "add_dll_directory"):
-            directory, _ = os.path.split(libname_double)
-            os.add_dll_directory(directory)
+        directory, _ = os.path.split(libname_double)
+        add_dll_directory_once(directory)
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
@@ -387,78 +472,10 @@ def _prepare_fftw(
     return fftw_cflags, fftw_libs
 
 
-def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
-    """
-    Add AVX/SSE flags to compiler flags.
-
-    Parameters
-    ----------
-    cflags
-        List of compiler flags.
-    compiler
-        The C++ compiler to use.
-
-    Returns
-    -------
-    cflags
-        Updated compiler flags with AVX/SSE optimization.
-    """
-    # Check compiler defined directives
-    # This is compatible with python3.6 - python 3.9
-    # The universal_newlines argument transforms output to text (from binary)
-    proc = subprocess.run(
-        [
-            compiler,
-            "-march=native",
-            "-dM",
-            "-E",
-            "-",
-        ],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
-    # If we have an error
-    if proc.returncode != 0:
-        print(
-            "Compiler auto-optimization did not work. Error: ",
-            proc.stdout,
-        )
-    # Following options exist only on x86 processors
-    elif "arm" not in platform.machine():
-        # Add the appropriate vectorization flag (not use avx512)
-        if "AVX2" in proc.stdout:
-            cflags += ["-mavx2"]
-        elif "AVX" in proc.stdout:
-            cflags += ["-mavx"]
-        elif "SSE4_2" in proc.stdout or "SSE4_1" in proc.stdout:
-            cflags += ["-msse4"]
-        elif "SSE3" in proc.stdout:
-            cflags += ["-msse3"]
-        else:
-            cflags += ["-msse"]
-
-        # Add FMA if supported
-        if "FMA" in proc.stdout:
-            cflags += ["-mfma"]
-    return cflags
-
-
 def main_cli() -> None:
     """Parse arguments from command line."""
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",
-    )
-
-    parser.add_argument(  # todo remove everywhere
-        "-p",
-        "--parallel",
-        action="store_true",
-        help="Produce Multi-threaded code. Use the environment"
-        " variable OMP_NUM_THREADS=xx to control the number of"
-        " threads that will be used."
-        " Default: Serial code",
     )
 
     parser.add_argument(
@@ -534,12 +551,21 @@ def main_cli() -> None:
     )
 
     parser.add_argument(
-        "-optimize",
-        "--optimize",
+        "-optimize-for-local-cpu",
+        "--optimize-for-local-cpu",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Auto optimize the compiled library"
-        " (disable with --no-optimize).",
+        help="Tune the compiled library to this machine's CPU"
+        " (-march=native, -ffast-math, AVX/SSE/FMA flags; disable with"
+        " --no-optimize-for-local-cpu for a portable build).",
+    )
+
+    parser.add_argument(
+        "--limit-cachesize",
+        action="store_true",
+        help="Evict least-recently-used sibling builds after compiling so the"
+        " compiled/ tree stays bounded (intended for CI). Off by default:"
+        " all builds are kept.",
     )
 
     # Parse command line options
@@ -554,8 +580,9 @@ def main_cli() -> None:
         compiler=args["compiler"],
         libs=args["libs"],
         flags=args["flags"],
-        optimize=args["optimize"],
+        optimize_for_local_cpu=args["optimize_for_local_cpu"],
         libname=args["libname"],
+        limit_cachesize=args["limit_cachesize"],
     )
 
 

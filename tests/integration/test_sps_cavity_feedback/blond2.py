@@ -20,9 +20,10 @@ from blond.legacy.blond2.llrf.cavity_feedback import (
     SPSCavityLoopCommissioning,
 )
 from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestSPSCavityFeedback(unittest.TestCase):
+class TestSPSCavityFeedback(BLonDTestCase):
     def test_something(self):
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Gamma at transition

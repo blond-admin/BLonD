@@ -21,6 +21,7 @@ from blond.core.base import (
     Preparable,
     UnsafeUserElement,
 )
+from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -80,7 +81,6 @@ class Ring(Preparable):
         )
         self._circumference = circumference
         self._radiation_integrals = radiation_integrals
-        self._momentum_compaction_factor = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -165,8 +165,7 @@ class Ring(Preparable):
         Notes
         -----
         Currently only considers DriftSimple elements. The weighting is based on
-        the orbit length of each drift section. This value is cached after first
-        calculation.
+        the orbit length of each drift section.
 
         The following derivation is only relevant for a *multi-drift simulation
         setup*.
@@ -217,8 +216,6 @@ class Ring(Preparable):
         i.e. the orbit-length weighted average of the individual drift-section
         momentum compaction factors.
         """
-        from blond import DriftSimple  # prevent cyclic import
-
         drifts = self.elements.get_elements(DriftSimple, recursive=False)
         momentum_compaction_factors = np.array(
             [e.momentum_compaction_factor for e in drifts]
@@ -314,7 +311,7 @@ class Ring(Preparable):
         n_rf_stations
             The count of all RF station elements currently in the ring.
         """
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         return self.elements.count(RFStationBaseClass)
 
@@ -498,8 +495,6 @@ class Ring(Preparable):
         >>> # Creates 40 drifts total, 10 per section, each with length = circumference/40
         """
         if driftclass is None:
-            from blond import DriftSimple  # prevent cyclic import
-
             driftclass = DriftSimple
 
         n_drifts = n_drifts_per_section * n_sections

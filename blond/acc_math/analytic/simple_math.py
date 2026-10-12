@@ -93,7 +93,8 @@ def calc_total_energy(mass: float, momentum: NumpyArray) -> NumpyArray: ...
         nb.float64(nb.float64, nb.float64),
         nb.float64[:](nb.float64, nb.float64[:]),
         nb.float64[:, :](nb.float64, nb.float64[:, :]),
-    ]
+    ],
+    cache=True,
 )  # pragma: no cover
 def calc_total_energy(
     mass: float, momentum: float | NumpyArray
@@ -213,21 +214,21 @@ def momentum_compaction_factor(
 
 def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
     """
-    Assert that a complex number is purely real or purely imaginary.
+    Check that a complex number is purely real or purely imaginary.
 
     A complex number is considered *purely real* if its imaginary part is zero,
-    and *purely imaginary* if its real part is zero. This function raises an
-    `AssertionError` if the number has both nonzero real and imaginary parts.
+    and *purely imaginary* if its real part is zero. This function raises a
+    `ValueError` if the number has both nonzero real and imaginary parts.
 
     Parameters
     ----------
-    val : complex
-        Complex number to be validated.
+    val
+        Complex number (or array of them) to be validated.
 
     Raises
     ------
-    AssertionError
-        If `val` has both real and imaginary parts nonzero.
+    ValueError
+        If any element of `val` has both real and imaginary parts nonzero.
 
     Examples
     --------
@@ -237,7 +238,7 @@ def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
     >>> _assert_purely_real_or_imaginary(2 + 4j)
     Traceback (most recent call last):
         ...
-    AssertionError: Expected number with only real or only imaginary part, not (2+4j)
+    ValueError: Expected purely real or purely imaginary number, not (2+4j).
     """
     if np.any((val.real != 0) & (val.imag != 0)):
         raise ValueError(

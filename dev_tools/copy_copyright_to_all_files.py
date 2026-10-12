@@ -3,6 +3,8 @@
 import os
 from pathlib import Path
 
+from copyright_exclude import THIRD_PARTY_FILENAMES
+
 EXCLUDE = "legacy"
 
 
@@ -11,6 +13,7 @@ def perform_check():
     this_dir = Path(__file__).parent
     ROOT = (this_dir / "../blond/").resolve()
     assert ROOT.exists(), str(ROOT)
+    third_party_filenames = THIRD_PARTY_FILENAMES
     with open(this_dir / "copyright_notice.txt") as file:
         text_py = file.read() + "\n"
 
@@ -21,6 +24,8 @@ def perform_check():
             if (
                 name == "_version.py"
             ):  # is dynamically written during pip install
+                continue
+            if name in third_party_filenames:  # vendored, keep upstream header
                 continue
             is_python_file = name.endswith(".py")
             is_cpp_file = (

@@ -16,7 +16,7 @@ from typing import Any
 from numpy import ndarray as numpyarray
 from numpy.typing import NDArray as NumpyArray
 
-from blond.generals.exceptions import UnevenArraySizes
+from blond.generals.exceptions_ import UnevenArraySizes
 
 
 def raise_on_uneven_array_sizes(

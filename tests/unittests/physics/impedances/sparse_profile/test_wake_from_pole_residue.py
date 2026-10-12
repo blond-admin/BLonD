@@ -6,8 +6,13 @@ from matplotlib import pyplot as plt
 from scipy.signal import fftconvolve
 
 from blond import backend
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.helpers import save_blond2_reference_file
+
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 def get_poles(
@@ -75,22 +80,39 @@ def get_test_data():
     return centers_extended, hist_y_extended
 
 
-class TestPole(unittest.TestCase):
-    def test_pole(self):
-        from blond.legacy.blond2.impedances.impedance_sources import Resonators
+def _run_blond2_resonators(freq, centers):
+    from blond.legacy.blond2.impedances.impedance_sources import Resonators
 
+    res = Resonators(
+        R_S=[1, 1, 2], frequency_R=[1e8, 2e8, 3e8], Q=[10, 20, 10]
+    )
+    res.imped_calc(freq)
+    impedance = np.asarray(res.impedance)
+    res.wake_calc(centers)
+    return {"impedance": impedance, "wake": np.asarray(res.wake)}
+
+
+class TestPole(BLonDTestCase):
+    def test_pole(self):
         freq = np.linspace(0, 1e9, 10000)
-        res = Resonators(
-            R_S=[1, 1, 2], frequency_R=[1e8, 2e8, 3e8], Q=[10, 20, 10]
+        centers, hist_y = get_test_data()
+        centers -= centers.min()
+
+        blond2_reference_path = callers_relative_path(
+            "resources/resonators_impedance_and_wake_blond2.npz",
+            stacklevel=1,
         )
-        res.imped_calc(freq)
-        Z = res.impedance
+        if REWRITE_BLOND2_REFERENCE_FILE:
+            save_blond2_reference_file(
+                blond2_reference_path, **_run_blond2_resonators(freq, centers)
+            )
+        with np.load(blond2_reference_path) as blond2_reference:
+            Z = blond2_reference["impedance"]
+            kernel = blond2_reference["wake"]
+
         poles, residues, rms_error, proportional_coeff, constant_coeff = (
             get_poles(freqs=freq, Z=Z, n_pole=3)
         )
-
-        centers, hist_y = get_test_data()
-        centers -= centers.min()
 
         dt = np.diff(centers[:2])[0]
 
@@ -156,8 +178,6 @@ class TestPole(unittest.TestCase):
         )
         voltage[mask_b] = voltage_masked
 
-        res.wake_calc(centers)
-        kernel = res.wake
         wake_convolve = fftconvolve(hist_y, kernel)
 
         ref = wake_convolve[: len(centers)]
@@ -292,7 +312,125 @@ class TestPole(unittest.TestCase):
         )
 
 
-class TestWakeFromPoleResidueBranches(unittest.TestCase):
+class TestRealPoleConvention(BLonDTestCase):
+    """A real pole has no implicit complex conjugate (vector-fitting
+    convention): its contribution must be ``Re[residue * state]``, not
+    ``2 * Re[residue * state]`` (the latter is only correct for one pole
+    of an implicit conjugate pair)."""
+
+    def _profile(self, n=4096):
+        hist_y, edges = np.histogram(
+            np.concatenate(
+                (
+                    np.random.default_rng(0).standard_normal(int(1e5)) * 1e-9,
+                    (np.random.default_rng(1).standard_normal(int(1e5)) * 1e-9)
+                    + 1e-7,
+                ),
+            ),
+            bins=n,
+        )
+        centers = edges[:-1] + np.diff(edges[:2]) / 2
+        centers_extended = np.linspace(-0.2e-7, 3.5e-7, 100 * len(centers))
+        hist_y_extended = np.interp(centers_extended, centers, hist_y)
+        centers_extended = np.array(centers_extended, dtype=float)
+        centers_extended -= centers_extended.min()
+        hist_y_extended = np.array(hist_y_extended, dtype=float)
+        return centers_extended, hist_y_extended
+
+    def _run_kernel(self, centers, hist_y, poles, residues):
+        poles_b = backend.array(poles)
+        residues_b = backend.array(residues)
+        centers_b = backend.array(centers)
+        hist_y_b = backend.array(hist_y)
+        n = len(hist_y)
+
+        voltage = backend.zeros(n, dtype=float)
+        state = backend.zeros(len(poles_b) + 1, dtype=complex)
+        state[-1] -= np.diff(centers[:2])[0]
+        backend.specials.wake_from_pole_residue(
+            profile=hist_y_b,
+            profile_dts=centers_b,
+            poles=poles_b,
+            residues=residues_b,
+            is_counterrotating_beam=False,
+            counterrotating_pole_signs=backend.ones_like(
+                poles_b, dtype=backend.float
+            ),
+            states=state,
+            voltage=voltage,
+            voltage_threaded=backend.zeros(
+                (backend.specials.get_max_threads(), n), dtype=float
+            ),
+            update_on_bin=backend.array(np.zeros(1, dtype=np.int32)),
+            factor=1.0,
+        )
+        return copy_to_cpu(voltage)
+
+    def test_single_real_pole_not_doubled(self):
+        centers, hist_y = self._profile()
+
+        pole = -3e7
+        residue = 2.5
+
+        voltage = self._run_kernel(
+            centers,
+            hist_y,
+            poles=np.array([pole], dtype=complex),
+            residues=np.array([residue], dtype=complex),
+        )
+
+        # Vector-fitting convention: a real pole has no implicit conjugate,
+        # so its impulse response is `Re[residue * exp(pole * t)]`, not
+        # `2 * Re[residue * exp(pole * t)]`.
+        kernel = np.real(residue * np.exp(pole * centers))
+        ref = fftconvolve(hist_y, kernel)[: len(centers)]
+
+        atol = 0.01 * np.max(np.abs(ref))
+        np.testing.assert_allclose(
+            voltage,
+            ref,
+            rtol=0.05,
+            atol=atol,
+            err_msg=(
+                "real-pole wake_from_pole_residue must not double-count "
+                "a non-existent complex conjugate"
+            ),
+        )
+
+    def test_mixed_real_and_complex_poles(self):
+        centers, hist_y = self._profile()
+
+        real_pole = -3e7
+        real_residue = 2.5
+        cplx_pole = -2e7 + 1e9j
+        cplx_residue = 1.0 - 0.5j
+
+        voltage = self._run_kernel(
+            centers,
+            hist_y,
+            poles=np.array([real_pole, cplx_pole], dtype=complex),
+            residues=np.array([real_residue, cplx_residue], dtype=complex),
+        )
+
+        kernel = np.real(
+            real_residue * np.exp(real_pole * centers)
+        ) + 2 * np.real(cplx_residue * np.exp(cplx_pole * centers))
+        ref = fftconvolve(hist_y, kernel)[: len(centers)]
+
+        atol = 0.01 * np.max(np.abs(ref))
+        np.testing.assert_allclose(
+            voltage,
+            ref,
+            rtol=0.05,
+            atol=atol,
+            err_msg=(
+                "mixing a real pole with a complex-conjugate-pair pole "
+                "must not cross-contaminate their doubling conventions"
+            ),
+        )
+
+
+class TestWakeFromPoleResidueBranches(BLonDTestCase):
     """Targeted tests for branch coverage inside `wake_from_pole_residue`."""
 
     def test_bin_i_zero_uses_t_start(self):

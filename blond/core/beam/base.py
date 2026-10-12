@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.mpi_distributed import distributed_array
+from blond.core.backends.mpi_distributed import helpers as dist_help
 from blond.core.base import Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
-from blond.generals.distributed import distributed_array
-from blond.generals.distributed import helpers as dist_help
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
@@ -30,9 +30,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
-    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 class BeamBaseClass(Preparable, ABC):
@@ -136,10 +138,10 @@ class BeamBaseClass(Preparable, ABC):
                 f"{self.is_distributed=}, {other.is_distributed=}"
             )
 
-        if self.ratio != other.ratio:
+        if self._ratio != other._ratio:
             raise ValueError(
                 "Beams can only be added if they have the same ratio."
-                f"{self.ratio=}, {other.ratio=}"
+                f"{self._ratio=}, {other._ratio=}"
             )
 
         if self.particle_type != other.particle_type:
@@ -188,10 +190,14 @@ class BeamBaseClass(Preparable, ABC):
                 f"{dt.global_size=}, {dE.global_size=}"
             )
 
-        id_max = np.int32(self._ids.max())
-        local_size = self._dt.local_size
+        from blond.core.backends.backend import (
+            INDEX_DTYPE,  # prevent cyclic import
+        )
 
-        new_ids = dist_help.distributed_arange(local_size, np.int32)
+        id_max = INDEX_DTYPE(self._ids.max())
+        local_size = dt.local_size
+
+        new_ids = dist_help.distributed_arange(local_size, INDEX_DTYPE)
         new_ids.array_local += id_max + 1
 
         new_flags = dist_help.distributed_zeros(local_size, np.int32)
@@ -220,7 +226,7 @@ class BeamBaseClass(Preparable, ABC):
         new_ids
             The new particle ids.
         """
-        ratio = self.ratio
+        ratio = self._ratio
 
         self._dt = distributed_array.concatenate(self._dt, new_dt)
         self._dE = distributed_array.concatenate(self._dE, new_dE)
@@ -416,6 +422,20 @@ class BeamBaseClass(Preparable, ABC):
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights."""
         pass
+
+    @property
+    def _ratio(self) -> float:
+        """
+        Real particles per macro-particle, for internal use.
+
+        Returns
+        -------
+        ratio
+            Intensity divided by the number of macro-particles.
+        """
+        # Without weights every macro-particle has weight 1, so the sum
+        # of weights is `common_array_size`.
+        return self.intensity / self.common_array_size
 
     @property
     def particle_type(self) -> ParticleType:
@@ -713,6 +733,34 @@ class BeamBaseClass(Preparable, ABC):
         """
         return self._flags.array_local
 
+    def sort_by_dt(self) -> None:
+        """
+        Sort the macro-particles in place by ascending ``dt``.
+
+        All per-particle arrays (``dt``, ``dE``, ``ids``, ``flags``) are
+        permuted by the same order, so particle identity is preserved.
+
+        Raises
+        ------
+        NotImplementedError
+            If the beam is distributed across MPI ranks: a per-node sort
+            cannot order the global beam, so sorting is unsupported there.
+        """
+        if self.is_distributed:
+            raise NotImplementedError(
+                "`sort_by_dt` cannot sort an MPI-distributed beam: a "
+                "per-node sort does not order the global beam."
+            )
+
+        order = (
+            self._dt.array_local.argsort()
+        )  # ndarray method works for NumPy and CuPy
+
+        self._dt.array_local[:] = self._dt.array_local[order]
+        self._dE.array_local[:] = self._dE.array_local[order]
+        self._ids.array_local[:] = self._ids.array_local[order]
+        self._flags.array_local[:] = self._flags.array_local[order]
+
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
         Delete flagged array entries from the array.
@@ -726,7 +774,7 @@ class BeamBaseClass(Preparable, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
-        from blond.generals.distributed.helpers import mpi_barrier
+        from blond.core.backends.mpi_distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
 

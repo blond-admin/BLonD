@@ -1,0 +1,9 @@
+# Style for the C/C++ and CUDA backends, applied by the clang-format
+# pre-commit hook (version pinned in .pre-commit-config.yaml).
+BasedOnStyle: LLVM
+# Reordering includes can silently change which macros/typedefs a header
+# sees (e.g. real_t, __restrict__), so keep the order as written.
+SortIncludes: Never
+# Keep hand-aligned comments (tables, diagrams) as written; clang-format
+# only lays out code.
+ReflowComments: Never

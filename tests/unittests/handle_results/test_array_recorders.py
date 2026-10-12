@@ -7,9 +7,10 @@ from blond.handle_results.array_recorders import (
     DenseArrayRecorder,
 )
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestDenseArrayRecorder(unittest.TestCase):
+class TestDenseArrayRecorder(BLonDTestCase):
     def setUp(self):
         self.dense_array_recorder = DenseArrayRecorder(
             filepath=callers_relative_path("deleteme", 1),
@@ -136,13 +137,14 @@ class TestDenseArrayRecorder(unittest.TestCase):
             overwrite=True,
         )
         rec1.to_disk()  # creates deleteme2
-        rec2 = DenseArrayRecorder(
-            filepath=callers_relative_path("deleteme2", 1),
-            shape=(20, 10),
-            dtype=np.float32,
-            order="C",
-            overwrite=False,
-        )
+        with self.assertWarns(UserWarning):  # deleteme2 already exists
+            rec2 = DenseArrayRecorder(
+                filepath=callers_relative_path("deleteme2", 1),
+                shape=(20, 10),
+                dtype=np.float32,
+                order="C",
+                overwrite=False,
+            )
         with self.assertRaises(AssertionError):
             rec2.to_disk()
         rec1.purge_from_disk(verbose=False)

@@ -15,7 +15,7 @@ from blond import Numpy64Bit, backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.core.simulation.simulation import Simulation
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
     CsvReader,
@@ -30,16 +30,17 @@ from blond.physics.impedances.sources import (
     TravelingWaveCavity,
     fit_poles,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestImpedanceTable(unittest.TestCase):
+class TestImpedanceTable(BLonDTestCase):
     @unittest.skip
     def test_from_file(self):
         # TODO: implement test for `from_file`
         self.impedance_table.from_file(filepath=None, reader=None)
 
 
-class TestImpedanceTableFreq(unittest.TestCase):
+class TestImpedanceTableFreq(BLonDTestCase):
     def setUp(self):
         pass
         # # TODO: implement test for `__init__`
@@ -95,7 +96,7 @@ class TestImpedanceTableFreq(unittest.TestCase):
         assert hash_before == freq_table_short._cache_impedance_hash
 
 
-class TestImpedanceTableTime(unittest.TestCase):
+class TestImpedanceTableTime(BLonDTestCase):
     def test_from_file(self):
         impedance_table = ImpedanceTableTime.from_file(
             filepath=callers_relative_path(
@@ -180,7 +181,7 @@ class TestImpedanceTableTime(unittest.TestCase):
         assert hash_before == impedance_table._cache_impedance_from_wake_hash
 
 
-class TestInductiveImpedance(unittest.TestCase):
+class TestInductiveImpedance(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
             Z_over_n=34.6669349520904 / 10e9 * 11e3
@@ -297,8 +298,84 @@ class TestInductiveImpedance(unittest.TestCase):
         )
         assert hash_before == self.inductive_impedance._cache_derivative_hash
 
+    def test_get_impedance_hist_step_odd_signal(self):
+        # For an odd time-signal length the bin width cannot be
+        # reconstructed from `freq_x` (the even-length assumption of
+        # irfft's default is wrong). Passing `hist_step` must yield the
+        # exact frequency-domain equivalent of np.gradient.
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 0.8 * c0
 
-class TestResonators(unittest.TestCase):
+        n_time = 15  # odd on purpose
+        hist_step = 2.5e-10
+        hist_y = np.zeros(n_time)
+        hist_y[5:10] = [1, 2, 3, 2, 1]
+        freq_x = backend.array(
+            np.fft.rfftfreq(n_time, d=hist_step), dtype=backend.float
+        )
+        freq_y = self.inductive_impedance.get_impedance(
+            freq_x=freq_x,
+            simulation=simulation,
+            beam=beam,
+            hist_step=hist_step,
+        )
+        revolution_period = (
+            simulation.ring.circumference / beam.reference.velocity
+        )
+        # undo the physics factors to isolate the derivative kernel
+        kernel = (
+            copy_to_cpu(freq_y)
+            * 2
+            * np.pi
+            / (self.inductive_impedance.Z_over_n * revolution_period)
+        )
+        gradient = np.fft.irfft(kernel * np.fft.rfft(hist_y), n=n_time)
+        expected = np.gradient(hist_y, hist_step, edge_order=2)
+        np.testing.assert_allclose(
+            gradient,
+            expected,
+            atol=1e-10 * np.abs(expected).max(),
+        )
+
+    def test_get_impedance_cache_sensitive_to_hist_step(self):
+        # Same `freq_x` but different `hist_step` must not return the
+        # cached derivative kernel of the previous call.
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 0.8 * c0
+
+        freq_x = backend.array(
+            np.fft.rfftfreq(16, d=1e-9), dtype=backend.float
+        )
+        freq_y_1 = np.array(
+            copy_to_cpu(
+                self.inductive_impedance.get_impedance(
+                    freq_x=freq_x,
+                    simulation=simulation,
+                    beam=beam,
+                    hist_step=1e-9,
+                )
+            )
+        )
+        freq_y_2 = np.array(
+            copy_to_cpu(
+                self.inductive_impedance.get_impedance(
+                    freq_x=freq_x,
+                    simulation=simulation,
+                    beam=beam,
+                    hist_step=2e-9,
+                )
+            )
+        )
+        assert not np.allclose(freq_y_1, freq_y_2)
+
+
+class TestResonators(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -333,7 +410,7 @@ class TestResonators(unittest.TestCase):
         )
 
     def test___init__neg_freq(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([-400e6]),
@@ -341,15 +418,41 @@ class TestResonators(unittest.TestCase):
             )
 
     def test___init__small_Q(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([400e6]),
                 quality_factors=np.array([0.49]),
             )
 
+    def test___init__Q_equal_0_5(self):
+        # Q = 0.5 makes omega_bar = 0, so the wake divides by zero.
+        with self.assertRaises(ValueError):
+            self.resonators = Resonators(
+                shunt_impedances=np.array([1]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.5]),
+            )
+
+    def test___init__small_Q_raises_before_computing_nan(self):
+        import warnings
+
+        with (
+            warnings.catch_warnings(record=True) as caught,
+            self.assertRaises(ValueError),
+        ):
+            warnings.simplefilter("always")
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.49]),
+            )
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
+
     def test___init__float_values(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
                 center_frequencies=400e6,
@@ -455,7 +558,7 @@ class TestResonators(unittest.TestCase):
             plt.show()
         assert np.allclose(
             self.resonators._center_frequencies,
-            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y))[0]]),
+            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y).real)[0]]),
             atol=(max_freq - min_freq) / num / 2,
         )  # closeness of peaks to centre frequency
         for freq_ind in range(
@@ -481,7 +584,7 @@ class TestResonators(unittest.TestCase):
             assert np.allclose(
                 copy_to_cpu(self.resonators._shunt_impedances[freq_ind]),
                 copy_to_cpu(
-                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y))[0]])
+                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y).real)[0]])
                 ),
             )
             assert np.isclose(
@@ -931,7 +1034,7 @@ class TestResonators(unittest.TestCase):
         np.testing.assert_allclose(copy_to_cpu(freq), expected_freq)
 
 
-class TestFitPoles(unittest.TestCase):
+class TestFitPoles(BLonDTestCase):
     def test_recovers_resonator_impedance(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e6]),
@@ -972,6 +1075,43 @@ class TestFitPoles(unittest.TestCase):
             np.abs(imp_fit[sel]), np.abs(Z[sel]), rtol=0.05
         )
 
+    def test_recovers_real_pole_system(self):
+        """A single-pole RC-like relaxation impedance has a purely real
+        pole/residue. Fitting it with ``n_pole_real=1`` must produce a
+        real pole, and reconstructing with the vector-fitting convention
+        for a real pole (no implicit conjugate term) must match the
+        analytic impedance."""
+        R = 1e6
+        tau = 1e-9
+        freq = np.linspace(0, 4e9, 1000)
+        omega = 2j * np.pi * freq
+        Z = R / (1 + omega * tau)
+
+        poles, residues, rms_error, prop_coeff, const_coeff = fit_poles(
+            freqs=freq,
+            Z=Z,
+            n_pole=0,
+            n_pole_real=1,
+            max_iterations=20,
+        )
+
+        self.assertEqual(len(poles), 1)
+        self.assertLess(rms_error, 1e-3)
+
+        pole = poles[0]
+        residue = residues.flatten()[0]
+        self.assertEqual(np.imag(pole), 0.0)
+        self.assertEqual(np.imag(residue), 0.0)
+
+        # Vector-fitting convention: a real pole has no implicit
+        # conjugate, so no `+ conj(residue) / (omega - conj(pole))` term.
+        imp_fit = (
+            residue / (omega - pole)
+            + prop_coeff * 1j * 2 * np.pi * freq
+            + const_coeff
+        )
+        np.testing.assert_allclose(np.abs(imp_fit), np.abs(Z), rtol=0.05)
+
     def test_max_iterations_branch(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e6]),
@@ -986,13 +1126,33 @@ class TestFitPoles(unittest.TestCase):
         _ = fit_poles(freqs=freq, Z=Z, n_pole=1)
 
 
-class TestTravelingWaveCavity(unittest.TestCase):
+class TestTravelingWaveCavity(BLonDTestCase):
     def setUp(self):
         R_S = [1, 2, 3]
         frequency_R = [1, 2, 3]
         a_factor = [1, 2, 3]
         self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
         self.twc_floats = TravelingWaveCavity(3.0, 3.0, 3.0)
+
+    def test_get_impedance_at_resonance_is_finite_without_warning(self):
+        import warnings
+
+        # Grid hits +f_R and -f_R, where (x - sin x) / x**2 is 0/0.
+        freq_x = backend.array([-3.0, -1.0, 0.5, 1.0, 2.0, 3.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            impedance = copy_to_cpu(
+                self.twc.get_impedance(
+                    freq_x=freq_x,
+                    simulation=Mock(Simulation),
+                    beam=Mock(BeamBaseClass),
+                )
+            )
+
+        self.assertTrue(np.all(np.isfinite(impedance)))
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp

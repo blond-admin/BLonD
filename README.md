@@ -2,7 +2,7 @@
 <img src="BLonD2_centered.png" alt="drawing" width="300"/>
 </div>
 
-[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
+[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
 
 # Beam Longitudinal Dynamics Code (BLonD)
@@ -24,32 +24,41 @@ It also ships with the [**BLonD Assistant**](#blond-assistant-ai-helper), an AI 
 
 ## Dependencies
 
-* [Python 3.10+](https://www.python.org/downloads/)
+* [Python 3.11+](https://www.python.org/downloads/)
 * [Git](https://git-scm.com/)
 * Optional
     * C++ on Linux: [GCC (recommended)](https://gcc.gnu.org/install/), `icc` or `clang`
     * C++ on Windows: [mingw-w64](https://winlibs.com/#download-release)
     * CUDA Compiler Driver - [NVCC](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
 
-
 ## Installation
-> [!WARNING]
-> This does not work until BLonD3 is the main version!
->
-> Follow the [Developer Guide](CONTRIBUTING.md) to get BLonD3.
+
+### Your own simulation study (recommended)
+
+Start from the [BLonD 3 Simulation Template](https://gitlab.cern.ch/blond/blond3-simulation-template).
+It installs BLonD 3 with uv, contains an example study with tests, explains how to edit BLonD itself alongside your study, and, at CERN, how to run simulations on LXPlus/HTCondor.
+
+### Into an existing environment
+
+BLonD 3 is not on PyPI yet: `pip install blond` still installs BLonD 2. Install BLonD 3 from GitLab instead:
 ```bash
-pip install blond
+pip install "blond @ git+https://gitlab.cern.ch/blond/BLonD.git@blonder"
 ```
-or if a GPU is available, either CUDA12 or CUDA13 can be used
+or, if a GPU is available, with CUDA 12 or CUDA 13:
 ```bash
-pip install blond[gpu_cuda12]
+pip install "blond[gpu_cuda12] @ git+https://gitlab.cern.ch/blond/BLonD.git@blonder"
 ```
 ```bash
-pip install blond[gpu_cuda13]
+pip install "blond[gpu_cuda13] @ git+https://gitlab.cern.ch/blond/BLonD.git@blonder"
 ```
+With uv, use `uv add` with the same argument.
+
+### Developing BLonD
+
+Follow the [Developer Guide](CONTRIBUTING.md) for an editable installation of BLonD itself.
 
 ### Configuration
-Optional backends can be compiled after installation using the commands `blond-compile-cpp --parallel` or `blond-compile-cuda`
+Optional backends can be compiled after installation using the commands `blond-compile-cpp` or `blond-compile-cuda`
 for improved performance. The backend can be selected in Python using ```setup_backend(...)```.
 
 NB: check your cuda version with `nvidia-smi`, to ensure you select the correct optional dependency.

@@ -496,24 +496,24 @@ def delta_P_to_delta_E(
 
 @overload
 def delta_E_to_delta_P(
-    delta_P: float,
-    momentum: float,
+    delta_E: float,
+    total_energy: float,
     rest_mass: float,
 ) -> float: ...
 
 
 @overload
 def delta_E_to_delta_P(
-    delta_P: NumpyArray,
-    momentum: NumpyArray,
+    delta_E: NumpyArray,
+    total_energy: NumpyArray,
     rest_mass: float,
 ) -> NumpyArray: ...
 
 
 @overload
 def delta_E_to_delta_P(
-    delta_P: CupyArray,
-    momentum: CupyArray,
+    delta_E: CupyArray,
+    total_energy: CupyArray,
     rest_mass: float,
 ) -> CupyArray: ...
 

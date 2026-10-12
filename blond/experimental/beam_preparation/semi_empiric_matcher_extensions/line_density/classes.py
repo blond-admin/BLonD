@@ -22,7 +22,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_de
     occupation_per_equipotential_to_density,
     occupation_per_equipotential_to_histogram,
 )
-from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -498,7 +498,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         ax1 = plt.subplot(3, 1, 1)
         plt.title("Hamilton")
         plt.pcolor(
-            time_grid, deltaE_grid, hamilton_2D, cmap="viridis", shading="auto"
+            time_grid, deltaE_grid, hamilton_2D, cmap="turbo", shading="auto"
         )
         plt.xlabel("Time [s]")
         plt.ylabel("Energy [eV]")
@@ -510,7 +510,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             time_grid,
             deltaE_grid,
             density,
-            cmap="viridis",
+            cmap="turbo",
             shading="auto",
             vmin=1e-24,
         )

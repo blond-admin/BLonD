@@ -1040,7 +1040,7 @@ def music_track(
     dt: NumpyArray,
     dE: NumpyArray,
     induced_voltage: NumpyArray,
-    array_parameters: NumpyArray,
+    parameter_array: NumpyArray,
     alpha: float,
     omega_bar: float,
     const: float,
@@ -1052,13 +1052,13 @@ def music_track(
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(induced_voltage[0], precision.real_t)
-    assert isinstance(array_parameters[0], precision.real_t)
+    assert isinstance(parameter_array[0], precision.real_t)
 
     get_libblond().music_track(
         __getPointer(dt),
         __getPointer(dE),
         __getPointer(induced_voltage),
-        __getPointer(array_parameters),
+        __getPointer(parameter_array),
         __getLen(dt),
         c_real(alpha),
         c_real(omega_bar),
@@ -1074,7 +1074,7 @@ def music_track_multiturn(
     dt: NumpyArray,
     dE: NumpyArray,
     induced_voltage: NumpyArray,
-    array_parameters: NumpyArray,
+    parameter_array: NumpyArray,
     alpha: float,
     omega_bar: float,
     const: float,
@@ -1086,13 +1086,13 @@ def music_track_multiturn(
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(induced_voltage[0], precision.real_t)
-    assert isinstance(array_parameters[0], precision.real_t)
+    assert isinstance(parameter_array[0], precision.real_t)
 
     get_libblond().music_track_multiturn(
         __getPointer(dt),
         __getPointer(dE),
         __getPointer(induced_voltage),
-        __getPointer(array_parameters),
+        __getPointer(parameter_array),
         __getLen(dt),
         c_real(alpha),
         c_real(omega_bar),

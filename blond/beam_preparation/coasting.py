@@ -25,14 +25,13 @@ import numpy as np
 
 from blond.beam_preparation import base
 from blond.core import helpers as core_help
-from blond.generals.cupy import no_cupy_import
-from blond.generals.distributed import helpers as mpi_help
+from blond.core.backends.mpi_distributed import helpers as mpi_help
+from blond.generals.cupy_ import no_cupy_import
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import ArrayLike
-
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.typing_ import AnyArray
 
 
 class Coasting(base.BeamPreparationRoutine):
@@ -71,11 +70,11 @@ class Coasting(base.BeamPreparationRoutine):
     def __init__(
         self,
         n_macroparticles: int,
-        energy_bins: ArrayLike,
-        energy_profile: ArrayLike,
+        energy_bins: AnyArray,
+        energy_profile: AnyArray,
         start_time: float = 0,
         stop_time: float | None = None,
-        energy_offset: float | ArrayLike = 0,
+        energy_offset: float | AnyArray = 0,
         seed: int | None = None,
     ):
         super().__init__()
@@ -87,28 +86,32 @@ class Coasting(base.BeamPreparationRoutine):
             warning_hint="n_macroparticles",
         )
 
-        self.energy_bins = energy_bins
-
-        # Automatically cast energy profile to numpy array, delay moving
-        # to CPU until calling setup_beam.
-        energy_profile = np.array(no_cupy_import.copy_to_cpu(energy_profile))
-        profile_sum = np.sum(energy_profile)
-
-        if profile_sum != 1:
-            warnings.warn(
-                "Energy profile does not sum to 1 and will be"
-                " automatically normalised.",
-                stacklevel=2,
-            )
-            energy_profile /= profile_sum
-
-        self.energy_profile = energy_profile
-
         if (stop_time is not None) and (stop_time < start_time):
             raise ValueError(
                 "`start_time` must be less than `stop_time`,"
                 f" but got {start_time=} and {stop_time=}."
             )
+
+        self.energy_bins = energy_bins
+
+        # Automatically cast energy profile to numpy array, delay moving
+        # to CPU until calling setup_beam.
+        energy_profile = np.array(
+            no_cupy_import.copy_to_cpu(energy_profile), dtype=float
+        )
+        profile_sum = np.sum(energy_profile)
+
+        if not np.isclose(profile_sum, 1):
+            warnings.warn(
+                "Energy profile does not sum to 1 and will be"
+                " automatically normalised.",
+                stacklevel=2,
+            )
+        # Normalise even a profile that is close to 1: `Generator.choice`
+        # accepts a much smaller deviation than `np.isclose`. In place is
+        # safe, `np.array` above made a float copy.
+        energy_profile /= profile_sum
+        self.energy_profile = energy_profile
 
         self.start_time = start_time
         self.stop_time = stop_time

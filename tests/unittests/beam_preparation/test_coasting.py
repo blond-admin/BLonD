@@ -8,11 +8,11 @@ from blond.beam_preparation import coasting
 from blond.core.beam import beams
 from blond.core.beam.particle_types import proton
 from blond.cycles.magnetic_cycle import ConstantMagneticCycle
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 
 
-class TestCoasting(unittest.TestCase):
+class TestCoasting(BLonDTestCase):
     def setUp(self):
         cycle = ConstantMagneticCycle(
             proton, 0.2, in_unit="bending field", bending_radius=8
@@ -56,6 +56,73 @@ class TestCoasting(unittest.TestCase):
         self.assertEqual(4, coast._seed)
         self.assertEqual(1 << 30, coast._n_macroparticles_local)
 
+    def test_normalised_profile_does_not_warn(self):
+        import warnings
+
+        bins = np.linspace(-1, 1, 1000)
+        density = -(bins**2) + 1
+        density = density / density.sum()
+        # Rounding leaves the sum a few ulp away from 1.
+        self.assertNotEqual(np.sum(density), 1)
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            coasting.Coasting(1 << 10, bins, density, seed=0)
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, UserWarning)], []
+        )
+
+    def test_unnormalised_profile_warns_and_is_normalised(self):
+        bins = np.linspace(-1, 1, 1000)
+        density = -(bins**2) + 1
+
+        with self.assertWarns(UserWarning):
+            coast = coasting.Coasting(1 << 10, bins, density, seed=0)
+        self.assertAlmostEqual(float(np.sum(coast.energy_profile)), 1.0)
+
+    def test_nearly_normalised_profile_is_normalised_for_sampling(self):
+        bins = np.linspace(-1, 1, 1000)
+        density = -(bins**2) + 1
+        # Close enough to 1 not to warn, but further from 1 than
+        # `Generator.choice` accepts.
+        density *= (1 + 1e-6) / density.sum()
+
+        coast = coasting.Coasting(1 << 10, bins, density, seed=0)
+        coast.prepare_beam(self.simulation, self.beam)
+
+        self.assertAlmostEqual(
+            float(np.sum(coast.energy_profile)), 1.0, places=12
+        )
+
+    def test_integer_profile_is_normalised(self):
+        with self.assertWarns(UserWarning):
+            coast = coasting.Coasting(
+                1 << 10, [-1.0, 0.0, 1.0], [1, 2, 1], seed=0
+            )
+        np.testing.assert_allclose(coast.energy_profile, [0.25, 0.5, 0.25])
+
+    def test_normalisation_does_not_modify_callers_profile(self):
+        density = np.array([1.0, 2.0, 1.0])
+        with self.assertWarns(UserWarning):
+            coast = coasting.Coasting(
+                1 << 10, [-1.0, 0.0, 1.0], density, seed=0
+            )
+        np.testing.assert_array_equal(density, [1.0, 2.0, 1.0])
+        self.assertFalse(np.shares_memory(coast.energy_profile, density))
+
+    def test_invalid_times_raise_before_profile_warning(self):
+        import warnings
+
+        with (
+            warnings.catch_warnings(record=True) as caught,
+            self.assertRaises(ValueError),
+        ):
+            warnings.simplefilter("always")
+            coasting.Coasting(0, [], [], start_time=1, stop_time=0)
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, UserWarning)], []
+        )
+
     def test_init_exception(self):
         with self.assertRaises(ValueError):
             coasting.Coasting(0, [], [], start_time=1, stop_time=0)
@@ -65,6 +132,7 @@ class TestCoasting(unittest.TestCase):
     def test_prepare_beam_defaults(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
+        dens /= dens.sum()
 
         coast = coasting.Coasting(
             1 << 16, bins.tolist(), dens.tolist(), seed=0
@@ -91,6 +159,7 @@ class TestCoasting(unittest.TestCase):
     def test_prepare_beam_custom(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
+        dens /= dens.sum()
 
         coast = coasting.Coasting(
             1 << 16,
@@ -124,6 +193,7 @@ class TestCoasting(unittest.TestCase):
     def test_prepare_beam_varying_offset(self):
         bins = np.linspace(-1, 1, 1000)
         dens = -(bins**2) + 1
+        dens /= dens.sum()
 
         coast = coasting.Coasting(
             1 << 16,

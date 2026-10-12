@@ -27,7 +27,7 @@ from blond import (
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.cupy.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
@@ -45,11 +45,11 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 from blond.testing.helpers import enforce_64_bit_backend
 
 
-class TestTimeDomainFftSolver(unittest.TestCase):
+class TestTimeDomainFftSolver(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -271,7 +271,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             plt.show()
 
 
-class TestInductiveImpedanceSolver(unittest.TestCase):
+class TestInductiveImpedanceSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
         beam = Mock(BeamBaseClass)
@@ -373,7 +373,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         )
 
 
-class TestPeriodicFreqSolver(unittest.TestCase):
+class TestPeriodicFreqSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
             Z_over_n=34.6669349520904 / 10e9 * 11e3
@@ -500,6 +500,58 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
+    def test_calc_induced_voltage_odd_n_time_matches_reference(self):
+        # Regression test: with an odd FFT length
+        # (n_time = t_periodicity / hist_step), irfft without `n=` returned
+        # one sample too few (its default assumes an even signal length)
+        # and the reconstructed voltage was spectrally wrong.
+        n_bins = 15
+        hist_y = np.zeros(n_bins)
+        hist_y[5:10] = [1, 2, 3, 2, 1]
+        profile = StaticProfile(cut_left=-0.5, cut_right=0.5, n_bins=n_bins)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y_to_density_factor = 1.0
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = profile
+        z_over_n = 123.0
+        parent_wakefield.sources = (InductiveImpedance(Z_over_n=z_over_n),)
+
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 3e8
+        beam = Mock(BeamBaseClass)
+        beam.reference = Mock(ReferenceCoordinates)
+        beam.reference.velocity = 3e8  # revolution period = 1 s
+        beam.intensity = 1e12
+        beam.particle_type.charge = 1
+
+        solver = PeriodicFreqSolver(t_periodicity=1.0)
+        solver._parent_wakefield = parent_wakefield
+        solver._simulation = simulation
+        solver._update_internal_data()
+        assert solver._n_time % 2 == 1  # guard: odd FFT length on purpose
+
+        reference_solver = InductiveImpedanceSolver()
+        reference_solver._parent_wakefield = parent_wakefield
+        reference_solver._simulation = simulation
+        reference_solver._Z_over_n = z_over_n
+        reference = copy_to_cpu(
+            reference_solver.calc_induced_voltage(beam=beam)
+        )
+
+        # second call exercises the preallocated fft output buffer
+        for _ in range(2):
+            induced_voltage = copy_to_cpu(
+                solver.calc_induced_voltage(beam=beam)
+            )
+            self.assertEqual(induced_voltage.shape, (n_bins,))
+            np.testing.assert_allclose(
+                induced_voltage,
+                reference,
+                rtol=1e-9,
+                atol=np.abs(reference).max() * 1e-12,
+            )
+
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
         parent_wakefield = Mock(WakeField)
@@ -610,7 +662,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             plt.show()
 
 
-class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
+class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -1106,7 +1158,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
 
 @pytest.mark.backend_mutation
-class TestMultiPassResonatorSolver(unittest.TestCase):
+class TestMultiPassResonatorSolver(BLonDTestCase):
     def setUp(self):
         enforce_64_bit_backend()
         # the histogram step is to tiny and would result in hist_step = 0
@@ -3227,7 +3279,7 @@ beam_profile = np.array(
 )
 
 
-class TestHeadlessSolvers(unittest.TestCase):
+class TestHeadlessSolvers(BLonDTestCase):
     def test_comp(self):
         t_rf = 7.706144104735e-10
         prof_ = StaticProfile.from_rad(
@@ -3304,14 +3356,14 @@ class TestHeadlessSolvers(unittest.TestCase):
         )
 
 
-class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
+class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
     def test_update_wake_kernel_fails(self):
         from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3353,7 +3405,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3382,12 +3434,10 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         from blond.testing.mocks import beam_mock
 
         prof = DynamicProfileConstNBins(n_bins=128)
-        prof.cut_left = -1e-9
-        prof.cut_right = 1e-9
-        prof._hist_x = backend.linspace(prof.cut_left, prof.cut_right, 128)
+        prof._set_window(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3415,7 +3465,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3491,7 +3541,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof_single.hist_y_to_density_factor = 0.3
-        prof_single._hist_y = backend.array(
+        prof_single.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3500,7 +3550,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         )
 
         prof_two_turns.hist_y_to_density_factor = 0.3
-        prof_two_turns._hist_y = np.concatenate(
+        prof_two_turns.hist_y[:] = np.concatenate(
             (prof_single.hist_y, 0.5 * prof_single.hist_y)
         )
 
@@ -3526,7 +3576,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         wf_single.calc_induced_voltage(beam=beam_mock)
 
         wf_mutli.calc_induced_voltage(beam=beam_mock)
-        prof_single._hist_y *= 0.5
+        prof_single.hist_y[:] *= 0.5
         wf_mutli.calc_induced_voltage(beam=beam_mock)  # second turn
 
         DEV_DEBUG = False
@@ -3564,7 +3614,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         )
 
 
-class TestPeriodicFreqSolverBranches(unittest.TestCase):
+class TestPeriodicFreqSolverBranches(BLonDTestCase):
     def test_on_wakefield_init_simulation_no_warn_expect_already_true(self):
         solver = PeriodicFreqSolver(t_periodicity=1e-6)
         solver.expect_profile_change = True

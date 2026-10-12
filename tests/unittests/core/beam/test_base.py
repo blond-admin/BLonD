@@ -8,17 +8,20 @@ import numpy as np
 import pytest
 
 from blond import Simulation, mu_plus, proton
-from blond.core.backends.backend import backend
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
-from blond.core.beam.particle_types import ParticleType, mu_minus
-from blond.generals.cupy.no_cupy_import import copy_to_cpu
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
+from blond.core.backends.backend import INDEX_DTYPE, backend
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
     mpi_barrier,
     mpi_is_distributed,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.flags import BeamFlags
+from blond.core.beam.particle_types import ParticleType, mu_minus
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.testing.backend_testing import BLonDTestCase
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -48,7 +51,7 @@ class BeamBaseClassTester(BeamBaseClass):
             backend.linspace(20, 30, 10, dtype=backend.float)
         )
         self._flags = DistributedArray(backend.zeros(10, dtype=np.int32))
-        self._ids = DistributedArray(backend.arange(10, dtype=np.int32))
+        self._ids = DistributedArray(backend.arange(10, dtype=INDEX_DTYPE))
 
     @property
     def ratio(self) -> float:
@@ -110,7 +113,7 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
 
-class TestBeamBaseClass(unittest.TestCase):
+class TestBeamBaseClass(BLonDTestCase):
     def setUp(self):
         self.beam_base_class = BeamBaseClassTester(
             intensity=1e12,
@@ -243,12 +246,12 @@ class TestBeamBaseClass(unittest.TestCase):
         dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
         dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
-        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
         dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
         dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
         flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
-        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=INDEX_DTYPE)
 
         beam_1 = BeamBaseClassTester(
             intensity=1e12,
@@ -292,14 +295,14 @@ class TestBeamBaseClass(unittest.TestCase):
         dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
         dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
-        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
-        dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
-        dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
+        dt_2 = backend.linspace(1e-6, 2e-6, 3, dtype=backend.float)
+        dE_2 = backend.linspace(0, 1e6, 3, dtype=backend.float)
         flags_2 = (
             backend.zeros_like(dE_2, dtype=np.int32) + BeamFlags.ACTIVE.value
         )
-        ids_2 = backend.arange(len(dE_2), dtype=np.int32) + len(dt_1)
+        ids_2 = backend.arange(len(dE_2), dtype=INDEX_DTYPE) + len(dt_1)
 
         beam_1 = BeamBaseClassTester(
             intensity=1e12,
@@ -335,7 +338,7 @@ class TestBeamBaseClass(unittest.TestCase):
             copy_to_cpu(np.concatenate((ids_1, ids_2))),
         )
 
-        self.assertEqual(beam_1.intensity, 2e12)
+        self.assertEqual(beam_1.intensity, 1.3e12)
 
         dist_dt = DistributedArray(dt_2[1:])
         dist_dE = DistributedArray(dE_2)
@@ -347,12 +350,12 @@ class TestBeamBaseClass(unittest.TestCase):
         dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
         dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
-        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
         dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
         dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
         flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
-        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=INDEX_DTYPE)
 
         beam_1 = BeamBaseClassTester(
             intensity=1e12,
@@ -394,7 +397,7 @@ class TestBeamBaseClass(unittest.TestCase):
         )
         np.testing.assert_array_equal(
             copy_to_cpu(beam_1._ids.array_local),
-            copy_to_cpu(np.arange(2 * len(dt_1), dtype=np.int32)),
+            copy_to_cpu(np.arange(2 * len(dt_1), dtype=INDEX_DTYPE)),
         )
 
         self.assertEqual(beam_1.intensity, 2 * beam_2.intensity)
@@ -407,12 +410,12 @@ class TestBeamBaseClass(unittest.TestCase):
         dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
         dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
-        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
         dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
         dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
         flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
-        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=INDEX_DTYPE)
 
         beam_1 = BeamBaseClassTester(
             intensity=20,
@@ -459,12 +462,12 @@ class TestBeamBaseClass(unittest.TestCase):
         dt_1 = backend.linspace(0, 1e-6, 10, dtype=backend.float)
         dE_1 = backend.linspace(-1e6, 0, 10, dtype=backend.float)
         flags_1 = backend.zeros_like(dE_1, dtype=np.int32)
-        ids_1 = backend.arange(len(dE_1), dtype=np.int32)
+        ids_1 = backend.arange(len(dE_1), dtype=INDEX_DTYPE)
 
         dt_2 = backend.linspace(1e-6, 2e-6, 10, dtype=backend.float)
         dE_2 = backend.linspace(0, 1e6, 10, dtype=backend.float)
         flags_2 = backend.zeros_like(dE_2, dtype=np.int32)
-        ids_2 = backend.arange(len(dE_2), dtype=np.int32)
+        ids_2 = backend.arange(len(dE_2), dtype=INDEX_DTYPE)
 
         beam_1 = BeamBaseClassTester(
             intensity=1e12,
@@ -506,7 +509,7 @@ class TestBeamBaseClass(unittest.TestCase):
         )
         np.testing.assert_array_equal(
             copy_to_cpu(beam_1._ids.array_local),
-            copy_to_cpu(np.arange(2 * len(dt_1), dtype=np.int32)),
+            copy_to_cpu(np.arange(2 * len(dt_1), dtype=INDEX_DTYPE)),
         )
 
         self.assertEqual(beam_1.intensity, 2 * beam_2.intensity)
@@ -551,7 +554,7 @@ class TestBeamBaseClass(unittest.TestCase):
             flags.array_local = backend.zeros_like(
                 dE_1.array_local, dtype=np.int32
             )
-            ids.array_local = backend.array([1, 3, 5], dtype=np.int32)
+            ids.array_local = backend.array([1, 3, 5], dtype=INDEX_DTYPE)
 
         dt_1.mpi_scatter()
         dE_1.mpi_scatter()
@@ -596,6 +599,113 @@ class TestBeamBaseClass(unittest.TestCase):
         np.testing.assert_array_equal(
             gathered_dEs[particle_order], np.array([10, 11, 12, 13, 14, 15])
         )
+
+
+class TestSortByDt(BLonDTestCase):
+    def _beam(self, dt, dE, ids, flags, is_distributed=False):
+        beam = BeamBaseClassTester(
+            intensity=1e12,
+            particle_type=proton,
+            is_distributed=is_distributed,
+        )
+        beam._dt = DistributedArray(backend.array(dt, dtype=backend.float))
+        beam._dE = DistributedArray(backend.array(dE, dtype=backend.float))
+        beam._ids = DistributedArray(backend.array(ids, dtype=INDEX_DTYPE))
+        beam._flags = DistributedArray(backend.array(flags, dtype=np.int32))
+        return beam
+
+    def test_permutes_all_arrays_consistently(self):
+        # dt order: argsort([3,1,2,5,4]) -> [1,2,0,4,3]
+        beam = self._beam(
+            dt=[3.0, 1.0, 2.0, 5.0, 4.0],
+            dE=[30.0, 10.0, 20.0, 50.0, 40.0],
+            ids=[0, 1, 2, 3, 4],
+            flags=[10, 11, 12, 13, 14],
+        )
+        beam.sort_by_dt()
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [1.0, 2.0, 3.0, 4.0, 5.0]
+        )
+        # dE must follow dt
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dE()),
+            [10.0, 20.0, 30.0, 40.0, 50.0],
+        )
+        # ids/flags must follow the *same* permutation [1,2,0,4,3]
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [1, 2, 0, 4, 3]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_flags()), [11, 12, 10, 14, 13]
+        )
+
+    def test_already_sorted_is_not_altered(self):
+        beam = self._beam(
+            dt=[1.0, 2.0, 3.0],
+            dE=[10.0, 20.0, 30.0],
+            ids=[0, 1, 2],
+            flags=[0, 0, 0],
+        )
+        beam.sort_by_dt()
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [1.0, 2.0, 3.0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [0, 1, 2]
+        )
+
+    def test_reverse_sorted(self):
+        beam = self._beam(
+            dt=[3.0, 2.0, 1.0],
+            dE=[30.0, 20.0, 10.0],
+            ids=[0, 1, 2],
+            flags=[0, 1, 2],
+        )
+        beam.sort_by_dt()
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [1.0, 2.0, 3.0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [2, 1, 0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dE()), [10.0, 20.0, 30.0]
+        )
+
+    def test_single_particle(self):
+        beam = self._beam(dt=[7.0], dE=[1.0], ids=[3], flags=[1])
+        beam.sort_by_dt()
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_dt()), [7.0]
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(beam.read_partial_ids()), [3]
+        )
+
+    def test_preserves_dtype(self):
+        beam = self._beam(
+            dt=[2.0, 1.0],
+            dE=[20.0, 10.0],
+            ids=[0, 1],
+            flags=[0, 1],
+        )
+        beam.sort_by_dt()
+        self.assertEqual(beam.read_partial_dt().dtype, backend.float)
+        self.assertEqual(beam.read_partial_dE().dtype, backend.float)
+        self.assertEqual(beam.read_partial_ids().dtype, INDEX_DTYPE)
+        self.assertEqual(beam.read_partial_flags().dtype, np.int32)
+
+    def test_raises_when_distributed(self):
+        beam = self._beam(
+            dt=[2.0, 1.0],
+            dE=[20.0, 10.0],
+            ids=[0, 1],
+            flags=[0, 1],
+            is_distributed=True,
+        )
+        with self.assertRaises(NotImplementedError):
+            beam.sort_by_dt()
 
 
 if __name__ == "__main__":

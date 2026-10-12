@@ -11,26 +11,28 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond import (
-    Beam,
-    BiGaussian,
+from blond.acc_math.analytic.simple_math import momentum_compaction_factor
+from blond.beam_preparation.bigaussian import BiGaussian
+from blond.core.beam.beams import Beam
+from blond.core.beam.particle_types import proton
+from blond.core.ring.ring import Ring
+from blond.core.simulation.simulation import Simulation
+from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
-    DriftSimple,
     MagneticCyclePerTurn,
-    MultiHarmonicRFStation,
-    RFStationPhaseObservation,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    StaticProfile,
-    WakeField,
-    momentum_compaction_factor,
-    proton,
 )
+from blond.handle_results.observables import RFStationPhaseObservation
+from blond.physics.drifts import DriftSimple
+from blond.physics.impedances.base import WakeField
 from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.physics.profiles import StaticProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
 
 
 class ExampleSimulation01:

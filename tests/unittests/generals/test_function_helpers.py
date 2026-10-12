@@ -2,13 +2,14 @@ import unittest
 
 import numpy as np
 
-from blond.generals.exceptions import UnevenArraySizes
+from blond.generals.exceptions_ import UnevenArraySizes
 from blond.generals.function_helpers import (
     raise_on_uneven_array_sizes,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class Test_raise_on_uneven_array_sizes(unittest.TestCase):
+class Test_raise_on_uneven_array_sizes(BLonDTestCase):
     def test_raise_on_uneven_array_sizes(self):
         test_tuple = [
             np.array([20.0, 20.0, 1.0, 10.0, 1.0]),

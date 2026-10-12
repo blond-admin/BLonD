@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import backend
+from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -47,7 +47,7 @@ class MultiProfile(BeamPhysicsRelevant, ABC):
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
 
 
 def _gen_array_bucket_index_to_memory_index(
@@ -241,6 +241,40 @@ class EquidistantMultiProfile(MultiProfile):
         """
         return len(self._continuous_memory_hist_x)
 
+    @property
+    def sparse_kick_metadata(self) -> dict:
+        """
+        Keyword arguments for a sparse-aware kernel call on this profile.
+
+        Bundles the island metadata that `kick_interpolated` (and
+        `histogram_sparse`) need to correctly resolve a particle to its
+        own bucket within this profile's concatenated, gapped
+        `hist_x`/`hist_y` memory, instead of assuming `hist_x` is a
+        single uniform grid.
+
+        Returns
+        -------
+        sparse_kick_metadata
+            Dict with keys ``first_left_cut``, ``left_cut_distance``,
+            ``cut_width``, ``bins_per_profile``, ``filling_pattern``,
+            ``bucket_index_to_memory_index`` -- matching the keyword
+            arguments `Specials.kick_interpolated` expects, so callers
+            can do
+            ``backend.specials.kick_interpolated(..., **profile.sparse_kick_metadata)``.
+        """
+        return {
+            "first_left_cut": self._first_left_cut,
+            "left_cut_distance": self._left_cut_distance,
+            "cut_width": (
+                self.profiles[0].cut_right - self.profiles[0].cut_left
+            ),
+            "bins_per_profile": self._bins_per_profile,
+            "filling_pattern": self._filling_pattern,
+            "bucket_index_to_memory_index": (
+                self._bucket_index_to_memory_index
+            ),
+        }
+
     def plot(self, **kwargs_plot):
         """
         Plot each profile.
@@ -376,7 +410,7 @@ class EquidistantMultiProfile(MultiProfile):
 
         self._continuous_memory_hist_x = backend.zeros(
             total,
-            dtype=self.profiles[0]._hist_x.dtype,
+            dtype=self.profiles[0].hist_x.dtype,
         )
         self._continuous_memory_hist_y = backend.zeros_like(
             self._continuous_memory_hist_x
@@ -386,8 +420,8 @@ class EquidistantMultiProfile(MultiProfile):
             sel = self._get_slice_single_profile(i)
 
             # core region
-            self._continuous_memory_hist_x[sel] = profile._hist_x
-            self._continuous_memory_hist_y[sel] = profile._hist_y
+            self._continuous_memory_hist_x[sel] = profile.hist_x
+            self._continuous_memory_hist_y[sel] = profile.hist_y
 
         self._bind_profiles()
 
@@ -396,8 +430,10 @@ class EquidistantMultiProfile(MultiProfile):
         for i, _profile in enumerate(self.profiles):
             sel = self._get_slice_single_profile(i)
 
-            self.profiles[i]._hist_x = self._continuous_memory_hist_x[sel]
-            self.profiles[i]._hist_y = self._continuous_memory_hist_y[sel]
+            self.profiles[i]._bind_arrays(
+                hist_x=self._continuous_memory_hist_x[sel],
+                hist_y=self._continuous_memory_hist_y[sel],
+            )
 
     def _get_slice_single_profile(self, index: int) -> slice:
         """

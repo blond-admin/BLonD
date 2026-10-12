@@ -19,11 +19,11 @@ from blond.core.base import (
     DynamicParameter,
 )
 from blond.core.beam.base import BeamBaseClass
-from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+    from blond.core.simulation.simulation import Simulation
 
 
 class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):

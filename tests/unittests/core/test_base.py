@@ -2,7 +2,6 @@ import unittest
 from functools import cached_property
 
 import numpy as np
-import scipy
 
 from blond import Simulation
 from blond.core.base import (
@@ -13,15 +12,13 @@ from blond.core.base import (
     MainLoopRelevant,
     Preparable,
     Schedulable,
-    ScheduledArray,
-    ScheduledFunctional,
-    ScheduledInterpolation,
     UnsafeUserElement,
     UserDefinedElement,
-    get_scheduler,
 )
 from blond.core.beam.base import BeamBaseClass
+from blond.core.scheduling import ScheduledArray, ScheduledInterpolation
 from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
@@ -42,7 +39,7 @@ class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
         pass
 
 
-class TestBeamPhysicsRelevant(unittest.TestCase):
+class TestBeamPhysicsRelevant(BLonDTestCase):
     def setUp(self):
         self.beam_physics_relevant = BeamPhysicsRelevantTester(
             section_index=10, name="Simon"
@@ -58,76 +55,6 @@ class TestBeamPhysicsRelevant(unittest.TestCase):
     def test_track(self):
         # self.beam_physics_relevant.track(beam=None)
         pass
-
-
-class TestScheduledInterpolation(unittest.TestCase):
-    def setUp(
-        self,
-    ):  # TODO this testcase must be changed, when fixing the ISSUE #110
-        t_arr = np.linspace(0, 10)
-        vals = np.linspace(-10, 0)
-        self.scheduled_constant = ScheduledInterpolation(
-            times=t_arr, values=vals
-        )
-        np.testing.assert_allclose(
-            self.scheduled_constant.get_scheduled(1, 1.0),
-            np.interp(1.0, t_arr, vals),
-        )
-        np.testing.assert_allclose(
-            self.scheduled_constant.get_scheduled(5, 1.0),
-            np.interp(1.0, t_arr, vals),
-        )
-        np.testing.assert_allclose(
-            self.scheduled_constant.get_scheduled(5, 1.0),
-            np.interp(1.0, t_arr, vals),
-        )
-
-    def test_init(self):
-        pass
-
-    def test_init_other1(self):
-        t_arr = np.linspace(0, 10)
-        vals = np.linspace(-10, 0)
-        scheduler = ScheduledInterpolation(
-            times=t_arr,
-            values=vals,
-            interpolator=scipy.interpolate.Akima1DInterpolator,
-            method="makima",
-        )
-        scheduler.get_scheduled(5, 1.0)  # should not crash
-
-        def test_init_other2(self):
-            t_arr = np.linspace(0, 10)
-            vals = np.linspace(-10, 0)
-            scheduler = ScheduledInterpolation(
-                times=t_arr,
-                values=vals,
-                interpolator=scipy.interpolate.PchipInterpolator,
-            )
-            scheduler.get_scheduled(5, 1.0)  # should not crash
-
-
-class TestScheduledFunctional(unittest.TestCase):
-    def test_calls_function_with_turn_and_time(self):
-        received = {}
-
-        def func(turn_i, reference_time):
-            received["turn_i"] = turn_i
-            received["reference_time"] = reference_time
-            return 42.0
-
-        scheduler = ScheduledFunctional(func)
-        value = scheduler.get_scheduled(turn_i=5, reference_time=1.5)
-
-        self.assertEqual(value, 42.0)
-        self.assertEqual(received, {"turn_i": 5, "reference_time": 1.5})
-
-    def test_passes_arguments_by_keyword(self):
-        # Function only uses reference_time but must accept both keywords.
-        scheduler = ScheduledFunctional(
-            lambda turn_i, reference_time: 2.0 * reference_time
-        )
-        self.assertEqual(scheduler.get_scheduled(0, 3.0), 6.0)
 
 
 class BeamObservationElementTester(BeamObservationElement):
@@ -148,7 +75,7 @@ class BeamObservationElementTester(BeamObservationElement):
         pass
 
 
-class TestBeamPhysicsRelevantTrack(unittest.TestCase):
+class TestBeamPhysicsRelevantTrack(BLonDTestCase):
     def test_track_inactive_skips_physics(self):
         call_log = []
 
@@ -162,7 +89,7 @@ class TestBeamPhysicsRelevantTrack(unittest.TestCase):
         self.assertEqual(call_log, [])
 
 
-class TestBeamObservationElement(unittest.TestCase):
+class TestBeamObservationElement(BLonDTestCase):
     def setUp(self):
         self.beam_observation_element = BeamObservationElementTester(
             section_index=10, name="Elle"
@@ -180,7 +107,7 @@ class TestBeamObservationElement(unittest.TestCase):
         pass
 
 
-class TestDynamicParameter(unittest.TestCase):
+class TestDynamicParameter(BLonDTestCase):
     def setUp(self):
         self.dynamic_parameter = DynamicParameter(value_init=5)
 
@@ -210,7 +137,7 @@ class HasPropertyCacheHelper(HasPropertyCache):
         self._invalidate_cache(("bar",))
 
 
-class TestHasPropertyCache(unittest.TestCase):
+class TestHasPropertyCache(BLonDTestCase):
     def setUp(self):
         self.has_property_cache = HasPropertyCacheHelper()
 
@@ -238,7 +165,7 @@ class MainLoopRelevantHelper(MainLoopRelevant):
         pass
 
 
-class TestMainLoopRelevant(unittest.TestCase):
+class TestMainLoopRelevant(BLonDTestCase):
     def setUp(self):
         self.main_loop_relevant = MainLoopRelevantHelper()
         self.main_loop_relevant.each_turn_i = 10
@@ -265,7 +192,7 @@ class PreparableHelper(Preparable):
         pass
 
 
-class TestPreparable(unittest.TestCase):
+class TestPreparable(BLonDTestCase):
     def setUp(self):
         self.preparable = PreparableHelper()
 
@@ -305,31 +232,10 @@ class TestPreparable(unittest.TestCase):
             self.preparable.configure_run(beam=None, n_turns=10, typo=1)
 
 
-class TestFunctions(unittest.TestCase):
-    def test_get_scheduler_1(self):
-        sched1 = get_scheduler(
-            np.ones(10),
-        )
-        sched2 = get_scheduler(
-            (np.ones(10), np.ones(10)),
-        )
-        sched3 = get_scheduler(lambda turn_i, reference_time: 1.0)
-        self.assertEqual(type(sched1), ScheduledArray)
-        self.assertEqual(type(sched2), ScheduledInterpolation)
-        self.assertEqual(type(sched3), ScheduledFunctional)
-        self.assertEqual(sched3.get_scheduled(0, 0.0), 1.0)
-        with self.assertRaises(TypeError):
-            get_scheduler(
-                "a string",
-            )
-        with self.assertRaises(TypeError):
-            get_scheduler(np.ones(10), mode="not_in_the_mode_today")
-
-
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
         self.schedulable = Schedulable()
-        self.schedulable._add_intended_schedule("voltage")
+        self.schedulable._register_schedulable_variables("voltage")
         with self.assertRaisesRegex(AssertionError, "doesnt exist"):
             self.schedulable.schedule_from_file(
                 attribute="voltage",
@@ -352,21 +258,23 @@ class TestSchedulable(unittest.TestCase):
     def test_schedule(self):
         schedulable = Schedulable()
         schedulable.voltage = None
-        with self.assertRaises(TypeError):
-            schedulable.schedule("voltage", 1)
-        schedulable.schedule("voltage", np.ones(10))
-        schedulable.schedule(
-            "voltage",
-            ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
-        )
-        schedulable.schedule(
-            "voltage",
-            ScheduledArray(np.ones(10)),
-        )
-        schedulable.schedule("voltage", np.ones(10))
+        # `voltage` is not in `intended_for_scheduling`, so each call warns.
+        with self.assertWarns(UserWarning):
+            with self.assertRaises(TypeError):
+                schedulable.schedule("voltage", 1)
+            schedulable.schedule("voltage", np.ones(10))
+            schedulable.schedule(
+                "voltage",
+                ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
+            )
+            schedulable.schedule(
+                "voltage",
+                ScheduledArray(np.ones(10)),
+            )
+            schedulable.schedule("voltage", np.ones(10))
 
 
-class TestUnsafeUserElement(unittest.TestCase):
+class TestUnsafeUserElement(BLonDTestCase):
     def test_init(self):
         class InvalidElement:
             def not_track(self): ...
@@ -396,7 +304,8 @@ class TestUnsafeUserElement(unittest.TestCase):
                 called_with.append(beam)
 
         element = Element()
-        wrapper = UnsafeUserElement(element)
+        with self.assertWarns(UserWarning):
+            wrapper = UnsafeUserElement(element)
 
         call_args = [1, 2, 3]
         for arg in call_args:

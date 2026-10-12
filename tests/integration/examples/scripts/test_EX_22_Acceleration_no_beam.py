@@ -7,9 +7,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_22_Acceleration_no_beam(unittest.TestCase):
+class TestEX_22_Acceleration_no_beam(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)

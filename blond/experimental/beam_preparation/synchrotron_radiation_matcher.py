@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.beam_preparation.base import MatchingRoutine
-from blond.core.helpers import int_from_float_with_warning
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.helpers import (
     mpi_aware_random_generator_cpu,
     mpi_local_size,
 )
-from blond.physics.cavities import SingleHarmonicRFStation
+from blond.core.helpers import int_from_float_with_warning
 from blond.physics.drifts import DriftSimple
+from blond.physics.rf_station import SingleHarmonicRFStation
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )

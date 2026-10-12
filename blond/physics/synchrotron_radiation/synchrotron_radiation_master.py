@@ -25,8 +25,9 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.base import Schedulable, ScheduledBaseClass
+from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
+from blond.core.scheduling import ScheduledBaseClass
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
@@ -39,8 +40,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.ring.ring import Ring
-    from blond.physics.cavities import RFStationBaseClass
     from blond.physics.drifts import DriftBaseClass
+    from blond.physics.rf_station import RFStationBaseClass
 
     T = TypeVar("T")
 
@@ -103,7 +104,7 @@ class SynchrotronRadiationMaster(Schedulable):
 
         super().__init__()
 
-        self._add_intended_schedule("radiation_integrals")
+        self._register_schedulable_variables("radiation_integrals")
 
         if track_before_element_type is not None:
             self.track_before_element_type = track_before_element_type
@@ -498,11 +499,11 @@ class SynchrotronRadiationMaster(Schedulable):
         element_list
             Element list to consider.
         """
-        from blond.physics.cavities import (
-            RFStationBaseClass,  # prevent cyclic import
-        )
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent cyclic import
+        )
+        from blond.physics.rf_station import (
+            RFStationBaseClass,  # prevent cyclic import
         )
 
         if all(isinstance(e, DriftBaseClass) for e in element_list):
