@@ -40,12 +40,14 @@ N_TURNS_COMPARED = 3
 # every buffer carries a distinct, non-degenerate signal.
 PERTURBATION = 1e-3
 
-# The linear signal path reproduces the reference bit for bit. The
-# clamping and saturation branches rebuild a complex number from its
-# magnitude and phase, where `math.atan2` and `np.angle` differ in the last
-# bits; the loop gain and the double integrator in the tuner CIC filter
-# amplify that difference over a turn, so those cases get a tolerance.
-RTOL_LINEAR = 0.0
+# The linear signal path performs the same operations as the reference, but
+# Numba (LLVM) and NumPy may round differently in the last bit depending on
+# CPU and library versions (bit-exact locally, ~1e-12 relative on the
+# py314 CI runner). The clamping and saturation branches additionally
+# rebuild a complex number from its magnitude and phase, where `math.atan2`
+# and `np.angle` differ in the last bits. The loop gain and the double
+# integrator in the tuner CIC filter amplify such differences over a turn.
+RTOL_LINEAR = 1e-10
 RTOL_NONLINEAR = 1e-9
 
 
