@@ -54,7 +54,7 @@ dev = [
   "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
   "pytest-xdist>=3",     # parallel test workers (`-n N`)
   "marimo>=0.25.1",      # example notebooks (blond/examples/notebooks)
-  "nbformat",            # needed by `marimo export ipynb`
+  "nbformat>=5.7",       # needed by `marimo export ipynb`
 ]
 doc = [
   "sphinx>=6",                   # documentation generator
