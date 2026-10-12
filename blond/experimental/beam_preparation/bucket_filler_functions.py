@@ -306,7 +306,7 @@ def hamilton_to_density_by_max(
     ...        hamilton_max=1.0
     ...    ),
     ...    internal_grid_shape=(1023, 1023),
-    ...    tolerance=1e-6,
+    ...    tolerance_potential_well=1e-6,
     ...    verbose=True,
     ... )
     >>> matcher.prepare_beam(...)

@@ -384,8 +384,6 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
 
         # To test the tracking methods
         self.simulation = Mock(Simulation)
-        self.simulation.turn_i = Mock(DynamicParameter)
-        self.simulation.turn_i.value = 0
         self.simulation.turn_counter = DynamicParameter(0)
 
         self.beam = BeamBaseClassTester(
