@@ -261,7 +261,9 @@ class TestConversionFunctions(BLonDTestCase):
         )
 
         beta = backend.backend.array([0.1, 0.5, 1])
-        gamma = conv.beta_to_gamma(beta)
+        # beta = 1 is the ultra-relativistic limit: gamma = inf on purpose.
+        with np.errstate(divide="ignore"):
+            gamma = conv.beta_to_gamma(beta)
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
             0
         ]

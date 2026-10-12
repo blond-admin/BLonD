@@ -139,6 +139,9 @@ class Simulation(Preparable):
     >>> sim = Simulation.from_locals(locals())
     """
 
+    # Deprecated alias; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["turn_i"]
+
     def __init__(
         self,
         ring: Ring,
@@ -172,7 +175,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         return self.turn_counter
 
@@ -181,7 +184,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         self.turn_counter = value
 
@@ -274,9 +277,12 @@ class Simulation(Preparable):
         end_turn = start_turn_i + int_from_float_with_warning(
             n_turns, warning_stacklevel=2
         )
-        # deepcopy to prevent side effects
-        deepcopy(self).run_simulation(
-            beams=beams,
+        # Deepcopy simulation and beams in one go to prevent side effects
+        # on the caller's objects; a joint copy keeps references between
+        # them (e.g. `self._beams`) pointing at the copied beams.
+        simulation_copy, beams_copy = deepcopy((self, beams))
+        simulation_copy.run_simulation(
+            beams=beams_copy,
             n_turns=end_turn,
             show_progressbar=False,
             callbacks=start_profiling,
@@ -712,7 +718,8 @@ class Simulation(Preparable):
 
     @staticmethod
     def from_locals(
-        locals: dict[str, Any], verbose: bool = False
+        locals: dict[str, Any],  # noqa: A002 (public keyword)
+        verbose: bool = False,
     ) -> Simulation:
         """
         Automatically create a Simulation by discovering components in the current scope.

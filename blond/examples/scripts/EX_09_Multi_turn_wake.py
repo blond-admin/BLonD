@@ -38,6 +38,7 @@ from blond import (
     AllowPlotting,
     Beam,
     BiGaussian,
+    ContinuousMultiTurnTimeDomainSolver,
     DriftSimple,
     MagneticCyclePerTurn,
     Resonators,
@@ -47,13 +48,10 @@ from blond import (
     StaticProfile,
     TimeDomainFftSolver,
     WakeField,
+    WakeFieldObservation,
     momentum_compaction_factor,
     proton,
     setup_backend,
-)
-from blond.handle_results.observables import WakeFieldObservation
-from blond.physics.impedances.solvers import (
-    ContinuousMultiTurnTimeDomainSolver,
 )
 from blond.testing import pytest_active
 

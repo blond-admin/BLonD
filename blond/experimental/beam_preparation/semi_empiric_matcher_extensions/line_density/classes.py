@@ -498,7 +498,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         ax1 = plt.subplot(3, 1, 1)
         plt.title("Hamilton")
         plt.pcolor(
-            time_grid, deltaE_grid, hamilton_2D, cmap="viridis", shading="auto"
+            time_grid, deltaE_grid, hamilton_2D, cmap="turbo", shading="auto"
         )
         plt.xlabel("Time [s]")
         plt.ylabel("Energy [eV]")
@@ -510,7 +510,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             time_grid,
             deltaE_grid,
             density,
-            cmap="viridis",
+            cmap="turbo",
             shading="auto",
             vmin=1e-24,
         )
