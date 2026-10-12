@@ -4741,7 +4741,8 @@ class TestCastPrecisionWarning(BLonDTestCase):
             (backend.cast_arr_complex_if_needed, np.array([1, 2], np.int64)),
             (backend.cast_arr_complex_if_needed, np.array([1.0, 2.0])),
         ):
-            with self.subTest(cast=cast.__name__, values=values):
+            # repr: xdist must serialise subTest params (no ndarrays)
+            with self.subTest(cast=cast.__name__, values=repr(values)):
                 self.assertEqual(
                     self._precision_warnings(lambda: cast(values)), []
                 )
