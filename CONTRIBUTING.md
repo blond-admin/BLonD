@@ -259,11 +259,28 @@ export BLOND_FORCE_TEST_ALL_BACKENDS=True
 python3 -m pytest -v tests/unittests/
 ```
 
+To run the suite in parallel, use pytest-xdist (part of the `dev` extra),
+as CI does for every non-MPI run. With CuPy, all workers share the GPU.
+
+```bash
+python3 -m pytest -n 4 --dist loadfile tests/unittests/
+```
+
+All `BLOND_*` environment variables that BLonD reads are listed with a short
+description in `pyproject.toml` under `[tool.blond] env-vars`. When you add,
+rename or remove one, update that list: the `check-env-vars` pre-commit hook
+fails if a variable used in `blond/` is missing there, or a listed one is no
+longer used.
+
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
 mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 ```
+
+BLonD only initialises MPI when it detects an MPI launcher (Open MPI,
+PMIx, PMI/PMI2 or MVAPICH environment variables). If your launcher is not
+detected, set `BLOND_LOAD_MPI=True`; `BLOND_LOAD_MPI=False` disables MPI.
 
 ---
 

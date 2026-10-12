@@ -28,21 +28,17 @@ from blond.acc_math.analytic.simple_math import gaussian_distribution
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
+from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     WakeFieldObservation,
 )
-from blond.legacy.blond2.beam.beam import Beam, MuPlus
-from blond.legacy.blond2.beam.profile import CutOptions, Profile
-from blond.legacy.blond2.impedances.impedance import (
-    InducedVoltageResonator,
-)
-from blond.legacy.blond2.impedances.impedance_sources import Resonators
-from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.physics.impedances.solvers import MultiPassResonatorSolver
 from blond.physics.impedances.sources import Resonators as res_b3
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.helpers import enforce_64_bit_backend
+from blond.testing.helpers import (
+    enforce_64_bit_backend,
+    save_blond2_reference_file,
+)
 
 
 def nonperiodic_wake(time_array, f0, R, Q):
@@ -66,6 +62,9 @@ def nonperiodic_wake(time_array, f0, R, Q):
 
 DEBUG_PLOTTING = False
 SAVE_PLOTS = False
+
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 plt.rcParams["axes.prop_cycle"] = cycler(
     color=["#0033a0", "#e15e32", "#2f2f2f", "#708238", "#6a4c93", "#c9a227"]
@@ -107,6 +106,18 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
 
     @pytest.mark.backend_mutation
     def setUpB2(self, old_impl: bool = True):
+        from blond.legacy.blond2.beam.beam import Beam, MuPlus
+        from blond.legacy.blond2.beam.profile import CutOptions, Profile
+        from blond.legacy.blond2.impedances.impedance import (
+            InducedVoltageResonator,
+        )
+        from blond.legacy.blond2.impedances.impedance_sources import (
+            Resonators,
+        )
+        from blond.legacy.blond2.input_parameters.rf_parameters import (
+            RFStation,
+        )
+        from blond.legacy.blond2.input_parameters.ring import Ring
         from blond.legacy.blond2.utils import bmath
 
         bmath.use_precision("double")
@@ -375,6 +386,58 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
                         rtol=1e-8,
                     )
 
+    def _blond2_blond2_reference_arrays(self):
+        """Arrays from `setUpB2` that `setUpB3` needs."""
+        expected_induced_voltage = np.zeros(
+            (self.n_stations, self.n_turns, self.profile.n_slices)
+        )
+        for inter_turn_ind in range(self.n_stations):
+            for trn_ind in range(self.n_turns):
+                conv_result = np.interp(
+                    self.time_array_profile[inter_turn_ind][trn_ind],
+                    self.time_axis,
+                    self.convolution_result[inter_turn_ind],
+                )
+                expected_induced_voltage[inter_turn_ind, trn_ind] = (
+                    -conv_result * e / self.profile.bin_size * self.dt_profile
+                )
+        return dict(
+            hist_x=np.asarray(self.hist_x),
+            hist_y=np.asarray(self.hist_y),
+            hist_step=np.asarray(self.hist_step),
+            beam_intensity=np.asarray(self.beam.intensity),
+            t_rf=np.asarray(self.t_rf),
+            plot_normalisation_const=np.asarray(self.plot_normalisation_const),
+            time_array_profile=np.asarray(self.time_array_profile),
+            expected_induced_voltage=expected_induced_voltage,
+        )
+
+    def load_blond2(self):
+        """Load the `setUpB2` results from the BLonD 2 reference file."""
+        blond2_reference_path = callers_relative_path(
+            "resources/induced_voltage_resonator_mtw_blond2.npz",
+            stacklevel=1,
+        )
+        if REWRITE_BLOND2_REFERENCE_FILE:
+            self.setUpB2(old_impl=False)
+            # self.setUpB2(old_impl=True)  # This will give wrong results, leaving in as comparison
+            save_blond2_reference_file(
+                blond2_reference_path, **self._blond2_blond2_reference_arrays()
+            )
+        with np.load(blond2_reference_path) as blond2_reference:
+            self.hist_x = blond2_reference["hist_x"]
+            self.hist_y = blond2_reference["hist_y"]
+            self.hist_step = blond2_reference["hist_step"].item()
+            self.beam_intensity = blond2_reference["beam_intensity"].item()
+            self.t_rf = blond2_reference["t_rf"].item()
+            self.plot_normalisation_const = blond2_reference[
+                "plot_normalisation_const"
+            ].item()
+            self.time_array_profile = blond2_reference["time_array_profile"]
+            self.expected_induced_voltage = blond2_reference[
+                "expected_induced_voltage"
+            ]
+
     @pytest.mark.backend_mutation
     def setUpB3(self):
         enforce_64_bit_backend()
@@ -420,7 +483,7 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
         profile.hist_step = backend.float(self.hist_step)
         profile.active = True
         profile.hist_y_to_density_factor = backend.float(
-            1 / self.beam.intensity
+            1 / self.beam_intensity
         )
         profile.n_bins = len(profile.hist_y)
         shc_list = []
@@ -482,18 +545,15 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
             for inter_turn in range(self.n_stations):
                 plt.figure(f"b3_{inter_turn}")
                 # plt.title(f"b3_{inter_turn}")
-                plt.plot(
-                    self.time_axis * 1e9,
-                    -self.convolution_result[inter_turn][
-                        0 : len(self.time_axis)
-                    ]
-                    * e
-                    / self.profile.bin_size
-                    * self.dt_profile
-                    / self.plot_normalisation_const,
-                    label="Analytical result",
-                    alpha=0.6,
-                )
+                for el in range(self.n_turns):
+                    plt.plot(
+                        self.time_array_profile[inter_turn][el] * 1e9,
+                        self.expected_induced_voltage[inter_turn][el]
+                        / self.plot_normalisation_const,
+                        color="gray",
+                        alpha=0.6,
+                        label="Analytical result" if el == 0 else None,
+                    )
                 for el in range(self.n_turns):
                     plt.plot(
                         self.time_array_profile[inter_turn][el] * 1e9,
@@ -527,19 +587,13 @@ class TestInducedVoltageResonatorComparison(BLonDTestCase):
 
         for inter_turn_ind in range(self.n_stations):
             for trn_ind in range(self.n_turns):
-                conv_result = np.interp(
-                    self.time_array_profile[inter_turn_ind][trn_ind],
-                    self.time_axis,
-                    self.convolution_result[inter_turn_ind],
-                )
                 np.testing.assert_allclose(
-                    -conv_result * e / self.profile.bin_size * self.dt_profile,
+                    self.expected_induced_voltage[inter_turn_ind][trn_ind],
                     ind_volt_obs_list[inter_turn_ind].induced_voltage[trn_ind],
                     atol=1e8,
                     rtol=1e-8,
                 )
 
     def test_blond2_3(self):
-        self.setUpB2(old_impl=False)
-        # self.setUpB2(old_impl=True)  # This will give wrong results, leaving in as comparison
+        self.load_blond2()
         self.setUpB3()  # some of the code relies on the matcher in b2, therefore blond2 has to run first

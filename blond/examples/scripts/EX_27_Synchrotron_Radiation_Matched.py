@@ -14,12 +14,14 @@ from scipy.constants import c
 
 from blond import (
     Beam,
+    BeamStatisticsOncePerTurn,
     DriftSimple,
     MagneticCyclePerTurn,
     RFStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    SynchrotronRadiationMaster,
     positron,
     setup_backend,
 )
@@ -29,10 +31,6 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 from blond.experimental.beam_preparation.synchrotron_radiation_matcher import (
     SynchrotronRadiationMatcher,
     sawtooth_factor,
-)
-from blond.handle_results.observables import BeamStatisticsOncePerTurn
-from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
-    SynchrotronRadiationMaster,
 )
 from blond.testing import pytest_active
 
