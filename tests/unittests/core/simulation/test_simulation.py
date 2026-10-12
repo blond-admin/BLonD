@@ -383,7 +383,10 @@ class TestSimulation(BLonDTestCase):
             observe=(observation,),
             common_name="newname",
         )
-        # Re-running with the already ramped beam resets its energy.
+        # FIXME: load_results() calls finalize(), which resets the
+        # caller's ramped beam to the initial cycle energy just to load
+        # files. Like the profiling() side effect fixed upstream, this
+        # warning should go away once that is fixed.
         with self.assertWarns(UserWarning):
             self.simulation.load_results(
                 **kwargs,
@@ -424,14 +427,12 @@ class TestSimulation(BLonDTestCase):
             beams=(self.beam,),
             stats_lines=20,
         )
-        # Re-running with the already ramped beam resets its energy.
-        with self.assertWarns(UserWarning):
-            self.simulation.profiling(
-                start_turn_i=10,
-                n_turns=20,
-                beams=(self.beam,),
-                stats_lines=None,
-            )
+        self.simulation.profiling(
+            start_turn_i=10,
+            n_turns=20,
+            beams=(self.beam,),
+            stats_lines=None,
+        )
 
     def test_profiling2(self):
         self.simulation.profiling(
