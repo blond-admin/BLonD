@@ -137,13 +137,14 @@ class TestDenseArrayRecorder(BLonDTestCase):
             overwrite=True,
         )
         rec1.to_disk()  # creates deleteme2
-        rec2 = DenseArrayRecorder(
-            filepath=callers_relative_path("deleteme2", 1),
-            shape=(20, 10),
-            dtype=np.float32,
-            order="C",
-            overwrite=False,
-        )
+        with self.assertWarns(UserWarning):  # deleteme2 already exists
+            rec2 = DenseArrayRecorder(
+                filepath=callers_relative_path("deleteme2", 1),
+                shape=(20, 10),
+                dtype=np.float32,
+                order="C",
+                overwrite=False,
+            )
         with self.assertRaises(AssertionError):
             rec2.to_disk()
         rec1.purge_from_disk(verbose=False)

@@ -570,7 +570,7 @@ class TestResonators(BLonDTestCase):
         )
 
     def test___init__neg_freq(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([-400e6]),
@@ -578,15 +578,41 @@ class TestResonators(BLonDTestCase):
             )
 
     def test___init__small_Q(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([400e6]),
                 quality_factors=np.array([0.49]),
             )
 
+    def test___init__Q_equal_0_5(self):
+        # Q = 0.5 makes omega_bar = 0, so the wake divides by zero.
+        with self.assertRaises(ValueError):
+            self.resonators = Resonators(
+                shunt_impedances=np.array([1]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.5]),
+            )
+
+    def test___init__small_Q_raises_before_computing_nan(self):
+        import warnings
+
+        with (
+            warnings.catch_warnings(record=True) as caught,
+            self.assertRaises(ValueError),
+        ):
+            warnings.simplefilter("always")
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.49]),
+            )
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
+
     def test___init__float_values(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
                 center_frequencies=400e6,
@@ -596,7 +622,7 @@ class TestResonators(BLonDTestCase):
     def test___init___quality_factor_exactly_one_half_raises(self):
         """Q = 0.5 is critically damped: omega_bar = 0 and the closed-form
         bin average divides by it, so the input is rejected up front."""
-        with self.assertRaisesRegex(RuntimeError, "greater than 0.5"):
+        with self.assertRaisesRegex(ValueError, "greater than 0.5"):
             Resonators(
                 shunt_impedances=1e6,
                 center_frequencies=1e9,
@@ -805,7 +831,7 @@ class TestResonators(BLonDTestCase):
             plt.show()
         assert np.allclose(
             self.resonators._center_frequencies,
-            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y))[0]]),
+            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y).real)[0]]),
             atol=(max_freq - min_freq) / num / 2,
         )  # closeness of peaks to centre frequency
         for freq_ind in range(
@@ -831,7 +857,7 @@ class TestResonators(BLonDTestCase):
             assert np.allclose(
                 copy_to_cpu(self.resonators._shunt_impedances[freq_ind]),
                 copy_to_cpu(
-                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y))[0]])
+                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y).real)[0]])
                 ),
             )
             assert np.isclose(
@@ -1386,6 +1412,26 @@ class TestTravelingWaveCavity(BLonDTestCase):
         a_factor = [1, 2, 3]
         self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
         self.twc_floats = TravelingWaveCavity(3.0, 3.0, 3.0)
+
+    def test_get_impedance_at_resonance_is_finite_without_warning(self):
+        import warnings
+
+        # Grid hits +f_R and -f_R, where (x - sin x) / x**2 is 0/0.
+        freq_x = backend.array([-3.0, -1.0, 0.5, 1.0, 2.0, 3.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            impedance = copy_to_cpu(
+                self.twc.get_impedance(
+                    freq_x=freq_x,
+                    simulation=Mock(Simulation),
+                    beam=Mock(BeamBaseClass),
+                )
+            )
+
+        self.assertTrue(np.all(np.isfinite(impedance)))
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
