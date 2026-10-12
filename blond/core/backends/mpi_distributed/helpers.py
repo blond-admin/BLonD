@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Mapping
     from types import ModuleType
 
     from numpy.random import Generator as NumpyGenerator
@@ -38,7 +37,7 @@ MPI_LAUNCHER_ENV_KEYS = (
 )
 
 
-def mpi_launched(environ: Mapping[str, str] | None = None) -> bool:
+def mpi_launched() -> bool:
     """
     Whether this process was started by an MPI launcher (e.g. `mpirun`).
 
@@ -46,33 +45,32 @@ def mpi_launched(environ: Mapping[str, str] | None = None) -> bool:
     `MPI_Init`, which would otherwise slow down every `import blond` and
     set up the MPI runtime (e.g. UCX) in processes that never use MPI.
 
-    Parameters
-    ----------
-    environ
-        Environment to inspect. Defaults to `os.environ`.
-
     Returns
     -------
     launched
         True if an MPI launcher variable is set, unless overridden by the
-        `BLOND_USE_MPI` environment variable (``True`` or ``False``).
+        `BLOND_LOAD_MPI` environment variable (``True`` or ``False``).
 
     Raises
     ------
     ValueError
-        If `BLOND_USE_MPI` is set to anything but ``True`` or ``False``.
+        If `BLOND_LOAD_MPI` is set to anything but ``True`` or ``False``.
     """
-    if environ is None:
-        environ = os.environ
-    override = environ.get("BLOND_USE_MPI")
-    if override is not None:
-        if override not in ("True", "False"):
-            raise ValueError(
-                "BLOND_USE_MPI environment variable must be either True"
-                f" or False, not {override}"
-            )
-        return override == "True"
-    return any(key in environ for key in MPI_LAUNCHER_ENV_KEYS)
+    # Normally `BLOND_LOAD_MPI` is unset and the launcher variables decide.
+    # It is an escape hatch: `True` for a launcher whose variables are not
+    # in `MPI_LAUNCHER_ENV_KEYS` (otherwise every rank would silently run
+    # as its own serial simulation), `False` to stay serial under one.
+    override = os.environ.get("BLOND_LOAD_MPI")
+    if override is None:
+        launched = any(key in os.environ for key in MPI_LAUNCHER_ENV_KEYS)
+    elif override in ("True", "False"):
+        launched = override == "True"
+    else:
+        raise ValueError(
+            "BLOND_LOAD_MPI environment variable must be either True"
+            f" or False, not {override}"
+        )
+    return launched
 
 
 def _import_mpi() -> ModuleType | None:
@@ -85,13 +83,12 @@ def _import_mpi() -> ModuleType | None:
         The `mpi4py.MPI` module, or None when not launched by MPI or
         `mpi4py` cannot be imported.
     """
-    if not mpi_launched():
-        return None
-    try:
-        from mpi4py import MPI as mpi_module
-    except Exception as exc:
-        warnings.warn(str(exc), ImportWarning, stacklevel=1)
-        return None
+    mpi_module = None
+    if mpi_launched():
+        try:
+            from mpi4py import MPI as mpi_module
+        except Exception as exc:
+            warnings.warn(str(exc), ImportWarning, stacklevel=1)
     return mpi_module
 
 
