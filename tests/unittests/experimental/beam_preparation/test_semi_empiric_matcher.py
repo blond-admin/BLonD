@@ -125,7 +125,6 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
                     density=True,
                 )
                 plt.draw()
-                plt.draw()
                 plt.pause(0.1)
 
             sim.simulation.turn_counter.value = 0
