@@ -287,7 +287,7 @@ class FilamentationMatcher(MatchingRoutine):
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
-                plt.pause(0.1)
+                plt.pause(self.animate_pause_time)
 
         if self.animate:
             plt.ioff()
