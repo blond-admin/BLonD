@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ordering import requires
-from blond.generals.late_init import InitialisedInternally, SetBy
+from blond.generals.late_init import InitialisedInternally, SetBy, is_filled
 
 # Shared with the `blond.physics` feedbacks this module duplicates.
 from blond.physics.feedbacks.base import _BY_ATTACH
@@ -56,7 +56,7 @@ class LocalFeedback(FeedbackBaseClass):
         self.profile = profile
 
     def set_parent_rf_station(self, rf_station: RFStationBaseClass):
-        assert not hasattr(self, "_parent_rf_station"), (
+        assert not is_filled(lambda: self._parent_rf_station), (
             "This feedback has already one owner!"
         )
         self._parent_rf_station = rf_station

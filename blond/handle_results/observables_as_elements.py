@@ -25,6 +25,7 @@ from blond.generals.late_init import (
     AssignedDuringTracking,
     InitialisedInternally,
     SetBy,
+    is_filled,
 )
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
@@ -562,7 +563,7 @@ class InducedVoltageObservationCR(
         # Both are written together, so one of them is enough to
         # recognise the first passage.
         if (
-            not hasattr(self, "beam_state")
+            not is_filled(lambda: self.beam_state)
             or self.beam_state != beam._is_counter_rotating
             or self.last_turn != self.turn_counter.value
         ):

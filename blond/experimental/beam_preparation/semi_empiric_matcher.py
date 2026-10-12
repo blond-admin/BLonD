@@ -28,7 +28,7 @@ from blond.experimental.beam_preparation.bucket_filler_functions import (
 )
 from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
-from blond.generals.late_init import AssignedDuringTracking, SetBy
+from blond.generals.late_init import AssignedDuringTracking, SetBy, is_filled
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -440,9 +440,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     plt.draw()
                     plt.pause(0.1)
 
-                error_calculable = hasattr(
-                    self, "_last_potential_well"
-                ) and hasattr(self, "_prelast_potential_well")
+                error_calculable = is_filled(
+                    lambda: self._last_potential_well
+                ) and is_filled(lambda: self._prelast_potential_well)
                 # calculate errors on wakes (not on beam profiles)
                 # because this will more stable as noise is smoothed out
                 if error_calculable and i_intensity > 1:
@@ -694,10 +694,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         )
 
         # Skipped on the first iteration, which has no previous well.
-        if hasattr(self, "_last_potential_well"):
+        if is_filled(lambda: self._last_potential_well):
             self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
-        if not hasattr(self, "_prelast_potential_well"):
+        if not is_filled(lambda: self._prelast_potential_well):
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
@@ -753,9 +753,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.ylabel("Density (arb. unit)")
 
             plt.subplot(2, 1, 2)
-            if hasattr(self, "_last_potential_well"):
+            if is_filled(lambda: self._last_potential_well):
                 plt.plot(ts, self._last_potential_well)
-            if hasattr(self, "_prelast_potential_well"):
+            if is_filled(lambda: self._prelast_potential_well):
                 plt.plot(ts, self._prelast_potential_well)
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")

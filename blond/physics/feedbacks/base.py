@@ -31,6 +31,7 @@ from blond.generals.late_init import (
     AssignedDuringTracking,
     InitialisedInternally,
     SetBy,
+    is_filled,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -139,7 +140,7 @@ class LocalFeedback(FeedbackBaseClass):
             SingleHarmonicRFStation,
         )
 
-        assert not hasattr(self, "_parent_rf_station"), (
+        assert not is_filled(lambda: self._parent_rf_station), (
             "This feedback has already one owner!"
         )
         if not isinstance(

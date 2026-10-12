@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import weakref
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, overload
 
@@ -287,6 +288,32 @@ def unfilled(
     return tuple(
         name for name in names if isinstance(getattr(owner, name), category)
     )
+
+
+def is_filled(read: Callable[[], object]) -> bool:
+    """
+    Tell whether a late-initialised attribute is filled.
+
+    Takes the read as a callable, e.g. ``is_filled(lambda:
+    self.energy)``, rather than the attribute name as a string, so IDEs
+    and type checkers can follow the reference.
+
+    Parameters
+    ----------
+    read
+        Callable that reads the attribute.
+
+    Returns
+    -------
+    bool
+        `False` if the read raises `NotInitialisedError`, `True`
+        otherwise.  Any other exception propagates.
+    """
+    try:
+        read()
+    except NotInitialisedError:
+        return False
+    return True
 
 
 def check_filled(obj: object, *names: str) -> None:

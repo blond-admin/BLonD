@@ -9,6 +9,7 @@ from blond.generals.late_init import (
     ToBeDefined,
     _LateInit,
     check_filled,
+    is_filled,
     late_init_attributes,
     unfilled,
 )
@@ -87,6 +88,17 @@ class TestLateInit(BLonDTestCase):
         self.assertNotHasAttr(owner, "energy")
         owner.setup(1.0)
         self.assertHasAttr(owner, "energy")
+
+    def test_is_filled_reports_fill_state(self):
+        owner = _Owner()
+        self.assertFalse(is_filled(lambda: owner.energy))
+        owner.setup(1.0)
+        self.assertTrue(is_filled(lambda: owner.energy))
+
+    def test_is_filled_propagates_other_attribute_errors(self):
+        owner = _Owner()
+        with self.assertRaises(AttributeError):
+            is_filled(lambda: owner.not_an_attribute)
 
     def test_read_after_set(self):
         owner = _Owner()

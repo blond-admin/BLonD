@@ -26,6 +26,7 @@ from blond.generals.late_init import (
     AssignedDuringTracking,
     InitialisedInternally,
     SetBy,
+    is_filled,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -265,7 +266,7 @@ class Music(BeamPhysicsRelevant):
         dE = beam.write_partial_dE()
 
         n = len(dt)
-        if not hasattr(self, "induced_voltage") or (
+        if not is_filled(lambda: self.induced_voltage) or (
             len(self.induced_voltage) != n
         ):
             self.induced_voltage = backend.zeros(n, dtype=backend.float)

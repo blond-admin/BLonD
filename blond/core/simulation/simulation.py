@@ -46,7 +46,7 @@ from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
 from blond.generals.iterables_ import _as_tuple
-from blond.generals.late_init import InitialisedInternally, SetBy
+from blond.generals.late_init import InitialisedInternally, SetBy, is_filled
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
@@ -1339,7 +1339,7 @@ class Simulation(Preparable):
         """
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
-        if not hasattr(self, "execution_model"):
+        if not is_filled(lambda: self.execution_model):
             self._autoselect_execution_model(beams)
 
         if self.check_circumference == "raise":

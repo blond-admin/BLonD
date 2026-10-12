@@ -38,6 +38,7 @@ from blond.generals.late_init import (
     AssignedDuringTracking,
     InitialisedInternally,
     SetBy,
+    is_filled,
 )
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
@@ -343,7 +344,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if not self._freq_y_needs_update:
             return
 
-        if not hasattr(self, "_freq_y") or (
+        if not is_filled(lambda: self._freq_y) or (
             self._freq_x.shape != self._freq_y.shape
         ):
             self._freq_y = backend.zeros_like(
@@ -561,7 +562,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         n_t = (n_fft // 2) + 1
 
-        if not hasattr(self, "_impedance_from_wake_y") or (
+        if not is_filled(lambda: self._impedance_from_wake_y) or (
             (n_t,) != self._impedance_from_wake_y.shape  # tuple vs shape-tuple
         ):
             self._impedance_from_wake_y = backend.zeros(
@@ -1270,7 +1271,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         induced_voltage
             The induced voltage, in [V].
         """
-        if not hasattr(self, "_wake_kernel"):
+        if not is_filled(lambda: self._wake_kernel):
             self._update_wake_kernel()
 
         _factor = self._hist_y_to_intensity_factor(
@@ -1444,7 +1445,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             else self._profile.hist_x
         )
 
-        if not hasattr(self, "_poles"):
+        if not is_filled(lambda: self._poles):
             self._finalize_solver(beam=beam)
             assert self._update_on_bin[0] == 0, "First bin must always update."
             assert int(self._update_on_bin[-1]) < len(profile_hist_y) - 1, (
