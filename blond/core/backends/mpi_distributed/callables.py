@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 from blond.core.backends.backend import backend
+from blond.core.beam.flags import BeamFlags
 
 
 def _global_sum(local_value: float) -> float:
@@ -111,3 +112,24 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     # rounding can push it slightly negative for a zero-emittance beam.
     determinant = sigma_dt_squared * sigma_dE_squared - sigma_dE_dt**2
     return float(np.sqrt(max(determinant, 0.0)))
+
+
+def count_active_macroparticles(flags: DistributedArray) -> int:
+    """
+    Count the macro-particles flagged as active across all processes.
+
+    Parameters
+    ----------
+    flags
+        The beam macro-particle flags.
+
+    Returns
+    -------
+    n_active_macroparticles
+        Number of macro-particles with the flag
+        ``BeamFlags.ACTIVE``.
+    """
+    local_count = int(backend.sum(flags.array_local == BeamFlags.ACTIVE.value))
+    if mpi_is_distributed():  # pragma: no cover
+        return int(MPI.COMM_WORLD.allreduce(local_count, op=MPI.SUM))
+    return local_count
