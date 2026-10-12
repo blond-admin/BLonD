@@ -39,7 +39,26 @@ from blond.testing.backend_testing import multi_backend_testcase
 DEV_DRAW = False
 
 
-def plot_diff_if_failed(actual, expected, save: str | None = None):
+# The pinned voltages agree with the analytic results (direct convolution
+# with the textbook wake, or -L dI/dt) to machine precision. Solvers that
+# use the wake, or the exact inductive kick, reproduce them to ~1e-14.
+# `PeriodicFreqSolver` samples the analytic Z(f) instead of transforming
+# the sampled wake, which leaves a deterministic discretisation error of
+# ~5e-4 at 128 bins (shrinking ~3x per doubling of n_bins).
+TOLERANCE_EXACT = 1e-9
+TOLERANCE_PERIODIC_FREQ = 1e-3
+
+
+def tolerance_of(solver) -> float:
+    if isinstance(solver, PeriodicFreqSolver):
+        return TOLERANCE_PERIODIC_FREQ
+    return TOLERANCE_EXACT
+
+
+def plot_diff_if_failed(
+    actual, expected, tolerance: float, save: str | None = None
+):
+    """Assert `actual` matches `expected` within `tolerance` of its peak."""
     actual = copy_to_cpu(actual)
     if save is not None:
         np.savetxt(
@@ -49,11 +68,13 @@ def plot_diff_if_failed(actual, expected, save: str | None = None):
         )
         return
     try:
-        offset = 2 * expected.min()
+        # Absolute tolerance relative to the peak: a plain `rtol` would be
+        # ill-defined at the zero crossings of the induced voltage.
         np.testing.assert_allclose(
-            actual - offset,
-            expected - offset,
-            rtol=1e-3,
+            actual,
+            expected,
+            rtol=0,
+            atol=tolerance * np.max(np.abs(expected)),
         )
     except Exception as exc:
         if DEV_DRAW:
@@ -135,6 +156,9 @@ class TestWakeFields(unittest.TestCase):
         )
 
         for i, solver in enumerate(solvers):
+            # Deliberately large Z/n (realistic LHC: ~0.1 Ohm) to get a
+            # strong signal; the response is linear, so only the scale
+            # changes.
             source = InductiveImpedance(1234)
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
@@ -147,6 +171,7 @@ class TestWakeFields(unittest.TestCase):
             plot_diff_if_failed(
                 self.wake_field.induced_voltage,
                 induced_voltage_pinned,
+                tolerance=tolerance_of(solver),
                 # save=filepath, # use to overwrite pinned values
             )
         if DEV_DRAW:
@@ -196,6 +221,7 @@ class TestWakeFields(unittest.TestCase):
             plot_diff_if_failed(
                 self.wake_field.induced_voltage,
                 induced_voltage_pinned,
+                tolerance=tolerance_of(solver),
                 # save=filepath, # use to overwrite pinned values
             )
         if DEV_DRAW:
@@ -225,9 +251,13 @@ class TestWakeFields(unittest.TestCase):
         )
         for i, solver in enumerate(solvers):
             source = Resonators(
-                shunt_impedances=2.0e6,  # ~ (R/Q)*Q_L for LHC cavity
-                center_frequencies=400.79e6,  # LHC RF frequency
-                quality_factors=4.5e3,  # Loaded Q
+                # Generic narrow-band test resonator at the LHC RF
+                # frequency (R/Q ~ 440 Ohm, not an LHC cavity model).
+                # Ringing time Q/(pi f_r) ~ 3.6 us << T_rev, so the
+                # wake from previous turns is negligible here.
+                shunt_impedances=2.0e6,
+                center_frequencies=400.79e6,
+                quality_factors=4.5e3,
             )
             self.init_simulation(source=source, solver=solver)
             self.simulation.run_simulation(self.beam, n_turns=1)
@@ -247,6 +277,7 @@ class TestWakeFields(unittest.TestCase):
             plot_diff_if_failed(
                 self.wake_field.induced_voltage,
                 induced_voltage_pinned,
+                tolerance=tolerance_of(solver),
                 # save=filepath, # use to overwrite pinned values
             )
         if DEV_DRAW:
