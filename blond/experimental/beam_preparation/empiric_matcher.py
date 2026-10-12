@@ -28,6 +28,7 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
 )
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -325,6 +326,7 @@ class EmpiricMatcher(MatchingRoutine):
                     users_beam._dt,
                     users_beam._dE,
                     bins=len(self._grid_base_dt),
+                    cmap=DEFAULT_CMAP,
                 )
                 plt.draw()
                 plt.pause(0.1)
