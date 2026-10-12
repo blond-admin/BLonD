@@ -253,32 +253,26 @@ class DistributedArray:
         """
         Compute the global standard deviation across all processes.
 
+        The variance is taken from the values centred on the global mean
+        (two passes), which stays accurate when the spread is small
+        compared to the mean.
+
         Returns
         -------
         float
             The standard deviation across all distributed array chunks.
         """
-        # Compute local statistics
-        local_sum = float(backend.sum(self.array_local))
-        # self.array_local**2 with dot product for performacne
-        local_sum_sq = float(backend.dot(self.array_local, self.array_local))
-        local_count = self.array_local.size
+        global_mean = self.mean()
+        centred = self.array_local - global_mean
+        # dot(x, x) is a faster sum(x**2)
+        local_sum_sq = float(backend.dot(centred, centred))
 
         if self._is_distributed:
-            # Gather global statistics
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
             global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
-            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
         else:
-            global_sum = local_sum
             global_sum_sq = local_sum_sq
-            global_count = local_count
 
-        # Compute global variance and standard deviation
-        global_mean = global_sum / global_count
-        global_variance = (global_sum_sq / global_count) - (global_mean**2)
-
-        return sqrt(global_variance)
+        return sqrt(global_sum_sq / self.global_size)
 
     def sum(self):
         """
