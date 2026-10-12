@@ -108,8 +108,10 @@ class Coasting(base.BeamPreparationRoutine):
                 stacklevel=2,
             )
         # Normalise even a profile that is close to 1: `Generator.choice`
-        # accepts a much smaller deviation than `np.isclose`.
-        self.energy_profile = energy_profile / profile_sum
+        # accepts a much smaller deviation than `np.isclose`. In place is
+        # safe, `np.array` above made a float copy.
+        energy_profile /= profile_sum
+        self.energy_profile = energy_profile
 
         self.start_time = start_time
         self.stop_time = stop_time

@@ -101,6 +101,15 @@ class TestCoasting(BLonDTestCase):
             )
         np.testing.assert_allclose(coast.energy_profile, [0.25, 0.5, 0.25])
 
+    def test_normalisation_does_not_modify_callers_profile(self):
+        density = np.array([1.0, 2.0, 1.0])
+        with self.assertWarns(UserWarning):
+            coast = coasting.Coasting(
+                1 << 10, [-1.0, 0.0, 1.0], density, seed=0
+            )
+        np.testing.assert_array_equal(density, [1.0, 2.0, 1.0])
+        self.assertFalse(np.shares_memory(coast.energy_profile, density))
+
     def test_invalid_times_raise_before_profile_warning(self):
         import warnings
 
