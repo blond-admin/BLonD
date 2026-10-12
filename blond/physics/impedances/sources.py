@@ -296,7 +296,8 @@ class Resonators(
     center_frequencies
         Center frequencies of the resonances, in [Hz].
     quality_factors
-        Quality factors (Q) of the resonances, dimensionless.
+        Quality factors (Q) of the resonances, dimensionless. Must be
+        greater than 0.5 (only underdamped resonators are supported).
     shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
 
@@ -383,13 +384,13 @@ class Resonators(
         self._alpha = self._omega / (2 * self._quality_factors)
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
-        # Test if one or more quality factors is smaller than 0.5.
-        if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
-            raise RuntimeError(
-                "All quality factors Q must be greater or equal 0.5"
-            )
+        # Only the underdamped case Q > 0.5 is implemented. At Q = 0.5
+        # omega_bar = 0 and the wake / vector fit divide by zero; Q < 0.5
+        # would need the overdamped (cosh/sinh, real poles) formulas.
+        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
+            raise ValueError("All quality factors Q must be greater than 0.5")
         if backend.sum(self._center_frequencies < 0) > 0:
-            raise RuntimeError(
+            raise ValueError(
                 "All center frequencies must be greater or equal 0"
             )
 
