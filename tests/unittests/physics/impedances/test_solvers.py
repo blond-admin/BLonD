@@ -26,6 +26,7 @@ from blond import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.offenders import hold_strongly
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
@@ -68,6 +69,8 @@ class TestTimeDomainFftSolver(BLonDTestCase):
 
         self.parent_wakefield = Mock(WakeField)
         self.time_domain_fft_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.time_domain_fft_solver, "_parent_wakefield")
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -293,6 +296,10 @@ class TestInductiveImpedanceSolver(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.inductive_impedance_solver, "_parent_wakefield", "_simulation"
+        )
         _parent_wakefield.profile.gradient_hist_y = backend.linspace(1, 3)
 
     def test___init__(self):
@@ -388,6 +395,8 @@ class TestPeriodicFreqSolver(BLonDTestCase):
 
         self.parent_wakefield = Mock(WakeField)
         self.periodic_freq_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.periodic_freq_solver, "_parent_wakefield")
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -692,6 +701,10 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         self.parent_wakefield = Mock(WakeField)
         self.single_turn_resonator_convolution_solver._parent_wakefield = (
             self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.single_turn_resonator_convolution_solver, "_parent_wakefield"
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
@@ -1183,6 +1196,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         self.multi_pass_resonator_solver._parent_wakefield = (
             self.parent_wakefield
         )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.multi_pass_resonator_solver, "_parent_wakefield")
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
