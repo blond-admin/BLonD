@@ -66,7 +66,8 @@ class TestTimeDomainFftSolver(BLonDTestCase):
             endpoint=True,
         )
 
-        self.time_domain_fft_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.time_domain_fft_solver._parent_wakefield = self.parent_wakefield
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -385,7 +386,8 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         )
         self.periodic_freq_solver = PeriodicFreqSolver(t_periodicity=10)
 
-        self.periodic_freq_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.periodic_freq_solver._parent_wakefield = self.parent_wakefield
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -687,8 +689,9 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e3)
 
-        self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
-            WakeField
+        self.parent_wakefield = Mock(WakeField)
+        self.single_turn_resonator_convolution_solver._parent_wakefield = (
+            self.parent_wakefield
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
@@ -749,7 +752,8 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         initial_voltage = analy_solver.calc_induced_voltage(beam=self.beam)
 
         td_fft_solver = TimeDomainFftSolver()
-        td_fft_solver._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        td_fft_solver._parent_wakefield = parent_wakefield
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
@@ -1056,7 +1060,8 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        analy._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        analy._parent_wakefield = parent_wakefield
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -1174,7 +1179,10 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             backend.arange(-1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float),
         )
 
-        self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.multi_pass_resonator_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
@@ -2089,7 +2097,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        local_res._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        local_res._parent_wakefield = parent_wakefield
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
@@ -2194,7 +2203,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
                 decay_fraction_threshold=0.999
             )
 
-            local_res._parent_wakefield = Mock(WakeField)
+            parent_wakefield = Mock(WakeField)
+            local_res._parent_wakefield = parent_wakefield
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
@@ -2217,7 +2227,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             )
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
-            local_res_analy._parent_wakefield = Mock(WakeField)
+            parent_wakefield_analy = Mock(WakeField)
+            local_res_analy._parent_wakefield = parent_wakefield_analy
             local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
