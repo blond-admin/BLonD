@@ -591,10 +591,11 @@ class CudaSpecials(Specials):  # NOQA: D101
             # Host coefficients, as the ABC declares, go by value into
             # the kernel's parameter space: no device allocation, no
             # host-to-device copy, no sync.
-            alphas_array = np.zeros((), dtype=_DRIFT_EXACT_ALPHAS_DTYPE)
-            alphas_array["higher_alpha"][:n_alpha] = higher_alpha
-            # CuPy packs a structured scalar faster than a 0-d array.
-            alphas = alphas_array[()]
+            # A 0-d structured array, not an `np.void` scalar: CuPy 13
+            # rejects `np.void` launch arguments and CuPy 14.0 asserts
+            # their size fits 32 bytes.
+            alphas = np.zeros((), dtype=_DRIFT_EXACT_ALPHAS_DTYPE)
+            alphas["higher_alpha"][:n_alpha] = higher_alpha
             kernel = _drift_exact
         else:
             # More coefficients than fit (one tiny copy per call), or a
