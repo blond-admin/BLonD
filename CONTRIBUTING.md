@@ -259,6 +259,13 @@ export BLOND_FORCE_TEST_ALL_BACKENDS=True
 python3 -m pytest -v tests/unittests/
 ```
 
+To run the suite in parallel, use pytest-xdist (part of the `dev` extra),
+as CI does for every non-MPI run. With CuPy, all workers share the GPU.
+
+```bash
+python3 -m pytest -n 4 --dist loadfile tests/unittests/
+```
+
 All `BLOND_*` environment variables that BLonD reads are listed with a short
 description in `pyproject.toml` under `[tool.blond] env-vars`. When you add,
 rename or remove one, update that list: the `check-env-vars` pre-commit hook

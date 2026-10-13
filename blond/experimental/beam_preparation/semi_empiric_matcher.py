@@ -385,6 +385,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Runs with the same seed will produce identical distributions.
     animate : bool, default=False
         If ``True``, draws a plot using ``matplotlib.pyplot.draw()`` at each iteration.
+    animate_pause_time : float, default=0.1
+        Time to pause after each animation frame, in [s].
     tolerance_potential_well : float, optional
         Convergence threshold. The matching process stops when the error
         falls below this tolerance.
@@ -549,6 +551,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         stagnation_patience: int = 10,
         n_warmup_turns: int = 0,
         animate: bool = False,
+        animate_pause_time: float = 0.1,
         verbose: bool = True,
         debug=False,
         until_section_index: int = -1,
@@ -597,6 +600,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         # `get_grid_correction_from_one_turn_map`
         self._grid_correction: tuple[float, float] | None = None
         self.animate = animate
+        self.animate_pause_time = animate_pause_time
         self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
 
@@ -658,7 +662,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.clf()
             self._plot_current_state(beam, 0, 0, ts)
             plt.draw()
-            plt.pause(0.1)
+            plt.pause(self.animate_pause_time)
 
         # Track the best (smallest) self-consistency error to detect a limit
         # cycle / stall (see `self.stagnation_patience`), together with the
@@ -746,7 +750,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     plt.clf()
                     self._plot_current_state(beam, i_intensity, scalar, ts)
                     plt.draw()
-                    plt.pause(0.1)
+                    plt.pause(self.animate_pause_time)
 
                 error_calculable = (
                     self._last_potential_well is not None

@@ -126,7 +126,6 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
                     density=True,
                 )
                 plt.draw()
-                plt.draw()
                 plt.pause(0.1)
 
             sim.simulation.turn_counter.value = 0
@@ -615,6 +614,18 @@ class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
         self.assertEqual(warmup_spy.call_count, 2)
         for call in warmup_spy.call_args_list:
             self.assertEqual(call.kwargs["n_turns"], 2)
+
+
+class TestSemiEmpiricMatcherAnimation(BLonDTestCase):
+    def test_animate_pauses_for_animate_pause_time(self):
+        with mock.patch("matplotlib.pyplot.pause") as pause:
+            TestSemiEmpiricMatcherWarmup._run_matching(
+                self, animate=True, animate_pause_time=0.0
+            )
+
+        self.assertGreater(pause.call_count, 0)
+        for call in pause.call_args_list:
+            self.assertEqual(call, mock.call(0.0))
 
 
 class TestCallables:

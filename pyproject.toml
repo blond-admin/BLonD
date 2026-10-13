@@ -52,6 +52,7 @@ dev = [
   "mpmath>=1",           # part of the testing against blond2
   "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
   "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
+  "pytest-xdist>=3",     # parallel test workers (`-n N`)
   "nbconvert>=6",        # notebook execution in tests
 ]
 doc = [
@@ -149,6 +150,11 @@ minversion = "8.4"
 addopts = "--import-mode=importlib"
 strict_markers = true
 testpaths = ["tests/unittests", "tests/integration"]
+filterwarnings = [
+  # Examples call `plt.show()`; under the headless test backend that only
+  # means the figure is not displayed.
+  "ignore:FigureCanvasAgg is non-interactive, and thus cannot be shown:UserWarning",
+]
 markers = [
   "mpi: Tests that require MPI.",
   "backend_mutation: Tests that alter the backend as a side effect.",

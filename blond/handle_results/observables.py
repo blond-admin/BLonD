@@ -30,6 +30,7 @@ from blond.core.backends.mpi_distributed.callables import (
 )
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
@@ -86,7 +87,7 @@ def _plot_profile_waterfall(
     if ax is None:
         ax = plt.gca()
 
-    default_kwargs_pcolormesh = {"shading": "nearest", "cmap": "viridis"}
+    default_kwargs_pcolormesh = {"shading": "nearest", "cmap": DEFAULT_CMAP}
     for key, value in default_kwargs_pcolormesh.items():
         if key not in kwargs_pcolormesh:
             kwargs_pcolormesh[key] = value
@@ -620,7 +621,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
                 float(yedges[-1]),
             ),
             "aspect": "auto",
-            "cmap": "viridis",
+            "cmap": DEFAULT_CMAP,
         }
         # prevent overriding user arguments
         for key, value in default_kwargs_imshow.items():
@@ -693,7 +694,7 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             "origin": "lower",
             "extent": [xedges[0], xedges[-1], yedges[0], yedges[-1]],
             "aspect": "auto",
-            "cmap": "viridis",
+            "cmap": DEFAULT_CMAP,
         }
         # prevent overriding user arguments
         for key, value in default_kwargs_imshow.items():
@@ -788,6 +789,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ...         bunch_observation.dEs[index, :],
     ...         bins=256,
     ...         range=[[0, 2.5e-9], [-4e8, 4e8]],
+    ...         cmap="turbo",
     ...     )
     """
 

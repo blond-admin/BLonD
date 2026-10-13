@@ -28,6 +28,7 @@ from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.flags import BeamFlags
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -414,16 +415,17 @@ class TestBeamObservation(BLonDTestCase):
                 ),
             )
             plt.plot(phase_observation.phases)
-            fig = plt.figure()
-            for i in range(bunch_observation.dts.shape[0]):
-                plt.clf()
-                sel = ~np.isnan(bunch_observation.dts[i, :])
-                plt.hist2d(
-                    bunch_observation.dts[i, sel],
-                    bunch_observation.dEs[i, sel],
-                    bins=256,
-                    # range=[[0, 2.5e-9], [-4e8, 4e8]],
-                )
+            if DEV_DRAW:  # one plot per observed turn, only for inspection
+                plt.figure()
+                for i in range(bunch_observation.dts.shape[0]):
+                    plt.clf()
+                    sel = ~np.isnan(bunch_observation.dts[i, :])
+                    plt.hist2d(
+                        bunch_observation.dts[i, sel],
+                        bunch_observation.dEs[i, sel],
+                        bins=256,
+                        # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                    )
             obs_beam_hist2d.plot(
                 result_idx=-1
             )  # tests that the plots are functional
@@ -472,6 +474,16 @@ class TestBeamHist2dOncePerTurn(BLonDTestCase):
         np.testing.assert_allclose(self.obs.intensity, [1e10])
         np.testing.assert_allclose(self.obs.reference_time, [0.8])
         np.testing.assert_allclose(self.obs.reference_total_energy, [11])
+
+    def test_plot_uses_default_cmap(self) -> None:
+        image = self.obs.plot(result_idx=-1)
+        self.assertEqual(image.get_cmap().name, DEFAULT_CMAP)
+        plt.close(image.axes.figure)
+
+    def test_plot_fancy_uses_default_cmap(self) -> None:
+        ax_main, _, _ = self.obs.plot_fancy(result_idx=-1)
+        self.assertEqual(ax_main.images[0].get_cmap().name, DEFAULT_CMAP)
+        plt.close(ax_main.figure)
 
 
 class TestBunchStatistics(BLonDTestCase):
@@ -769,6 +781,7 @@ class TestStaticProfileObservation(BLonDTestCase):
             mesh.get_array().data.ravel(),
             self.static_profile_observation.hist_y.ravel(),
         )
+        self.assertEqual(mesh.get_cmap().name, DEFAULT_CMAP)
         plt.close(mesh.axes.figure)
 
 
@@ -922,6 +935,7 @@ class TestDynamicProfileConstNBinsObservation(BLonDTestCase):
             mesh.get_array().data.ravel(),
             self.dynamic_profile_observation.hist_y.ravel(),
         )
+        self.assertEqual(mesh.get_cmap().name, DEFAULT_CMAP)
         plt.close(mesh.axes.figure)
 
 
