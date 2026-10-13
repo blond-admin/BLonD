@@ -1,4 +1,6 @@
+import gc
 import unittest
+import weakref
 from unittest.mock import Mock
 
 import numpy as np
@@ -238,6 +240,24 @@ class TestFunctions(BLonDTestCase):
             logs.output[0].endswith(" at .items[1]['key']"),
             logs.output[0],
         )
+
+    def test_find_instances_leaves_no_reference_cycle(self):
+        # Found instances must be freed by reference counting alone once the
+        # caller drops them. A reference cycle inside the search would keep
+        # them (e.g. a beam with GBs of arrays) alive until a full cyclic
+        # garbage collection, which loops creating simulations rarely
+        # trigger.
+        class Target:
+            def to_be_found(self):
+                pass
+
+        target = Target()
+        target_ref = weakref.ref(target)
+        gc.disable()
+        self.addCleanup(gc.enable)
+        find_instances_with_method(root=target, method_name="to_be_found")
+        del target
+        self.assertIsNone(target_ref())
 
     @unittest.skip
     def test_float_or_array_typesafe(self):
