@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import weakref
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from blond.physics.impedances.base import WakeField
@@ -30,7 +32,34 @@ class IntensityEffectManager:
     """
 
     def __init__(self, simulation: Simulation) -> None:
-        self._parent_simulation = simulation
+        # Weak, as the simulation owns this manager: a strong back-reference
+        # forms a cycle that keeps the simulation alive until a full GC.
+        self._parent_simulation_ref = weakref.ref(simulation)
+
+    @property
+    def _parent_simulation(self) -> Simulation:
+        return self._parent_simulation_ref()
+
+    def __deepcopy__(self, memo: dict) -> IntensityEffectManager:
+        """
+        Copy the manager so that it manages the copied simulation.
+
+        `deepcopy` keeps a weakref as is, which would leave the copy
+        managing the original simulation.
+
+        Parameters
+        ----------
+        memo
+            Objects already copied, as passed by `copy.deepcopy`.
+
+        Returns
+        -------
+        intensity_effect_manager
+            Manager of the copied simulation.
+        """
+        return IntensityEffectManager(
+            simulation=deepcopy(self._parent_simulation, memo)
+        )
 
     def has_wakefields(self):
         """

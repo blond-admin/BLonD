@@ -1,5 +1,7 @@
+import gc
 import unittest
-from copy import copy
+import weakref
+from copy import copy, deepcopy
 
 from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
@@ -38,6 +40,38 @@ class TestIntensityEffectManager(BLonDTestCase):
 
     def test___init__(self):
         pass  # done by setup
+
+    def test_does_not_keep_simulation_alive(self):
+        # The simulation owns its manager; a strong back-reference forms a
+        # cycle that only a full cyclic garbage collection can free.
+        class Simulation:
+            pass
+
+        simulation = Simulation()
+        simulation.intensity_effect_manager = IntensityEffectManager(
+            simulation=simulation
+        )
+        simulation_ref = weakref.ref(simulation)
+        gc.disable()
+        self.addCleanup(gc.enable)
+        del simulation
+        self.assertIsNone(simulation_ref())
+
+    def test_deepcopy_of_simulation_manages_the_copy(self):
+        # Matchers deepcopy the simulation to toggle intensity effects
+        # without side effects, so the copy's manager must act on the copy.
+        class Simulation:
+            pass
+
+        simulation = Simulation()
+        simulation.intensity_effect_manager = IntensityEffectManager(
+            simulation=simulation
+        )
+        simulation_copy = deepcopy(simulation)
+        self.assertIs(
+            simulation_copy.intensity_effect_manager._parent_simulation,
+            simulation_copy,
+        )
 
     def test_has_wakefields(self):
         self.assertTrue(self.intensity_effect_manager.has_wakefields())
