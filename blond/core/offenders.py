@@ -25,12 +25,12 @@ The offenders, i.e. every back-reference declared with these helpers:
   feedback, which refers back to its RF stations.
 - ``IntensityEffectManager._parent_simulation``: the `Simulation` owns its
   manager.
-
-FIXME: ideally these cycles would not exist at all. A child should not
- store its owner, but receive what it needs (the ring, the simulation
- context, ...) as arguments of the calls that use it. These helpers only
- patch the symptom of that architecture.
 """
+
+# FIXME: ideally these cycles would not exist at all. A child should not
+#  store its owner, but receive what it needs (the ring, the simulation
+#  context, ...) as arguments of the calls that use it. These helpers only
+#  patch the symptom of that architecture.
 
 from __future__ import annotations
 
