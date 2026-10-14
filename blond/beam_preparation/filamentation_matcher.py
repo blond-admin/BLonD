@@ -277,7 +277,7 @@ class FilamentationMatcher(MatchingRoutine):
             # --------------------------------------------------
         for i in range(self.n_iter):
             sim_copy = deepcopy(simulation)
-            sim_copy.turn_i.value = 0
+            sim_copy.turn_counter.value = 0
             sim_copy.run_simulation(
                 beams=beam, n_turns=1, show_progressbar=False
             )
@@ -287,7 +287,7 @@ class FilamentationMatcher(MatchingRoutine):
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
-                plt.pause(0.1)
+                plt.pause(self.animate_pause_time)
 
         if self.animate:
             plt.ioff()

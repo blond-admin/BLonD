@@ -21,24 +21,24 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
+    EquidistantMultiProfile,
+    MultiPoleSparseSolve,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     WakeField,
     backend,
+    make_multibunch_beam,
     momentum_compaction_factor,
     proton,
     setup_backend,
 )
-from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.base import (
     SupportsVectorFittedModel,
     VectorFit,
     WakeFieldSource,
 )
-from blond.physics.impedances.solvers import MultiPoleSparseSolve
-from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover

@@ -303,7 +303,8 @@ class Resonators(
     center_frequencies
         Center frequencies of the resonances, in [Hz].
     quality_factors
-        Quality factors (Q) of the resonances, dimensionless.
+        Quality factors (Q) of the resonances, dimensionless. Must be
+        greater than 0.5 (only underdamped resonators are supported).
     shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
 
@@ -385,20 +386,20 @@ class Resonators(
                     "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
                 )
 
+        # Only the underdamped case Q > 0.5 is implemented. At Q = 0.5
+        # omega_bar = 0 and the wake / vector fit divide by zero; Q < 0.5
+        # would need the overdamped (cosh/sinh, real poles) formulas.
+        # Checked before omega_bar, whose sqrt would warn on Q < 0.5.
+        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
+            raise ValueError("All quality factors Q must be greater than 0.5")
+
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
         self._alpha = self._omega / (2 * self._quality_factors)
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
-        # Test if one or more quality factors is smaller than 0.5.
-        # At Q = 0.5 the resonator is critically damped, omega_bar = 0, and
-        # the closed-form bin average divides by it.
-        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
-            raise RuntimeError(
-                "All quality factors Q must be greater than 0.5"
-            )
         if backend.sum(self._center_frequencies < 0) > 0:
-            raise RuntimeError(
+            raise ValueError(
                 "All center frequencies must be greater or equal 0"
             )
 
@@ -1497,6 +1498,29 @@ class TravelingWaveCavity(
         """
         return self.wake_calc(time=time)
 
+    @staticmethod
+    def _shape(arg: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+        """
+        Normalised impedance shape of one TWC sideband.
+
+        Parameters
+        ----------
+        arg
+            ``a_factor * (f -+ f_R)``.
+
+        Returns
+        -------
+        shape
+            ``sinc(arg / 2 pi)**2 - 2j (arg - sin(arg)) / arg**2``, with the
+            limit 1 at ``arg == 0`` instead of 0/0.
+        """
+        # (arg - sin arg) / arg**2 -> arg / 6 -> 0; a dummy denominator
+        # avoids the 0/0 there.
+        safe_arg = backend.where(arg == 0, 1.0, arg)
+        return (backend.sinc(arg * 0.5 / np.pi)) ** 2 - 2j * (
+            arg - backend.sin(arg)
+        ) / safe_arg**2
+
     def get_impedance(
         self,
         freq_x: NumpyArray | CupyArray,
@@ -1530,17 +1554,10 @@ class TravelingWaveCavity(
 
         for i in range(0, len(self.R_S)):
             arg2_minus = self.a_factor[i] * (freq_x - self.frequency_R[i])
-            Zminus = self.R_S[i] * (
-                (backend.sinc(arg2_minus * 0.5 / np.pi)) ** 2
-                - 2j * (arg2_minus - backend.sin(arg2_minus)) / arg2_minus**2
-            )
+            Zminus = self.R_S[i] * self._shape(arg2_minus)
 
             arg2_plus = self.a_factor[i] * (freq_x + self.frequency_R[i])
-            Zplus = self.R_S[i] * (
-                (backend.sinc(arg2_plus * 0.5 / np.pi)) ** 2
-                - 2j * (arg2_plus - backend.sin(arg2_plus)) / arg2_plus**2
-            )
-            Zminus[freq_x == self.frequency_R[i]] = self.R_S[i]
+            Zplus = self.R_S[i] * self._shape(arg2_plus)
             imp = Zplus + Zminus
             impedance += imp
         return impedance

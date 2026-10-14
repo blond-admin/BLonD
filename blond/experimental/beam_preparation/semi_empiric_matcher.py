@@ -53,48 +53,62 @@ def get_hamilton_semi_analytic(
     energy_range: tuple[float, float] | None = None,
 ) -> tuple[NumpyArray, NumpyArray, NumpyArray]:
     r"""
-    Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
+    Compute the 2D Hamiltonian :math:`H(t, \Delta E)` of a potential well.
 
-    This function computes a semi-analytic Hamiltonian over a 2D grid defined by
-    time (:math:`t`) and energy difference (:math:`\Delta E`).
+    The time axis is ``ts``; the energy axis is sampled uniformly over
+    ``energy_range``.
 
     Notes
     -----
-    The Hamiltonian is computed using the relation:
+    The Hamiltonian is computed using the relation
 
     .. math::
 
-        H_{2D}(t, \Delta E) = \frac{1}{2} \frac{\eta E_0}{\beta^2 c^2} (\Delta E)^2 + V(t)
+        H(t, \Delta E) = \frac{1}{2} \frac{|\eta|}{\beta^2 E_0} (\Delta E)^2
+                         + V(t)
 
     where
 
-    - :math:`E_0` is the reference total energy [eV].
-    - :math:`V(t)` is the potential well interpolated at times :math:`t` [V].
-    - :math:`c` is the speed of light [m/s].
+    - :math:`E_0` is the reference total energy [eV],
+    - :math:`\eta` is the zeroth-order slippage factor,
+    - :math:`V(t)` is ``potential_well`` evaluated at ``ts`` [eV].
+
+    The absolute value :math:`|\eta|` assumes that ``potential_well`` is
+    oriented such that stable fixed points are minima on both sides of
+    transition, as returned by
+    :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`.
 
     Parameters
     ----------
     ts : array_like
         Time coordinates of the potential well [s].
     potential_well : array_like
-        Potential energy values corresponding to ``ts`` [V].
+        Potential well values at ``ts`` [eV]. Its offset is arbitrary.
     reference_total_energy : float
         Reference total energy :math:`E_0` [eV].
     eta : float
-        General synchrotron parameter (zeroth-order slippage factor) [unitless].
+        Zeroth-order slippage factor [unitless]. Only :math:`|\eta|` is used.
     beta : float
         Relativistic velocity factor :math:`\beta = v/c` [unitless].
     shape : tuple of int
-        Shape of the output Hamiltonian grid, as ``(num_time_points, num_energy_points)``.
+        Grid shape as ``(n_time, n_energy)``. Only ``n_energy`` is used;
+        the time axis always has ``len(ts)`` points.
     energy_range : tuple of float or None, optional
         Range of :math:`\Delta E` values to evaluate [eV].
-        If ``None``, it will comprise the largest separatrix inside the given potential.
+        If ``None``, the range is chosen symmetric around zero such that
+        :math:`H` spans the full depth of the potential well, which
+        comprises the largest separatrix inside the given potential.
 
     Returns
     -------
-    hamilton_2D : ndarray
-        2D array representing the semi-analytic Hamiltonian evaluated on a grid of
-        time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
+    deltaE_grid : numpy.ndarray
+        2D grid of energy offsets :math:`\Delta E` [eV], with shape
+        ``(len(ts), n_energy)``.
+    time_grid : numpy.ndarray
+        2D grid of time coordinates :math:`t` [s], same shape.
+    hamilton_2D : numpy.ndarray
+        Hamiltonian evaluated on the grid [eV], same shape. All outputs are
+        NumPy arrays, also when the inputs are CuPy arrays.
     """
     # from here only CPU code, because `populate_beam` can only
     # handle numpy arrays
@@ -134,7 +148,7 @@ def get_hamilton_semi_analytic(
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
     time_grid, deltaE_grid = np.meshgrid(ts, _dE_base, indexing="ij")
     # Expand potential V(t) to 2D grid
-    V = potential_well[:, None]  # [V]
+    V = potential_well[:, None]  # [eV]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
     hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
@@ -193,6 +207,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Runs with the same seed will produce identical distributions.
     animate : bool, default=False
         If ``True``, draws a plot using ``matplotlib.pyplot.draw()`` at each iteration.
+    animate_pause_time : float, default=0.1
+        Time to pause after each animation frame, in [s].
     tolerance_potential_well : float, optional
         Convergence threshold. The matching process stops when the error
         falls below this tolerance.
@@ -218,10 +234,118 @@ class SemiEmpiricMatcher(MatchingRoutine):
     until_section_index
         Section index until which to run the simulation. Default is -1.
 
+    See Also
+    --------
+    hamilton_to_density_by_max : Default ``hamilton_to_density_function``.
+    blond.experimental.beam_preparation.bucket_filler_functions.multibunch_match_metric_to_hamilton :
+        Fill several buckets, fitting e.g. the RMS emittance of each bunch.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon :
+        Match to a measured line density.
+    blond.core.simulation.simulation.Simulation.get_potential_well_empiric :
+        Potential well that the Hamiltonian is built from.
+
     Notes
     -----
     This routine is intended for iterative beam-matching workflows where
     the potential well and intensity effects are both considered analytically.
+
+    Further documentation:
+
+    - :ref:`semi_empiric_matcher`: theory, algorithm and convergence
+      criterion.
+    - :ref:`potential_well_empiric`: how the potential well is obtained.
+    - :doc:`/examples/notebooks/tutorial_SemiEmpiricMatcher`: step-by-step
+      notebook, including matching to a measured line density.
+    - Example scripts ``blond/examples/scripts/EX_08_Semi_empiric_matcher.py``
+      (multi-bunch filling with a custom density function and a wakefield)
+      and ``blond/examples/scripts/EX_06_Acceleration_match_density.py``
+      (matching to a line density during acceleration).
+
+    **Custom density function.** ``hamilton_to_density_function`` is called
+    as ``hamilton_to_density_function(time_grid=..., deltaE_grid=...,
+    hamilton_2D=..., **hamilton_to_density_kwargs)``. It must therefore
+
+    - accept the keyword arguments ``time_grid`` [s], ``deltaE_grid`` [eV]
+      and ``hamilton_2D`` [eV] (spelled exactly like this), all NumPy arrays
+      of shape ``internal_grid_shape``,
+    - accept every key of ``hamilton_to_density_kwargs`` as keyword argument,
+    - return a non-negative NumPy array of the same shape. Its normalization
+      does not matter; the beam is sampled from ``density / density.sum()``.
+
+    The Hamiltonian is approximately zero at the bottom of the potential
+    well, because the matcher uses the minimum-subtracted potential from
+    :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`
+    (averaged between iterations). Subtracting its minimum, as in the example
+    below, makes a custom function independent of that convention.
+
+    Examples
+    --------
+    Fill a single LHC bucket with a density that decays exponentially in
+    the Hamiltonian, :math:`\rho \propto \exp(-H / H_\mathrm{decay})`,
+    cut at a fraction of the Hamiltonian at the separatrix.
+
+    >>> import numpy as np
+    >>> from blond import (
+    ...     Beam,
+    ...     ConstantMagneticCycle,
+    ...     DriftSimple,
+    ...     Ring,
+    ...     Simulation,
+    ...     SingleHarmonicRFStation,
+    ...     momentum_compaction_factor,
+    ...     proton,
+    ... )
+    >>> from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    ...     SemiEmpiricMatcher,
+    ... )
+    >>>
+    >>> def truncated_exponential_density(
+    ...     time_grid,  # required, [s]
+    ...     deltaE_grid,  # required, [eV]
+    ...     hamilton_2D,  # required, [eV]
+    ...     decay,  # custom: 1/e decay, as fraction of the well depth
+    ...     filling,  # custom: cut, as fraction of the well depth
+    ... ):
+    ...     # H(t, dE=0) = V(t), so the minimum along dE is the potential
+    ...     potential_well = hamilton_2D.min(axis=1)
+    ...     well_depth = potential_well.max() - potential_well.min()
+    ...     # 0 at the bucket centre, 1 at the separatrix
+    ...     hamilton_relative = (
+    ...         hamilton_2D - potential_well.min()
+    ...     ) / well_depth
+    ...     density = np.exp(-hamilton_relative / decay)
+    ...     density[hamilton_relative > filling] = 0.0
+    ...     return density
+    >>>
+    >>> ring = Ring(circumference=26658.883)
+    >>> ring.add_elements(
+    ...     [
+    ...         SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0),
+    ...         DriftSimple(
+    ...             orbit_length=26658.883,
+    ...             momentum_compaction_factor=momentum_compaction_factor(
+    ...                 transition_gamma=55.759505
+    ...             ),
+    ...         ),
+    ...     ]
+    ... )
+    >>> sim = Simulation(
+    ...     ring=ring,
+    ...     magnetic_cycle=ConstantMagneticCycle(
+    ...         value=450e9, reference_particle=proton
+    ...     ),
+    ... )
+    >>> beam = Beam(intensity=1e11, particle_type=proton)
+    >>> sim.prepare_beam(
+    ...     beam=beam,
+    ...     preparation_routine=SemiEmpiricMatcher(
+    ...         time_limit=(0, 2.5e-9),  # one RF bucket
+    ...         n_macroparticles=1e5,
+    ...         hamilton_to_density_function=truncated_exponential_density,
+    ...         hamilton_to_density_kwargs=dict(decay=0.2, filling=0.8),
+    ...         maxiter_intensity_effects=0,  # no intensity effects here
+    ...     ),
+    ... )
     """
 
     def __init__(
@@ -240,6 +364,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         stagnation_patience: int = 10,
         n_warmup_turns: int = 0,
         animate: bool = False,
+        animate_pause_time: float = 0.1,
         verbose: bool = True,
         debug=False,
         until_section_index: int = -1,
@@ -283,6 +408,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
         self.until_section_index = until_section_index
         self.animate = animate
+        self.animate_pause_time = animate_pause_time
         self.tolerance_potential_well = tolerance_potential_well
         self.verbose = verbose
 
@@ -344,7 +470,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.clf()
             self._plot_current_state(beam, 0, 0, ts)
             plt.draw()
-            plt.pause(0.1)
+            plt.pause(self.animate_pause_time)
 
         # Track the best (smallest) self-consistency error to detect a limit
         # cycle / stall (see `self.stagnation_patience`), together with the
@@ -432,7 +558,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     plt.clf()
                     self._plot_current_state(beam, i_intensity, scalar, ts)
                     plt.draw()
-                    plt.pause(0.1)
+                    plt.pause(self.animate_pause_time)
 
                 error_calculable = (
                     self._last_potential_well is not None
@@ -674,16 +800,25 @@ class SemiEmpiricMatcher(MatchingRoutine):
         assert simulation.turn_counter.value == 0
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
+                # Fine grid with dt[::_POTENTIAL_WELL_OVERSAMPLING] == ts
+                # (up to rounding), so the down-sampled potential well
+                # below is evaluated at ts. ts has len(ts) - 1 intervals;
+                # splitting each into _POTENTIAL_WELL_OVERSAMPLING needs
+                # (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1 points.
+                # len(ts) * _POTENTIAL_WELL_OVERSAMPLING points would put
+                # the down-sampled points off ts, shifting the well to
+                # later times by up to one grid step of ts.
                 dt=np.linspace(
                     ts.min(),
                     ts.max(),
-                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+                    (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
                 ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
                 until_section_index=self.until_section_index,
             )
         )
+        # back on ts, see the construction of dt above
         potential_well = (
             potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )

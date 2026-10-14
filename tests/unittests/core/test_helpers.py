@@ -1,4 +1,6 @@
+import gc
 import unittest
+import weakref
 from unittest.mock import Mock
 
 import numpy as np
@@ -239,6 +241,24 @@ class TestFunctions(BLonDTestCase):
             logs.output[0],
         )
 
+    def test_find_instances_leaves_no_reference_cycle(self):
+        # Found instances must be freed by reference counting alone once the
+        # caller drops them. A reference cycle inside the search would keep
+        # them (e.g. a beam with GBs of arrays) alive until a full cyclic
+        # garbage collection, which loops creating simulations rarely
+        # trigger.
+        class Target:
+            def to_be_found(self):
+                pass
+
+        target = Target()
+        target_ref = weakref.ref(target)
+        gc.disable()
+        self.addCleanup(gc.enable)
+        find_instances_with_method(root=target, method_name="to_be_found")
+        del target
+        self.assertIsNone(target_ref())
+
     @unittest.skip
     def test_float_or_array_typesafe(self):
         # TODO: implement test for `float_or_array_typesafe`
@@ -302,3 +322,83 @@ class TestNestedMocksHashingBug(BLonDTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNoDeprecationWarningsFromInternals(BLonDTestCase):
+    """BLonD must not trigger its own deprecation warnings."""
+
+    def _build_simulation(self):
+        from blond import BiGaussian, momentum_compaction_factor, proton
+
+        ring = Ring(26658.883)
+        ring.add_elements(
+            [
+                SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0),
+                DriftSimple(
+                    orbit_length=26658.883,
+                    momentum_compaction_factor=momentum_compaction_factor(
+                        transition_gamma=55.759505
+                    ),
+                ),
+            ]
+        )
+        magnetic_cycle = ConstantMagneticCycle(
+            value=450e9, reference_particle=proton
+        )
+        beam = Beam(intensity=1e9, particle_type=proton)
+        simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+        simulation.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                sigma_dt=0.1e-9, n_macroparticles=1000
+            ),
+        )
+        return simulation, beam
+
+    def _deprecation_messages(self, function):
+        import warnings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            function()
+        return [
+            str(warning.message)
+            for warning in caught
+            if issubclass(warning.category, DeprecationWarning)
+        ]
+
+    def test_simulation_run_triggers_no_deprecation_warning(self):
+        def run():
+            simulation, beam = self._build_simulation()
+            simulation.run_simulation(
+                beams=(beam,), n_turns=2, show_progressbar=False
+            )
+
+        self.assertEqual(self._deprecation_messages(run), [])
+
+    def test_add_beam_triggers_no_deprecation_warning(self):
+        _, beam = self._build_simulation()
+        _, other = self._build_simulation()
+
+        self.assertEqual(
+            self._deprecation_messages(lambda: beam.add_beam(other)), []
+        )
+
+    def test_find_instances_skips_deprecated_properties(self):
+        simulation, beam = self._build_simulation()
+
+        def walk():
+            find_instances_with_method(simulation, "track")
+            find_instances_with_method(beam, "track")
+
+        self.assertEqual(self._deprecation_messages(walk), [])
+
+    def test_deprecated_properties_still_warn_at_the_caller(self):
+        simulation, beam = self._build_simulation()
+        for name, owner in (("turn_i", simulation), ("ratio", beam)):
+            with (
+                self.subTest(name=name),
+                self.assertWarns(DeprecationWarning) as context,
+            ):
+                getattr(owner, name)
+            self.assertEqual(context.filename, __file__)
