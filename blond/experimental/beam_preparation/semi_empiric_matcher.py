@@ -412,14 +412,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
     until_section_index
         Section index until which to run the simulation. Default is -1.
     correct_to_one_turn_map
-        If ``True`` (default), tilt and scale the matched distribution in
-        energy so that its core is the invariant ellipse of the tracked
-        one-turn map, see :func:`get_grid_correction_from_one_turn_map`.
-        Without it, the bunch is matched to the smooth Hamiltonian only,
-        and its length oscillates by a fraction of :math:`\mu`, the
-        synchrotron phase advance per turn, unless the RF kicks sit in the
-        middle of the drifts. The correction is linear, so it does not
-        correct the shape of large-amplitude contours.
+        If ``True``, tilt and scale the matched distribution in energy so
+        that its core is the invariant ellipse of the tracked one-turn map,
+        see :func:`get_grid_correction_from_one_turn_map`. If ``False``
+        (default, unchanged results for existing scripts), the bunch is
+        matched to the smooth Hamiltonian only, and its length oscillates
+        by a fraction of :math:`\mu`, the synchrotron phase advance per
+        turn, unless the RF kicks sit in the middle of the drifts. The
+        correction is linear, so it does not correct the shape of
+        large-amplitude contours.
 
     See Also
     --------
@@ -555,7 +556,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         verbose: bool = True,
         debug=False,
         until_section_index: int = -1,
-        correct_to_one_turn_map: bool = True,
+        correct_to_one_turn_map: bool = False,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,

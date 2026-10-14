@@ -128,7 +128,7 @@ The matching routine proceeds as follows:
    :func:`~blond.experimental.beam_preparation.semi_empiric_matcher.populate_beam`.
 
    **Correction to the one-turn map** (``correct_to_one_turn_map=True``,
-   default). The contours of :math:`H` are upright ellipses near the bucket
+   opt-in; the default ``False`` keeps the results of existing scripts). The contours of :math:`H` are upright ellipses near the bucket
    centre, but the tracked particles keep the invariant ellipse of the
    *discrete* one-turn map: it is tilted, because kicks and drifts happen one
    after the other, and its energy spread differs by
