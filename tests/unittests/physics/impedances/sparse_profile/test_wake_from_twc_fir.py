@@ -1,4 +1,5 @@
 import unittest
+from contextlib import contextmanager
 
 import numpy as np
 import pytest
@@ -19,14 +20,39 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends.backend import Cupy64Bit, Numpy64Bit
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.impedances.sources import TravelingWaveCavity
 
 pytestmark = pytest.mark.backend_mutation
 
-# modes with an implementation of `wake_from_twc_fir`; CPU only
+try:
+    import cupy  # NOQA: F401
+
+    cupy_available = True
+except ModuleNotFoundError:
+    cupy_available = False
+
+# modes with an implementation of `wake_from_twc_fir`
 SPECIAL_MODES = ["python", "numba", "cpp"]
+if cupy_available:
+    SPECIAL_MODES.append("cuda")
+
+
+@contextmanager
+def specials_mode(mode):
+    """Switch to `mode`, and to the cupy backend for ``"cuda"``."""
+    if mode != "cuda":
+        with backend.temporary_specials_mode(mode):
+            yield
+        return
+    backend.change_backend(Cupy64Bit)
+    try:
+        with backend.temporary_specials_mode(mode):
+            yield
+    finally:
+        backend.change_backend(Numpy64Bit)
 
 
 def get_test_profile(n: int, bin_dt: float):
@@ -48,7 +74,9 @@ def run_kernel(hist_y, r_shunt, a_tilde, frequency_r, bin_dt, grid_index=None):
     n = len(hist_y)
     if grid_index is None:
         grid_index = np.arange(n, dtype=np.int32)
-    voltage = backend.zeros(n, dtype=backend.float)
+    # NaN, so that a kernel that adds to `voltage` instead of overwriting
+    # it is caught
+    voltage = backend.array(np.full(n, np.nan), dtype=backend.float)
     backend.specials.wake_from_twc_fir(
         profile=backend.array(hist_y, dtype=backend.float),
         grid_index=backend.array(grid_index, dtype=np.int32),
@@ -98,7 +126,7 @@ class TestWakeFromTwcFir(unittest.TestCase):
 
         for mode in SPECIAL_MODES:
             with self.subTest(mode=mode):
-                with backend.temporary_specials_mode(mode):
+                with specials_mode(mode):
                     voltage = run_kernel(
                         hist_y, r_shunt, a_tilde, frequency_r, bin_dt
                     )
@@ -120,7 +148,7 @@ class TestWakeFromTwcFir(unittest.TestCase):
 
         for mode in SPECIAL_MODES:
             with self.subTest(mode=mode):
-                with backend.temporary_specials_mode(mode):
+                with specials_mode(mode):
                     voltage = run_kernel(
                         hist_y,
                         np.array([1e6]),
@@ -174,7 +202,7 @@ class TestWakeFromTwcFir(unittest.TestCase):
 
         for mode in SPECIAL_MODES:
             with self.subTest(mode=mode):
-                with backend.temporary_specials_mode(mode):
+                with specials_mode(mode):
                     v_dense = run_kernel(
                         hist_dense, r_shunt, a_tilde, frequency_r, bin_dt
                     )
@@ -195,7 +223,7 @@ class TestWakeFromTwcFir(unittest.TestCase):
                 )
 
     def test_backends_match_python_reference(self):
-        """Every CPU backend must agree with the python reference."""
+        """Every backend must agree with the python reference."""
         n = 2048
         bin_dt = 5e-11
         _, hist_y = get_test_profile(n, bin_dt)
@@ -209,7 +237,7 @@ class TestWakeFromTwcFir(unittest.TestCase):
             )
         for mode in SPECIAL_MODES[1:]:
             with self.subTest(mode=mode):
-                with backend.temporary_specials_mode(mode):
+                with specials_mode(mode):
                     voltage = run_kernel(
                         hist_y, r_shunt, a_tilde, frequency_r, bin_dt
                     )
@@ -219,6 +247,42 @@ class TestWakeFromTwcFir(unittest.TestCase):
                     rtol=1e-8,
                     atol=1e-8 * np.max(np.abs(v_python)),
                 )
+
+    def test_many_modes_match_cpp(self):
+        """Every mode must add its wake once, also with many modes.
+
+        On CUDA each mode is one thread that adds into the shared
+        `voltage`; with more modes than the device runs concurrently,
+        threads start after others have finished, which exposes any
+        write to shared memory that is not an atomic add (like the race on
+        ``t_start`` once fixed in ``wake_from_pole_residue``).
+        """
+        n = 64
+        bin_dt = 1e-10
+        n_modes = 10000
+        rng = np.random.default_rng(3)
+        _, hist_y = get_test_profile(n, bin_dt)
+        r_shunt = rng.uniform(1e3, 1e4, n_modes)
+        a_tilde = rng.uniform(5, 50, n_modes) * bin_dt
+        frequency_r = rng.uniform(1e8, 1e9, n_modes)
+
+        with specials_mode("cpp"):
+            v_cpp = run_kernel(hist_y, r_shunt, a_tilde, frequency_r, bin_dt)
+        for mode in SPECIAL_MODES:
+            if mode in ("python", "cpp"):
+                continue  # python: too slow for this many modes
+            with self.subTest(mode=mode):
+                with specials_mode(mode):
+                    for _ in range(2):  # reusing the device buffers
+                        voltage = run_kernel(
+                            hist_y, r_shunt, a_tilde, frequency_r, bin_dt
+                        )
+                        np.testing.assert_allclose(
+                            voltage,
+                            v_cpp,
+                            rtol=1e-8,
+                            atol=1e-8 * np.max(np.abs(v_cpp)),
+                        )
 
 
 class TestTwcInMultiPoleSparseSolve(unittest.TestCase):
@@ -284,6 +348,28 @@ class TestTwcInMultiPoleSparseSolve(unittest.TestCase):
             rtol=0.05,
             atol=0.01 * np.max(np.abs(v_reference)),
             err_msg="sparse solver TWC FIR must match TimeDomainFftSolver",
+        )
+
+    @unittest.skipUnless(cupy_available, "requires cupy")
+    def test_cuda_matches_cpu(self):
+        """The whole sparse solver with TWC must run on the GPU."""
+        from unittest.mock import patch
+
+        from blond.core.backends.cuda.callables import CudaSpecials
+
+        v_cpu = self._run_one_turn(MultiPoleSparseSolve())
+        with (
+            specials_mode("cuda"),
+            patch.object(
+                CudaSpecials,
+                "wake_from_twc_fir",
+                wraps=CudaSpecials.wake_from_twc_fir,
+            ) as kernel,
+        ):
+            v_cuda = self._run_one_turn(MultiPoleSparseSolve())
+        kernel.assert_called()
+        np.testing.assert_allclose(
+            v_cuda, v_cpu, rtol=1e-8, atol=1e-8 * np.max(np.abs(v_cpu))
         )
 
     @staticmethod

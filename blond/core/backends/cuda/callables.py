@@ -80,6 +80,7 @@ _gm_linear_interp_kick_sparse_comp = gpu_module.get_function(
 _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
+_wake_from_twc_fir = gpu_module.get_function("wake_from_twc_fir")
 _apply_sr_without_quantum_excitation = gpu_module.get_function(
     "apply_sr_without_quantum_excitation"
 )
@@ -802,7 +803,8 @@ class CudaSpecials(Specials):  # NOQA: D101
         )
 
     @staticmethod
-    def wake_from_twc_fir(  # NOQA: D102
+    def wake_from_twc_fir(
+        # read
         profile: CupyArray,
         grid_index: CupyArray,
         r_shunt: CupyArray,
@@ -810,12 +812,72 @@ class CudaSpecials(Specials):  # NOQA: D101
         omega_r: CupyArray,
         bin_dt: float,
         factor: float,
+        # write
         voltage: CupyArray,
         voltage_threaded: CupyArray,
     ) -> None:
-        raise NotImplementedError(
-            "`wake_from_twc_fir` is not implemented for the cuda backend "
-            "yet; use the cpp or python backend."
+        """
+        Travelling-wave-cavity wake via a phasor FIR recursion.
+
+        See `Specials.wake_from_twc_fir` for the contract and every
+        parameter.
+
+        Parameters
+        ----------
+        voltage_threaded
+            Unused on the CUDA backend (kept for API parity with CPU
+            backends); mode contributions are reduced into `voltage`
+            directly via atomic adds.
+        """
+        for array, dtype in (
+            (profile, FLOAT),
+            (grid_index, np.int32),
+            (r_shunt, FLOAT),
+            (a_tilde, FLOAT),
+            (omega_r, FLOAT),
+            (voltage, FLOAT),
+        ):
+            assert array.device != "cpu", (
+                f"Requires Cupy array, but got {type(array)}."
+            )
+            assert array.dtype == dtype
+            assert array.flags.c_contiguous
+
+        n_bins = int(profile.shape[0])
+        n_modes = int(r_shunt.shape[0])
+        assert grid_index.shape[0] == n_bins
+        assert a_tilde.shape[0] == n_modes
+        assert omega_r.shape[0] == n_modes
+        assert voltage.shape[0] == n_bins
+
+        # Output is reduced across modes via atomicAdd; must start at zero.
+        # Zeroed here, on the stream before the launch, and not inside the
+        # kernel, where it would race with the adds of other threads.
+        voltage.fill(0)
+        if n_modes == 0 or n_bins == 0:
+            return
+
+        # One thread per mode. Each thread runs the full n_bins-long
+        # recursion sequentially; there is no benefit from oversubscribing.
+        MAX_MODES = 128
+        threads_per_block = MAX_MODES if n_modes >= MAX_MODES else 32
+        blocks_modes = (n_modes + threads_per_block - 1) // threads_per_block
+
+        _wake_from_twc_fir(
+            args=(
+                profile,
+                grid_index,
+                r_shunt,
+                a_tilde,
+                omega_r,
+                FLOAT(bin_dt),
+                FLOAT(factor),
+                voltage,
+                np.int32(n_bins),
+                np.int32(n_modes),
+            ),
+            block=(threads_per_block, 1, 1),
+            grid=(blocks_modes, 1, 1),
         )
 
     @staticmethod

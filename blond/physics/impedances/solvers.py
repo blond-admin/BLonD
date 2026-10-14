@@ -1369,7 +1369,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
 
     Sources implementing `SupportsTWCFIRModel` (travelling-wave cavities)
     have a finite-support wake without a pole-residue representation and
-    are applied by `Specials.wake_from_twc_fir` instead, CPU backends only.
+    are applied by `Specials.wake_from_twc_fir` instead.
     That recursion keeps no state across calls, so consecutive calls must
     be further apart than the longest filling time. It point-samples the
     wake rather than bin-averaging it like the other time-domain solvers,
