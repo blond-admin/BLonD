@@ -1597,6 +1597,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             signs.extend(vector_fit.counterrotation_signs)
             self._direct_term += float(vector_fit.direct_term)
             self._inductive_term += float(vector_fit.inductive_term)
+        # FIXME: build the model (taps, tail residues, pair factors and the
+        #  far-field selection) on the host and move only what is tracked
+        #  with to the device. On the GPU, `_is_far_field_pole` loops over
+        #  the poles with length-1 device slices and a host copy each, so
+        #  this takes 1.02 s instead of 72 ms on the CPU for 121 poles
+        #  (LHC, T400), growing with the pole count.
         poles = backend.array(poles, dtype=backend.complex)
         residues = backend.array(residues, dtype=backend.complex)
         signs = backend.array(signs, dtype=backend.float)

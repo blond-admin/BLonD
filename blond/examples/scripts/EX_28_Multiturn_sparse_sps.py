@@ -287,7 +287,7 @@ def main():
             plt.xlabel("Turn")
             plt.ylabel(r"$\mathcal{Re}(r \cdot W)$")
         states = solver_._states
-        residues = solver_._residues
+        residues = solver_._far_field.residues  # paired with _states
         with AllowPlotting():  # handle GPU gracefully
             plt.scatter(
                 simulation.turn_counter.value * np.ones(len(states[:])),

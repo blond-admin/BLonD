@@ -1257,14 +1257,16 @@ class _PoleResidueSource(WakeFieldSource, SupportsVectorFittedModel):
 
     def __init__(self, poles, residues):
         super().__init__(is_dynamic=False)
-        self._poles = np.asarray(poles, dtype=complex)
-        self._residues = np.asarray(residues, dtype=complex)
+        # Backend arrays, as `Resonators.get_vectorfit` returns: the
+        # reference convolution feeds them to backend kernels.
+        self._poles = backend.array(poles, dtype=backend.complex)
+        self._residues = backend.array(residues, dtype=backend.complex)
 
     def get_vectorfit(self):
         return (
             self._poles,
             self._residues,
-            np.ones(len(self._poles), dtype=backend.float),
+            backend.ones(len(self._poles), dtype=backend.float),
         )
 
 
@@ -1364,7 +1366,7 @@ class TestRealPolesAgainstConvolution(BLonDTestCase):
             with self.subTest(model=name):
                 poles, _, _, *_ = source.get_vectorfit()
                 self.assertTrue(
-                    np.any(poles.imag == 0),
+                    np.any(copy_to_cpu(poles).imag == 0),
                     "fixture bug: the model has no exactly real pole",
                 )
 

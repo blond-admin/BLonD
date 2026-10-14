@@ -172,7 +172,7 @@ def triple_box_average_pole(
         Bin width, in [s].
     near_idx
         Indices of ``t`` with ``-1.5 * dt < t <= 1.5 * dt``, the only lags
-        where the near branch is nonzero (see :func:`_near_window`). If
+        where the near branch is nonzero (see ``_near_window``). If
         given, the near branch is evaluated there only; if None, on the
         whole array, which needs no host sync but is slow on long grids.
 

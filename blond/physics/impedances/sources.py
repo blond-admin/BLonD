@@ -388,8 +388,9 @@ class Resonators(
                 )
 
         # Only the underdamped case Q > 0.5 is implemented. At Q = 0.5
-        # omega_bar = 0 and the wake / vector fit divide by zero; Q < 0.5
-        # would need the overdamped (cosh/sinh, real poles) formulas.
+        # omega_bar = 0 and the wake / vector fit / bin average divide by
+        # zero; Q < 0.5 would need the overdamped (cosh/sinh, real poles)
+        # formulas.
         # Checked before omega_bar, whose sqrt would warn on Q < 0.5.
         if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
             raise ValueError("All quality factors Q must be greater than 0.5")
