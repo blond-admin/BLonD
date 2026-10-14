@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, NamedTuple
 
 from scipy.constants import elementary_charge as e
@@ -23,6 +23,7 @@ from blond.core.ordering import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 from blond.generals.hashing_ import hash_linspace
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -778,7 +779,17 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         return wf
 
 
-class VectorFit(NamedTuple):
+class _VectorFitFields(NamedTuple):
+    """The fields of `VectorFit`, see there."""
+
+    poles: NumpyArray
+    residues: NumpyArray
+    counterrotation_signs: NumpyArray
+    direct_term: float = 0.0
+    inductive_term: float = 0.0
+
+
+class VectorFit(_VectorFitFields):
     r"""
     A vector-fitted impedance model.
 
@@ -790,7 +801,7 @@ class VectorFit(NamedTuple):
 
     The arrays are host (NumPy) arrays on every backend: the fit describes
     the model, which a solver builds once and then moves to the device
-    whatever it tracks with.
+    whatever it tracks with. Device (CuPy) arrays are rejected.
 
     Attributes
     ----------
@@ -808,11 +819,59 @@ class VectorFit(NamedTuple):
         :math:`Z = 2\pi i f L`, in [Ohm s].
     """
 
-    poles: NumpyArray
-    residues: NumpyArray
-    counterrotation_signs: NumpyArray
-    direct_term: float = 0.0
-    inductive_term: float = 0.0
+    __slots__ = ()
+
+    def __new__(
+        cls,
+        poles: NumpyArray,
+        residues: NumpyArray,
+        counterrotation_signs: NumpyArray,
+        direct_term: float = 0.0,
+        inductive_term: float = 0.0,
+    ) -> VectorFit:
+        """
+        Build the fit, rejecting device arrays.
+
+        Parameters
+        ----------
+        poles
+            Complex poles, in [rad/s].
+        residues
+            Complex residues, in [Ohm/s].
+        counterrotation_signs
+            Signs of the poles, ``1`` for none.
+        direct_term
+            Constant term, in [Ohm].
+        inductive_term
+            Inductive term, in [Ohm s].
+
+        Returns
+        -------
+        vector_fit
+            The vector fit.
+        """
+        for name, array in (
+            ("poles", poles),
+            ("residues", residues),
+            ("counterrotation_signs", counterrotation_signs),
+        ):
+            assert not is_cupy_array(array), (
+                f"`VectorFit.{name}` must be a host (NumPy) array, but got "
+                "a CuPy array; pass it through `copy_to_cpu` first."
+            )
+        return super().__new__(
+            cls,
+            poles,
+            residues,
+            counterrotation_signs,
+            direct_term,
+            inductive_term,
+        )
+
+    @classmethod
+    def _make(cls, iterable: Iterable) -> VectorFit:
+        # `_replace` builds through `_make`, which would bypass `__new__`.
+        return cls(*iterable)
 
 
 class SupportsVectorFittedModel(ABC):
