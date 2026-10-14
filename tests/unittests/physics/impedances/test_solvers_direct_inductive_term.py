@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from scipy.constants import e
 from scipy.special import erf
 
@@ -43,7 +44,10 @@ from blond.physics.impedances.base import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 
 CIRCUMFERENCE = 6911.56  # m
 TRANSITION_GAMMA = 22.8
@@ -300,6 +304,25 @@ class TestMultiPoleSparseSolveOnHandMadeAxes(BLonDTestCase):
             voltage_dense[gapped_x],
             rtol=1e-12,
             atol=1e-12 * np.max(np.abs(voltage_dense)),
+        )
+
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_resonators_run_on_every_backend(self):
+        # `Resonators` keeps its parameters as backend arrays; the
+        # solver must still get its vector fit, on the GPU too.
+        resonators = Resonators(1e5, 1.2e9, 5.0)
+        fit = resonators.get_vectorfit()
+        hist_x = list(range(8))
+        hist_y = [0.0, 1.0, 3.0, 2.0, 5.0, 4.0, 1.0, 0.0]
+        np.testing.assert_allclose(
+            self._voltage((resonators,), hist_x, hist_y),
+            self._voltage(
+                (_VectorFittedSource(fit.poles, fit.residues),),
+                hist_x,
+                hist_y,
+            ),
+            rtol=1e-12,
         )
 
     def test_plain_three_tuple_is_still_accepted(self):

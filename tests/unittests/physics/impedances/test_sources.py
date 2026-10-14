@@ -30,7 +30,10 @@ from blond.physics.impedances.sources import (
     TravelingWaveCavity,
     fit_poles,
 )
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 
 
 class TestImpedanceTable(BLonDTestCase):
@@ -1520,6 +1523,22 @@ class TestResonators(BLonDTestCase):
             copy_to_cpu(imp2.imag),
             **allclose_tolerances(imp.imag),
         )
+
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_get_vectorfit_returns_host_arrays(self):
+        # A vector fit is a model description; `VectorFit` holds NumPy
+        # arrays, whichever backend the resonators were built on.
+        resonators = Resonators(
+            shunt_impedances=np.array([1e6, 2e5]),
+            center_frequencies=np.array([1e9, 1.5e9]),
+            quality_factors=np.array([500.0, 20.0]),
+            shunt_impedances_counter_rotating=np.array([1e6, -2e5]),
+        )
+        fit = resonators.get_vectorfit()
+        for array in (fit.poles, fit.residues, fit.counterrotation_signs):
+            self.assertIsInstance(array, np.ndarray)
+        np.testing.assert_array_equal(fit.counterrotation_signs, [1.0, -1.0])
 
     def test_impedance_from_wake_matches_analytic_impedance(self):
         """

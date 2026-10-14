@@ -788,6 +788,10 @@ class VectorFit(NamedTuple):
     :math:`e` have no pole-residue representation; their wakes are
     :math:`d\,\delta(t)` and :math:`e\,\delta'(t)`.
 
+    The arrays are host (NumPy) arrays on every backend: the fit describes
+    the model, which a solver builds once and then moves to the device
+    whatever it tracks with.
+
     Attributes
     ----------
     poles
@@ -832,7 +836,8 @@ class SupportsVectorFittedModel(ABC):
         Returns
         -------
         vector_fit
-            The vector-fitted model.
+            The vector-fitted model, with host (NumPy) arrays on every
+            backend.
         """
         pass
 
