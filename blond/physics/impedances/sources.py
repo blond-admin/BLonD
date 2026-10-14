@@ -34,6 +34,7 @@ import skrf as rf
 from matplotlib import pyplot as plt
 
 from blond.core.backends.backend import backend
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -761,11 +762,13 @@ class Resonators(
         vector_fit
             The poles and residues, with signs of ``1`` unless counter-
             rotating shunt impedances are given. Resonators have no direct
-            and no inductive term.
+            and no inductive term. Host arrays on every backend.
         """
-        Q = self._quality_factors
-        omega = self._omega
-        R_s = self._shunt_impedances
+        # A model description, derived on the host: the solver builds its
+        # model from it once and moves only what it tracks with.
+        Q = copy_to_cpu(self._quality_factors)
+        omega = copy_to_cpu(self._omega)
+        R_s = copy_to_cpu(self._shunt_impedances)
 
         # Impedances and Wakes in High Energy Particle Accelerators
         # Bruno W Zotter and Semyon Kheifets
@@ -782,13 +785,16 @@ class Resonators(
         if self._shunt_impedances_counter_rotating is None:
             cr_signs = np.ones(len(poles1), dtype=backend.float)
         else:
+            shunt_impedances_counter_rotating = copy_to_cpu(
+                self._shunt_impedances_counter_rotating
+            )
             # np.sign(0) == 0, which the backends treat as +1; require a
             # well-defined sign so the counter-rotating flip is unambiguous.
-            assert np.all(self._shunt_impedances_counter_rotating != 0), (
+            assert np.all(shunt_impedances_counter_rotating != 0), (
                 "Counter-rotating shunt impedances must be non-zero to have a "
                 "well-defined sign."
             )
-            cr_signs = np.sign(self._shunt_impedances_counter_rotating)
+            cr_signs = np.sign(shunt_impedances_counter_rotating)
         return VectorFit(
             poles=poles1, residues=residues1, counterrotation_signs=cr_signs
         )
