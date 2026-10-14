@@ -181,6 +181,29 @@ class TestVectorFit(unittest.TestCase):
         self.assertEqual(fit.direct_term, 0.0)
         self.assertEqual(fit.inductive_term, 0.0)
 
+    @pytest.mark.cupy
+    def test_rejects_device_arrays(self):
+        # A vector fit holds host arrays; a source handing over CuPy
+        # arrays must fail at construction, not deep in a solver.
+        try:
+            import cupy as cp  # type: ignore
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        host = np.array([-1e6 + 2e9j])
+        for field in ("poles", "residues", "counterrotation_signs"):
+            arrays = dict(
+                poles=host, residues=host, counterrotation_signs=np.ones(1)
+            )
+            arrays[field] = cp.asarray(arrays[field])
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(AssertionError, field):
+                    VectorFit(**arrays)
+        fit = VectorFit(
+            poles=host, residues=host, counterrotation_signs=np.ones(1)
+        )
+        with self.assertRaisesRegex(AssertionError, "residues"):
+            fit._replace(residues=cp.asarray(host))
+
 
 class TestMultiPoleSparseSolveMatchesFreqDomain(BLonDTestCase):
     """The terms against `PeriodicFreqSolver`, which applies them exactly."""
