@@ -1705,33 +1705,40 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             model.pair_factors * sign * wake
         )
 
-    def calc_induced_voltage(
-        self, beam: BeamBaseClass
+    def _far_field_voltage(
+        self,
+        beam: BeamBaseClass,
+        hist_x: NumpyArray | CupyArray,
+        hist_y: NumpyArray | CupyArray,
+        factor: float,
+        carried_lag_dt: float,
     ) -> NumpyArray | CupyArray:
         """
-        Calculate the induced voltage in this turn based on the last profiles.
+        The far field: the recursion over the kept poles.
+
+        The residues are scaled to the bin-averaged wake past its onset.
+        Reads and advances the poles' states.
 
         Parameters
         ----------
         beam
             Simulation object of a particle beam.
+        hist_x
+            Bin centres of the profile, in [s].
+        hist_y
+            Histogram of the profile.
+        factor
+            Conversion of `hist_y` to the charge per bin.
+        carried_lag_dt
+            Lag of the carried charge to the first bin, in [s].
 
         Returns
         -------
-        induced_voltage
-            The induced voltage, in [V].
+        voltage
+            The far-field voltage per bin, in [V].
         """
-        if self._model is None:
-            self._initialise()
-        model, far_field, carry = self._model, self._far_field, self._carry
-        profile = self._parent_wakefield.profile
-        hist_x, hist_y = profile.hist_x, profile.hist_y
-        bin_dt = model.bin_dt
-        factor = self._hist_y_to_intensity_factor(beam=beam, profile=profile)
-        carried_lag_dt = self._carried_lag_since_previous_call(beam)
-
-        # Far field: the recursion, with the residues scaled to the
-        # bin-averaged wake past its onset.
+        far_field, carry = self._far_field, self._carry
+        bin_dt = self._model.bin_dt
         voltage = backend.zeros(len(hist_y), dtype=backend.float)
         if len(far_field.poles) > 0:
             backend.specials.wake_from_pole_residue(
@@ -1751,6 +1758,35 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 voltage=voltage,
                 voltage_threaded=self._thread_scratch(),
             )
+        return voltage
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """
+        Calculate the induced voltage in this turn based on the last profiles.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        if self._model is None:
+            self._initialise()
+        model, carry = self._model, self._carry
+        profile = self._parent_wakefield.profile
+        hist_x, hist_y = profile.hist_x, profile.hist_y
+        factor = self._hist_y_to_intensity_factor(beam=beam, profile=profile)
+        carried_lag_dt = self._carried_lag_since_previous_call(beam)
+
+        voltage = self._far_field_voltage(
+            beam, hist_x, hist_y, factor, carried_lag_dt
+        )
 
         # Near field: the previous bin, the bin itself and the next bin --
         # when adjacent; a neighbour across a gap is the recursion's.
