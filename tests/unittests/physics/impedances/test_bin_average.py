@@ -472,6 +472,92 @@ class TestTripleBoxAverageLongGrid(BLonDTestCase):
         np.testing.assert_array_equal(result[:49], 0.0)
 
 
+class TestTripleBoxAverageShortGridAllPolesAtOnce(BLonDTestCase):
+    """On a short grid all poles are evaluated in one broadcast call.
+
+    Each call of `triple_box_average_pole` is a few hundred small array
+    operations -- on a GPU, a few hundred kernel launches. Walking the
+    poles one by one made the per-turn near taps of a few hundred poles
+    cost a second per turn on the GPU.
+    """
+
+    def setUp(self):
+        self.dt = 1e-10  # [s]
+        self.time = backend.array(
+            (np.arange(512) - 50) * self.dt, dtype=backend.float
+        )
+        rng = np.random.default_rng(11)
+        n_poles = 50
+        is_real = np.arange(n_poles) % 4 == 1
+        self.poles = backend.array(
+            -rng.uniform(1e6, 5e9, n_poles)
+            + 1j * np.where(is_real, 0.0, rng.uniform(1e8, 9e9, n_poles)),
+            dtype=backend.complex,
+        )
+        self.residues = backend.array(
+            rng.normal(size=n_poles)
+            + 1j * np.where(is_real, 0.0, rng.normal(size=n_poles)),
+            dtype=backend.complex,
+        )
+
+    def _per_pole_sum(self) -> np.ndarray:
+        expected = np.zeros(len(self.time))
+        for pole_i in range(len(self.poles)):
+            expected += copy_to_cpu(
+                triple_box_average_pole(
+                    self.time,
+                    self.poles[pole_i : pole_i + 1],
+                    self.residues[pole_i : pole_i + 1],
+                    self.dt,
+                )
+            )
+        return expected
+
+    def test_poles_evaluated_in_one_call(self):
+        with mock.patch.object(
+            bin_average,
+            "triple_box_average_pole",
+            wraps=bin_average.triple_box_average_pole,
+        ) as single_pole:
+            bin_average.triple_box_average_poles(
+                self.time, self.poles, self.residues, self.dt
+            )
+        self.assertEqual(single_pole.call_count, 1)
+
+    def test_matches_per_pole_sum(self):
+        expected = self._per_pole_sum()
+        result = copy_to_cpu(
+            triple_box_average_poles(
+                self.time, self.poles, self.residues, self.dt
+            )
+        )
+        np.testing.assert_allclose(
+            result, expected, rtol=1e-13, atol=1e-13 * np.abs(expected).max()
+        )
+
+    def test_poles_batched_to_bound_memory(self):
+        """Batches of poles keep the broadcast array small."""
+        expected = self._per_pole_sum()
+        # room for 7 poles of 512 lags per batch: 8 batches for 50 poles
+        with (
+            mock.patch.object(bin_average, "_MAX_BROADCAST_ELEMENTS", 7 * 512),
+            mock.patch.object(
+                bin_average,
+                "triple_box_average_pole",
+                wraps=bin_average.triple_box_average_pole,
+            ) as single_pole,
+        ):
+            result = copy_to_cpu(
+                bin_average.triple_box_average_poles(
+                    self.time, self.poles, self.residues, self.dt
+                )
+            )
+        self.assertEqual(single_pole.call_count, 8)
+        np.testing.assert_allclose(
+            result, expected, rtol=1e-13, atol=1e-13 * np.abs(expected).max()
+        )
+
+
 class TestTripleBoxAverageStaysOnTheDevice(BLonDTestCase):
     """`triple_box_average_poles` must not copy back to the host.
 
