@@ -71,6 +71,16 @@ class TestWeakBackReference(BLonDTestCase):
         child_copy, parent_copy = deepcopy([child, parent])
         self.assertIs(child_copy.parent, parent_copy)
 
+    def test_deepcopy_after_referent_freed_keeps_it_freed(self):
+        child = _Child()
+        child.parent = _Parent()
+        child_copy = deepcopy(child)
+        with self.assertRaisesRegex(ReferenceError, "_Child.parent"):
+            _ = child_copy.parent
+
+    def test_read_from_class_gives_descriptor(self):
+        self.assertIsInstance(_Child.parent, WeakBackReference)
+
 
 class TestHoldStrongly(BLonDTestCase):
     # Without a simulation (e.g. `headless` constructors) nothing else owns
