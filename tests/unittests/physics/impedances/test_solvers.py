@@ -3444,8 +3444,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 return backend.zeros_like(time)
 
         solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-        solver._parent_wakefield = Mock(WakeField)
-        solver._parent_wakefield.sources = (BinOnlyResonators(),)
+        parent_wakefield = Mock(WakeField)  # held weakly by the solver
+        parent_wakefield.sources = (BinOnlyResonators(),)
+        solver._parent_wakefield = parent_wakefield
         solver._check_source_ducktypes()  # must not raise
 
     def test_calc_induced_voltage_assert_profile_length_correct(self):

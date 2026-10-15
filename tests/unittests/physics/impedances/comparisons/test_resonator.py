@@ -141,11 +141,14 @@ def _low_q_run(
 
     wake = WakeField(sources=(resonators,), solver=solver, profile=profile)
     ring.add_elements((profile, rf, drift, wake))
-    Simulation(ring=ring, magnetic_cycle=cycle)
+    # keep the simulation alive: elements only hold it weakly
+    simulation = Simulation(ring=ring, magnetic_cycle=cycle)
+    induced_voltage = np.asarray(wake.calc_induced_voltage(beam=beam))
+    del simulation
     return (
         np.asarray(profile.hist_x),
         np.asarray(profile.hist_y),
-        np.asarray(wake.calc_induced_voltage(beam=beam)),
+        induced_voltage,
     )
 
 
