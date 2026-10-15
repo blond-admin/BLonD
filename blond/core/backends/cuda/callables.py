@@ -208,12 +208,14 @@ def _wake_from_pole_residue_in_chunks(
     chunk_length = -(-n_bins // n_chunks)
     n_chunks = -(-n_bins // chunk_length)
 
-    # Pole contributions are reduced via atomicAdd; must start at zero.
+    # Pole contributions are summed per warp, then added via atomicAdd;
+    # must start at zero.
     voltage.fill(0)
     # From CuPy's memory pool, so no allocation after the first call.
     chunk_maps = cp.empty(max(n_chunks - 1, 1) * n_poles * 4, dtype=FLOAT)
 
-    # One thread per pole and chunk; chunks along grid.y.
+    # One thread per pole and chunk; chunks along grid.y. Blocks are whole
+    # warps, so a warp never spans two chunks (the kernel sums over it).
     threads_per_block = (
         _POLE_THREADS_PER_BLOCK
         if (n_chunks == 1 and n_poles >= _POLE_THREADS_PER_BLOCK)
@@ -965,8 +967,8 @@ class CudaSpecials(Specials):  # NOQA: D101
         ----------
         voltage_threaded
             Unused on the CUDA backend (kept for API parity with CPU
-            backends); pole contributions are reduced into `voltage`
-            directly via atomic adds.
+            backends); pole contributions are summed per warp and
+            reduced into `voltage` directly via atomic adds.
         """
         complex_dtype = np.complex64 if np.float32 == FLOAT else np.complex128
         for array, dtype in (

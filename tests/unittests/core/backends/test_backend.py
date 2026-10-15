@@ -3758,7 +3758,7 @@ class TestSpecials(BLonDTestCase):
             except (FileNotFoundError, OSError):
                 print(f"Could not perform `{special}` test for {dtype}")
                 continue
-            for n_poles in (1, 5, 17, 40, 103):
+            for n_poles in (1, 5, 17, 40, 103, 130):
                 is_real = np.arange(n_poles) % 4 == 1
                 poles_np = -rng.uniform(5e7, 5e8, n_poles) + 1j * np.where(
                     is_real, 0.0, rng.uniform(1e8, 3e9, n_poles)
