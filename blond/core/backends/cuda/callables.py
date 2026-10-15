@@ -82,6 +82,7 @@ _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _pole_residue_chunk_maps = gpu_module.get_function("pole_residue_chunk_maps")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
+_twc_chunk_maps = gpu_module.get_function("twc_chunk_maps")
 _wake_from_twc_fir = gpu_module.get_function("wake_from_twc_fir")
 _apply_sr_without_quantum_excitation = gpu_module.get_function(
     "apply_sr_without_quantum_excitation"
@@ -254,6 +255,107 @@ def _wake_from_pole_residue_in_chunks(
         block=block,
         grid=grid,
     )
+
+
+# Threads the TWC kernel aims for per multiprocessor, as mode-chunk pairs.
+_TWC_THREADS_PER_MULTIPROCESSOR = 256
+# Shortest chunk of bins worth a thread of its own.
+_MIN_TWC_CHUNK_BINS = 64
+# Threads per block of the TWC kernels; must not exceed their launch
+# bounds, TWC_THREADS_PER_BLOCK in kernels.cu.
+_TWC_THREADS_PER_BLOCK = 128
+
+
+def _twc_chunk_count(n_bins: int, n_modes: int, n_multiprocessors: int) -> int:
+    """
+    Return into how many chunks of bins the TWC kernel splits the profile.
+
+    A few modes, one thread each, leave a GPU idle, so the bins are split
+    into chunks run in parallel until there are enough threads. Chunks
+    stay at least `_MIN_TWC_CHUNK_BINS` long, and no more numerous than
+    about the square root of the bins: each chunk first folds the maps of
+    all earlier chunks.
+
+    Parameters
+    ----------
+    n_bins
+        Number of bins of the profile.
+    n_modes
+        Number of cavity modes.
+    n_multiprocessors
+        Number of streaming multiprocessors of the GPU.
+
+    Returns
+    -------
+    n_chunks
+        Number of chunks, at least 1.
+    """
+    target_threads = _TWC_THREADS_PER_MULTIPROCESSOR * n_multiprocessors
+    if n_modes >= target_threads:
+        return 1
+    n_chunks = min(
+        -(-target_threads // n_modes),
+        n_bins // _MIN_TWC_CHUNK_BINS,
+        math.isqrt(n_bins),
+    )
+    return max(n_chunks, 1)
+
+
+def _wake_from_twc_fir_in_chunks(
+    profile: CupyArray,
+    grid_index: CupyArray,
+    r_shunt: CupyArray,
+    a_tilde: CupyArray,
+    omega_r: CupyArray,
+    bin_dt: float,
+    factor: float,
+    voltage: CupyArray,
+    n_chunks: int,
+) -> None:
+    """
+    Launch the TWC kernels with the bins in `n_chunks` chunks.
+
+    See `Specials.wake_from_twc_fir` for every other parameter and
+    kernels.cu for the scheme. `voltage` is overwritten.
+
+    Parameters
+    ----------
+    n_chunks
+        Number of chunks of bins, run in parallel; 1 is the plain
+        recursion.
+    """
+    n_bins = int(profile.shape[0])
+    n_modes = int(r_shunt.shape[0])
+    chunk_length = -(-n_bins // n_chunks)
+    n_chunks = -(-n_bins // chunk_length)
+
+    # Output is reduced across modes and chunks via atomicAdd; must start
+    # at zero. Zeroed here, on the stream before the launch, and not inside
+    # the kernel, where it would race with the adds of other threads.
+    voltage.fill(0)
+    # From CuPy's memory pool, so no allocation after the first call.
+    chunk_maps = cp.empty(n_modes * n_chunks * 6, dtype=FLOAT)
+
+    # One thread per mode and chunk, mode fastest.
+    shared_args = (
+        profile,
+        grid_index,
+        r_shunt,
+        a_tilde,
+        omega_r,
+        FLOAT(bin_dt),
+        FLOAT(factor),
+        np.int32(n_bins),
+        np.int32(n_modes),
+        np.int32(chunk_length),
+        np.int32(n_chunks),
+        chunk_maps,
+    )
+    block = (_TWC_THREADS_PER_BLOCK, 1, 1)
+    grid = (-(-n_modes * n_chunks // _TWC_THREADS_PER_BLOCK), 1, 1)
+    if n_chunks > 1:
+        _twc_chunk_maps(args=shared_args, block=block, grid=grid)
+    _wake_from_twc_fir(args=(*shared_args, voltage), block=block, grid=grid)
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -984,34 +1086,19 @@ class CudaSpecials(Specials):  # NOQA: D101
         assert omega_r.shape[0] == n_modes
         assert voltage.shape[0] == n_bins
 
-        # Output is reduced across modes via atomicAdd; must start at zero.
-        # Zeroed here, on the stream before the launch, and not inside the
-        # kernel, where it would race with the adds of other threads.
-        voltage.fill(0)
         if n_modes == 0 or n_bins == 0:
+            voltage.fill(0)
             return
-
-        # One thread per mode. Each thread runs the full n_bins-long
-        # recursion sequentially; there is no benefit from oversubscribing.
-        MAX_MODES = 128
-        threads_per_block = MAX_MODES if n_modes >= MAX_MODES else 32
-        blocks_modes = (n_modes + threads_per_block - 1) // threads_per_block
-
-        _wake_from_twc_fir(
-            args=(
-                profile,
-                grid_index,
-                r_shunt,
-                a_tilde,
-                omega_r,
-                FLOAT(bin_dt),
-                FLOAT(factor),
-                voltage,
-                np.int32(n_bins),
-                np.int32(n_modes),
-            ),
-            block=(threads_per_block, 1, 1),
-            grid=(blocks_modes, 1, 1),
+        _wake_from_twc_fir_in_chunks(
+            profile=profile,
+            grid_index=grid_index,
+            r_shunt=r_shunt,
+            a_tilde=a_tilde,
+            omega_r=omega_r,
+            bin_dt=bin_dt,
+            factor=factor,
+            voltage=voltage,
+            n_chunks=_twc_chunk_count(n_bins, n_modes, _N_MULTIPROCESSORS),
         )
 
     @staticmethod
