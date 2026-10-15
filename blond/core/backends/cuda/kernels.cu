@@ -531,6 +531,13 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
 // `wake_from_pole_residue` folds the maps of the earlier chunks into the
 // true state at the start of its chunk before it reads out. With one chunk
 // it is the plain recursion.
+//
+// The 32 lanes of a warp are 32 poles of one chunk, so they read out the
+// same bins in lockstep: control flow depends on the bins only, never on
+// the pole. Each read-out is summed over the warp first and added by one
+// lane, one atomicAdd per warp and bin instead of one per pole and bin,
+// which on the same address serialize. Lanes past the last pole therefore
+// stay in the warp and read out zero.
 
 // The pole kernels are launched with at most POLE_THREADS_PER_BLOCK
 // threads. Their launch bounds override the global -maxrregcount, which
@@ -653,8 +660,17 @@ chunk_start(const index_t *__restrict__ bin_offsets, const int n_bins,
   next_bin = low;
 }
 
+// Sum of `value` over the 32 lanes of the warp, valid in lane 0. Every
+// lane of the warp must call it.
+__device__ static inline real_t warp_sum(real_t value) {
+  for (int offset = 16; offset > 0; offset >>= 1) {
+    value += __shfl_down_sync(0xffffffffu, value, offset);
+  }
+  return value;
+}
+
 // Read-outs [first_read, end_read) of one pole, from `position` and
-// `next_bin` on; adds them to `voltage` if READ_OUT.
+// `next_bin` on; adds them, summed over the warp, to `voltage` if READ_OUT.
 template <bool READ_OUT>
 __device__ static inline void run_pole_reads(
     const PoleConstants &pole, const index_t *__restrict__ bin_offsets,
@@ -681,8 +697,11 @@ __device__ static inline void run_pole_reads(
                      state_im);
     }
     if (READ_OUT) {
-      atomicAdd(&voltage[read_i], pole.flipped_res_re * state_re -
-                                      pole.flipped_res_im * state_im);
+      const real_t warp_voltage = warp_sum(pole.flipped_res_re * state_re -
+                                           pole.flipped_res_im * state_im);
+      if ((threadIdx.x & 31) == 0) {
+        atomicAdd(&voltage[read_i], warp_voltage);
+      }
     }
   }
 }
@@ -744,20 +763,28 @@ extern "C" __global__ void __launch_bounds__(POLE_THREADS_PER_BLOCK)
         real_t *__restrict__ states, real_t *__restrict__ voltage) {
   const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
   const int chunk_i = blockIdx.y;
-  if (pole_i >= n_poles || chunk_i >= n_chunks)
+  if (chunk_i >= n_chunks)
     return;
-  const PoleConstants pole =
-      load_pole_constants(poles, residues, counterrotating_pole_signs, pole_i,
+  // A lane past the last pole stays for the warp sum: it runs the last
+  // pole with a zero residue and keeps its state to itself.
+  const bool has_pole = pole_i < n_poles;
+  const int run_i = has_pole ? pole_i : n_poles - 1;
+  PoleConstants pole =
+      load_pole_constants(poles, residues, counterrotating_pole_signs, run_i,
                           is_counterrotating_beam, carried_is_counterrotating,
                           carried_charge[0], factor, bin_dt);
+  if (!has_pole) {
+    pole.flipped_res_re = 0;
+    pole.flipped_res_im = 0;
+  }
 
   // The incoming state at the first read-out, then folded over the earlier
   // chunks: S_{c+1} = P_c S_c + L_c.
-  real_t state_re = states[2 * pole_i];
-  real_t state_im = states[2 * pole_i + 1];
+  real_t state_re = states[2 * run_i];
+  real_t state_im = states[2 * run_i + 1];
   decay_pole_state(pole, state_lag_dt, state_re, state_im);
   for (int earlier_i = 0; earlier_i < chunk_i; ++earlier_i) {
-    const real_t *map = chunk_maps + ((size_t)earlier_i * n_poles + pole_i) * 4;
+    const real_t *map = chunk_maps + ((size_t)earlier_i * n_poles + run_i) * 4;
     multiply_state(map[0], map[1], state_re, state_im);
     state_re += map[2];
     state_im += map[3];
@@ -787,8 +814,10 @@ extern "C" __global__ void __launch_bounds__(POLE_THREADS_PER_BLOCK)
     inject_carried(pole, real_t(handover_position) * bin_dt + carried_lag_dt,
                    state_re, state_im);
   }
-  states[2 * pole_i] = state_re;
-  states[2 * pole_i + 1] = state_im;
+  if (has_pole) {
+    states[2 * pole_i] = state_re;
+    states[2 * pole_i + 1] = state_im;
+  }
 }
 
 // Travelling-wave-cavity wake via a phasor FIR recursion. Mirrors
