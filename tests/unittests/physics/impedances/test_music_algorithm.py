@@ -24,6 +24,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    electron,
     momentum_compaction_factor,
     proton,
 )
@@ -261,18 +262,6 @@ def test_const_uses_intensity_and_macroparticles():
     np.testing.assert_allclose(music._const, expected, rtol=1e-12)
 
 
-def test_rejects_non_singly_charged_particles():
-    """MuSiC only supports singly-charged particles for now."""
-    n, intensity = 32, 3e11
-    rng = np.random.default_rng(0)
-    dt = backend.array(rng.random(n) * 1e-9, dtype=backend.float)
-    dE = backend.array(rng.standard_normal(n) * 1e6, dtype=backend.float)
-    beam = Beam(intensity=intensity, particle_type=uranium_29)
-    beam.setup_beam(dt=dt, dE=dE)
-    with pytest.raises(AssertionError):
-        Music.headless(beam=beam, source=_resonator())
-
-
 def test_each_turn_i_must_be_one():
     """Multi-turn bridging assumes consecutive turns -> each_turn_i == 1."""
     from unittest.mock import Mock
@@ -417,3 +406,47 @@ class TestBinnedInducedVoltage(BLonDTestCase):
         music = Music.headless(beam=beam, source=_resonator())
         with self.assertRaisesRegex(RuntimeError, "track"):
             music.binned_induced_voltage(np.zeros(3), 1e-10)
+
+
+class TestParticleCharge(BLonDTestCase):
+    """MuSiC follows `WakeField`'s charge convention for any charge."""
+
+    def test_voltage_and_kick_for_any_charge(self):
+        # The voltage is linear in the charge, -q e N times the wake
+        # convolution, and the kick is q_dir * V, as in `WakeField`.
+        R_S, freq_R, Q = 1e7, 1e6, 1.0  # omega_R*sigma ~ 0.19
+        intensity, sigma, n = 1e12, 3e-8, 200_000
+        edges = np.linspace(-2.5 * sigma, 2.5 * sigma, 26)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+        unit_charge_voltage = _analytical_gaussian_resonator(
+            sigma, Q, R_S, 2 * np.pi * freq_R, centers, intensity
+        )
+        for particle_type in (proton, electron, uranium_29):
+            charge = particle_type.charge
+            with self.subTest(charge=charge):
+                rng = np.random.default_rng(1000)
+                beam = Beam(intensity=intensity, particle_type=particle_type)
+                beam.setup_beam(
+                    dt=backend.array(
+                        sigma * rng.standard_normal(n), dtype=backend.float
+                    ),
+                    dE=backend.array(np.zeros(n), dtype=backend.float),
+                )
+                music = Music.headless(
+                    beam=beam, source=Resonators(R_S, freq_R, Q)
+                )
+                music.track(beam=beam)
+                dt = np.asarray(beam.read_partial_dt())
+                voltage = np.asarray(music.induced_voltage)
+                which = np.digitize(dt, edges)
+                binned = np.array(
+                    [voltage[which == b + 1].mean() for b in range(25)]
+                )
+                expected = charge * unit_charge_voltage
+                error = np.abs(binned - expected) / np.abs(expected).max()
+                self.assertLess(error.max(), 1e-2)
+                np.testing.assert_allclose(
+                    np.asarray(beam.read_partial_dE()),
+                    beam.signed_charge_with_direction() * voltage,
+                    rtol=1e-12,
+                )
