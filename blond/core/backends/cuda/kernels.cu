@@ -635,12 +635,23 @@ extern "C" __global__ void wake_from_pole_residue(
   states[pole_n + 1] = state_im;
 }
 
-// Travelling-wave-cavity wake via a phasor FIR recursion, one thread per
-// mode. Mirrors cpp/twc_fir.cpp; see `Specials.wake_from_twc_fir` in
+// Travelling-wave-cavity wake via a phasor FIR recursion. Mirrors
+// cpp/twc_fir.cpp; see `Specials.wake_from_twc_fir` in
 // blond/core/backends/backend.py for the contract. Mode contributions are
 // reduced into `voltage` via atomicAdd, so the caller zeroes it before
 // the launch. There is no state across calls, and every other array is
 // read only.
+//
+// A few modes rarely fill a GPU, so the bins are also split into chunks
+// run in parallel, one thread per mode and chunk, mode fastest: the modes
+// of a chunk share its bins and mostly its events, so a warp diverges far
+// less than over neighbouring chunks. The recursion is linear
+// in (taper, state): N lattice sites map them to
+//   taper -> rot^N taper,  state -> rot^N state - N rot^(N+1) taper
+// plus what the charges of those sites add. `twc_chunk_maps` runs every
+// chunk but the last from zero and stores rot^N and that addition;
+// `wake_from_twc_fir` folds them into the true state at the start of its
+// chunk before it reads out. The first chunk starts from zero.
 
 // Complex multiply: (a + bi) * (c + di)
 __device__ static inline void twc_cmul(const real_t a_re, const real_t a_im,
@@ -686,42 +697,75 @@ __device__ static inline void twc_remove_expired(
   }
 }
 
-extern "C" __global__ void wake_from_twc_fir(
-    const real_t *__restrict__ profile, const int *__restrict__ grid_index,
-    const real_t *__restrict__ r_shunt, const real_t *__restrict__ a_tilde,
-    const real_t *__restrict__ omega_r, const real_t bin_dt,
-    const real_t factor, real_t *__restrict__ voltage, const int n_bins,
-    const int n_modes) {
-  const int mode_i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (mode_i >= n_modes)
-    return;
-
-  const real_t two_factor = real_t(2) * factor;
+// One mode's constants.
+struct TwcMode {
+  real_t two_factor;
   // W(0) amplitude of the single-cosine kernel (no conjugate pair); the
-  // trapezoidal half/half injection below supplies the (sign(t) + 1)
-  // factor of the analytic wake
-  const real_t wake_amplitude = real_t(2) * r_shunt[mode_i] / a_tilde[mode_i];
+  // trapezoidal half/half injection supplies the (sign(t) + 1) factor of
+  // the analytic wake
+  real_t wake_amplitude;
   // taper length in lattice steps; ceil quantizes the wake support to the
   // lattice (relative error ~ bin_dt / a_tilde)
-  const long long n_taper = (long long)ceil((double)(a_tilde[mode_i] / bin_dt));
-  const real_t inv_taper = two_factor / (real_t)n_taper;
-
-  const double phase = (double)(omega_r[mode_i] * bin_dt);
-  const real_t rot_re = (real_t)cos(phase);
-  const real_t rot_im = (real_t)sin(phase);
+  long long n_taper;
+  real_t inv_taper;
+  double phase;
+  real_t rot_re;
+  real_t rot_im;
   // phase accumulated by a taper term over its full lifetime
-  const double removal_phase = phase * (double)n_taper;
-  const real_t removal_re = (real_t)cos(removal_phase);
-  const real_t removal_im = (real_t)sin(removal_phase);
+  real_t removal_re;
+  real_t removal_im;
+};
 
-  real_t state_re = 0, state_im = 0;
-  real_t taper_re = 0, taper_im = 0;
-  // oldest not-yet-removed taper term; term `j` (injected at site
-  // grid_index[j] + 1) expires at site grid_index[j] + n_taper + 1,
-  // monotonically in `j`
-  int oldest = 0;
+__device__ static inline TwcMode
+load_twc_mode(const real_t *__restrict__ r_shunt,
+              const real_t *__restrict__ a_tilde,
+              const real_t *__restrict__ omega_r, const real_t bin_dt,
+              const real_t factor, const int mode_i) {
+  TwcMode mode;
+  mode.two_factor = real_t(2) * factor;
+  mode.wake_amplitude = real_t(2) * r_shunt[mode_i] / a_tilde[mode_i];
+  mode.n_taper = (long long)ceil((double)(a_tilde[mode_i] / bin_dt));
+  mode.inv_taper = mode.two_factor / (real_t)mode.n_taper;
+  mode.phase = (double)(omega_r[mode_i] * bin_dt);
+  mode.rot_re = (real_t)cos(mode.phase);
+  mode.rot_im = (real_t)sin(mode.phase);
+  const double removal_phase = mode.phase * (double)mode.n_taper;
+  mode.removal_re = (real_t)cos(removal_phase);
+  mode.removal_im = (real_t)sin(removal_phase);
+  return mode;
+}
 
-  for (int bin_i = 0; bin_i < n_bins; bin_i++) {
+// The oldest taper term not yet removed before bin `first_bin`: term `j`
+// expires at site grid_index[j] + n_taper + 1, monotonically in `j`.
+__device__ static inline int twc_oldest_term(const int *__restrict__ grid_index,
+                                             const int first_bin,
+                                             const long long n_taper) {
+  if (first_bin == 0) {
+    return 0;
+  }
+  const long long site = (long long)grid_index[first_bin - 1];
+  int low = 0;
+  int high = first_bin;
+  while (low < high) {
+    const int middle = (low + high) / 2;
+    if ((long long)grid_index[middle] + n_taper + 1 <= site) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
+// Bins [first_bin, end_bin) of one mode; adds them to `voltage` if
+// READ_OUT.
+template <bool READ_OUT>
+__device__ static inline void
+run_twc_bins(const TwcMode &mode, const real_t *__restrict__ profile,
+             const int *__restrict__ grid_index, const int first_bin,
+             const int end_bin, int &oldest, real_t &state_re, real_t &state_im,
+             real_t &taper_re, real_t &taper_im, real_t *__restrict__ voltage) {
+  for (int bin_i = first_bin; bin_i < end_bin; bin_i++) {
     if (bin_i > 0) {
       long long site = (long long)grid_index[bin_i - 1];
       const long long target = (long long)grid_index[bin_i];
@@ -735,7 +779,8 @@ extern "C" __global__ void wake_from_twc_fir(
         if (inject_pending) {
           event_site = inject_site;
         } else if (oldest < bin_i) {
-          const long long expiry = (long long)grid_index[oldest] + n_taper + 1;
+          const long long expiry =
+              (long long)grid_index[oldest] + mode.n_taper + 1;
           if (expiry < event_site)
             event_site = expiry;
         }
@@ -743,22 +788,23 @@ extern "C" __global__ void wake_from_twc_fir(
           break;
         if (event_site - site > 1) {
           twc_advance_free(state_re, state_im, taper_re, taper_im,
-                           event_site - 1 - site, phase, rot_re, rot_im);
+                           event_site - 1 - site, mode.phase, mode.rot_re,
+                           mode.rot_im);
         }
         if (inject_pending && event_site == inject_site) {
-          taper_re += profile[bin_i - 1] * inv_taper;
+          taper_re += profile[bin_i - 1] * mode.inv_taper;
           inject_pending = false;
         }
         twc_remove_expired(taper_re, taper_im, oldest, bin_i, event_site,
-                           profile, grid_index, n_taper, inv_taper, removal_re,
-                           removal_im);
+                           profile, grid_index, mode.n_taper, mode.inv_taper,
+                           mode.removal_re, mode.removal_im);
         real_t new_re, new_im;
-        twc_cmul(taper_re, taper_im, rot_re, rot_im, new_re, new_im);
+        twc_cmul(taper_re, taper_im, mode.rot_re, mode.rot_im, new_re, new_im);
         taper_re = new_re;
         taper_im = new_im;
         state_re -= taper_re;
         state_im -= taper_im;
-        twc_cmul(state_re, state_im, rot_re, rot_im, new_re, new_im);
+        twc_cmul(state_re, state_im, mode.rot_re, mode.rot_im, new_re, new_im);
         state_re = new_re;
         state_im = new_im;
         site = event_site;
@@ -766,33 +812,130 @@ extern "C" __global__ void wake_from_twc_fir(
 
       if (target - site > 1) {
         twc_advance_free(state_re, state_im, taper_re, taper_im,
-                         target - 1 - site, phase, rot_re, rot_im);
+                         target - 1 - site, mode.phase, mode.rot_re,
+                         mode.rot_im);
       }
       // the output site itself: events, then the taper rotation and state
       // subtraction; its state rotation happens after the output below
       if (inject_pending && inject_site == target) {
-        taper_re += profile[bin_i - 1] * inv_taper;
+        taper_re += profile[bin_i - 1] * mode.inv_taper;
       }
       twc_remove_expired(taper_re, taper_im, oldest, bin_i, target, profile,
-                         grid_index, n_taper, inv_taper, removal_re,
-                         removal_im);
+                         grid_index, mode.n_taper, mode.inv_taper,
+                         mode.removal_re, mode.removal_im);
       real_t new_re, new_im;
-      twc_cmul(taper_re, taper_im, rot_re, rot_im, new_re, new_im);
+      twc_cmul(taper_re, taper_im, mode.rot_re, mode.rot_im, new_re, new_im);
       taper_re = new_re;
       taper_im = new_im;
       state_re -= taper_re;
       state_im -= taper_im;
     }
 
-    const real_t profile_i_half = real_t(0.5) * profile[bin_i] * two_factor;
+    const real_t profile_i_half =
+        real_t(0.5) * profile[bin_i] * mode.two_factor;
 
     state_re += profile_i_half;
-    atomicAdd(&voltage[bin_i], wake_amplitude * state_re);
+    if (READ_OUT) {
+      atomicAdd(&voltage[bin_i], mode.wake_amplitude * state_re);
+    }
     state_re += profile_i_half;
 
     real_t new_re, new_im;
-    twc_cmul(state_re, state_im, rot_re, rot_im, new_re, new_im);
+    twc_cmul(state_re, state_im, mode.rot_re, mode.rot_im, new_re, new_im);
     state_re = new_re;
     state_im = new_im;
   }
+}
+
+// The TWC kernels are launched with at most TWC_THREADS_PER_BLOCK
+// threads. Their launch bounds override the global -maxrregcount, which
+// would spill the recursion's state to local memory on every site.
+#define TWC_THREADS_PER_BLOCK 128
+
+// Map of every chunk but the last, one thread per mode and chunk (mode
+// fastest). chunk_maps holds [n_chunks][n_modes][6] values: rot^N, then
+// what the chunk adds to taper and to state, each re and im.
+extern "C" __global__ void __launch_bounds__(TWC_THREADS_PER_BLOCK)
+    twc_chunk_maps(const real_t *__restrict__ profile,
+                   const int *__restrict__ grid_index,
+                   const real_t *__restrict__ r_shunt,
+                   const real_t *__restrict__ a_tilde,
+                   const real_t *__restrict__ omega_r, const real_t bin_dt,
+                   const real_t factor, const int n_bins, const int n_modes,
+                   const int chunk_length, const int n_chunks,
+                   real_t *__restrict__ chunk_maps) {
+  const long long thread_i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+  const int mode_i = (int)(thread_i % n_modes);
+  const int chunk_i = (int)(thread_i / n_modes);
+  if (chunk_i >= n_chunks - 1)
+    return;
+  const TwcMode mode =
+      load_twc_mode(r_shunt, a_tilde, omega_r, bin_dt, factor, mode_i);
+  const int first_bin = chunk_i * chunk_length;
+  const int end_bin = first_bin + chunk_length;
+  int oldest = twc_oldest_term(grid_index, first_bin, mode.n_taper);
+  real_t state_re = 0, state_im = 0, taper_re = 0, taper_im = 0;
+  run_twc_bins<false>(mode, profile, grid_index, first_bin, end_bin, oldest,
+                      state_re, state_im, taper_re, taper_im, nullptr);
+  // sites spanned; the first chunk starts from zero, so its span is unused
+  const long long start_site =
+      (long long)grid_index[first_bin > 0 ? first_bin - 1 : 0];
+  const double span_phase =
+      mode.phase * (double)((long long)grid_index[end_bin - 1] - start_site);
+  real_t *map = chunk_maps + ((size_t)chunk_i * n_modes + mode_i) * 6;
+  map[0] = (real_t)cos(span_phase);
+  map[1] = (real_t)sin(span_phase);
+  map[2] = taper_re;
+  map[3] = taper_im;
+  map[4] = state_re;
+  map[5] = state_im;
+}
+
+// One thread per mode and chunk (mode fastest); with one chunk it is the
+// plain recursion, one thread per mode.
+extern "C" __global__ void __launch_bounds__(TWC_THREADS_PER_BLOCK)
+    wake_from_twc_fir(const real_t *__restrict__ profile,
+                      const int *__restrict__ grid_index,
+                      const real_t *__restrict__ r_shunt,
+                      const real_t *__restrict__ a_tilde,
+                      const real_t *__restrict__ omega_r, const real_t bin_dt,
+                      const real_t factor, const int n_bins, const int n_modes,
+                      const int chunk_length, const int n_chunks,
+                      const real_t *__restrict__ chunk_maps,
+                      real_t *__restrict__ voltage) {
+  const long long thread_i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+  const int mode_i = (int)(thread_i % n_modes);
+  const int chunk_i = (int)(thread_i / n_modes);
+  if (chunk_i >= n_chunks)
+    return;
+  const TwcMode mode =
+      load_twc_mode(r_shunt, a_tilde, omega_r, bin_dt, factor, mode_i);
+
+  // the true (taper, state) at the start of the chunk: fold the maps of
+  // the earlier chunks, starting from zero
+  real_t state_re = 0, state_im = 0, taper_re = 0, taper_im = 0;
+  for (int earlier_i = 0; earlier_i < chunk_i; ++earlier_i) {
+    const real_t *map = chunk_maps + ((size_t)earlier_i * n_modes + mode_i) * 6;
+    const int first_bin = earlier_i * chunk_length;
+    const long long n_sites =
+        (long long)grid_index[first_bin + chunk_length - 1] -
+        (long long)grid_index[first_bin > 0 ? first_bin - 1 : 0];
+    // state -> rot^N state - N rot^(N+1) taper, taper -> rot^N taper
+    real_t turned_re, turned_im;
+    twc_cmul(taper_re, taper_im, map[0], map[1], turned_re, turned_im);
+    real_t sub_re, sub_im;
+    twc_cmul(turned_re, turned_im, mode.rot_re, mode.rot_im, sub_re, sub_im);
+    real_t new_re, new_im;
+    twc_cmul(state_re, state_im, map[0], map[1], new_re, new_im);
+    state_re = new_re - (real_t)n_sites * sub_re + map[4];
+    state_im = new_im - (real_t)n_sites * sub_im + map[5];
+    taper_re = turned_re + map[2];
+    taper_im = turned_im + map[3];
+  }
+
+  const int first_bin = chunk_i * chunk_length;
+  const int end_bin = min(first_bin + chunk_length, n_bins);
+  int oldest = twc_oldest_term(grid_index, first_bin, mode.n_taper);
+  run_twc_bins<true>(mode, profile, grid_index, first_bin, end_bin, oldest,
+                     state_re, state_im, taper_re, taper_im, voltage);
 }

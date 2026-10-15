@@ -42,17 +42,17 @@ if cupy_available:
 
 @contextmanager
 def specials_mode(mode):
-    """Switch to `mode`, and to the cupy backend for ``"cuda"``."""
-    if mode != "cuda":
-        with backend.temporary_specials_mode(mode):
-            yield
-        return
-    backend.change_backend(Cupy64Bit)
+    """Switch to `mode` and to its backend, cupy for ``"cuda"``.
+
+    Restores the backend active before, which need not be numpy.
+    """
+    original_backend = type(backend)
+    backend.change_backend(Cupy64Bit if mode == "cuda" else Numpy64Bit)
     try:
         with backend.temporary_specials_mode(mode):
             yield
     finally:
-        backend.change_backend(Numpy64Bit)
+        backend.change_backend(original_backend)
 
 
 def get_test_profile(n: int, bin_dt: float):
@@ -231,7 +231,7 @@ class TestWakeFromTwcFir(unittest.TestCase):
         a_tilde = np.array([120.5, 333.25, 47.0]) * bin_dt
         frequency_r = np.array([2.0e8, 5.3e8, 1.1e9])
 
-        with backend.temporary_specials_mode("python"):
+        with specials_mode("python"):
             v_python = run_kernel(
                 hist_y, r_shunt, a_tilde, frequency_r, bin_dt
             )
@@ -283,6 +283,114 @@ class TestWakeFromTwcFir(unittest.TestCase):
                             rtol=1e-8,
                             atol=1e-8 * np.max(np.abs(v_cpp)),
                         )
+
+
+def _long_gapped_case():
+    """A multi-bunch lattice long enough for a backend to split it in time.
+
+    64 bunches of 64 bins in every third bucket, and wake supports that
+    end inside a bunch, inside a gap, and bridge several bunches.
+    """
+    bin_dt = 1e-10
+    bins_per_bucket = 64
+    bucket_starts = np.arange(0, 3 * 64, 3) * bins_per_bucket
+    grid_index = (
+        (bucket_starts[:, None] + np.arange(bins_per_bucket))
+        .ravel()
+        .astype(np.int32)
+    )
+    rng = np.random.default_rng(11)
+    hist_y = rng.random(len(grid_index)) + 0.1
+    a_tilde = np.array([40.5, 150.0, 700.25]) * bin_dt
+    frequency_r = np.array([2.0e8, 5.3e8, 1.1e9])
+    r_shunt = np.array([1.38e6, 0.88e6, 2.2e5])
+    return hist_y, grid_index, r_shunt, a_tilde, frequency_r, bin_dt
+
+
+class TestWakeFromTwcFirLongGappedProfile(unittest.TestCase):
+    def test_backends_match_python_reference(self):
+        """Every backend agrees with the python reference on a long lattice.
+
+        Long enough that a backend may split the bins into chunks run in
+        parallel; the stitching must reproduce the serial recursion.
+        """
+        hist_y, grid_index, r_shunt, a_tilde, frequency_r, bin_dt = (
+            _long_gapped_case()
+        )
+        with specials_mode("python"):
+            v_python = run_kernel(
+                hist_y, r_shunt, a_tilde, frequency_r, bin_dt, grid_index
+            )
+        for mode in SPECIAL_MODES[1:]:
+            with self.subTest(mode=mode):
+                with specials_mode(mode):
+                    voltage = run_kernel(
+                        hist_y,
+                        r_shunt,
+                        a_tilde,
+                        frequency_r,
+                        bin_dt,
+                        grid_index,
+                    )
+                np.testing.assert_allclose(
+                    voltage,
+                    v_python,
+                    rtol=1e-8,
+                    atol=1e-8 * np.max(np.abs(v_python)),
+                )
+
+
+@pytest.mark.cupy
+@unittest.skipUnless(cupy_available, "requires cupy")
+class TestChunkedTwcKernel(unittest.TestCase):
+    """The CUDA kernel splits the bins into chunks run in parallel."""
+
+    def test_chunk_count(self):
+        from blond.core.backends.cuda.callables import _twc_chunk_count
+
+        # few modes on a long profile: about sqrt(n_bins) chunks
+        self.assertEqual(_twc_chunk_count(118_272, 4, 132), 343)
+        # chunks keep at least 64 bins
+        self.assertEqual(_twc_chunk_count(1000, 4, 132), 15)
+        # enough modes to fill the GPU without chunks
+        self.assertEqual(_twc_chunk_count(118_272, 100_000, 6), 1)
+        # a short profile is never split
+        self.assertEqual(_twc_chunk_count(10, 1, 6), 1)
+
+    def test_chunks_match_single_pass(self):
+        from blond.core.backends.cuda.callables import (
+            _wake_from_twc_fir_in_chunks,
+        )
+
+        hist_y, grid_index, r_shunt, a_tilde, frequency_r, bin_dt = (
+            _long_gapped_case()
+        )
+        results = {}
+        with specials_mode("cuda"):
+            for n_chunks in (1, 2, 7, 33):
+                voltage = backend.zeros(len(hist_y), dtype=backend.float)
+                _wake_from_twc_fir_in_chunks(
+                    profile=backend.array(hist_y, dtype=backend.float),
+                    grid_index=backend.array(grid_index, dtype=np.int32),
+                    r_shunt=backend.array(r_shunt, dtype=backend.float),
+                    a_tilde=backend.array(a_tilde, dtype=backend.float),
+                    omega_r=backend.array(
+                        2 * np.pi * frequency_r, dtype=backend.float
+                    ),
+                    bin_dt=bin_dt,
+                    factor=1.0,
+                    voltage=voltage,
+                    n_chunks=n_chunks,
+                )
+                results[n_chunks] = copy_to_cpu(voltage)
+        for n_chunks in (2, 7, 33):
+            np.testing.assert_allclose(
+                results[n_chunks],
+                results[1],
+                rtol=1e-11,
+                atol=1e-11 * np.max(np.abs(results[1])),
+                err_msg=f"{n_chunks=}",
+            )
 
 
 class TestTwcInMultiPoleSparseSolve(unittest.TestCase):
