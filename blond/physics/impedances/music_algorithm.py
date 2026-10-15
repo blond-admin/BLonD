@@ -71,8 +71,11 @@ class Music(BeamPhysicsRelevant):
     -----
     Only the ``python`` and ``cpp`` backends are supported (those that
     BLonD2 shipped); ``numba``, ``cuda`` and MPI raise
-    :class:`NotImplementedError`. Like BLonD2, only singly-charged
-    particles (``charge == 1``) are supported.
+    :class:`NotImplementedError`. Any particle charge :math:`q` is
+    supported, with the convention of
+    :class:`~blond.physics.impedances.base.WakeField`: the induced voltage
+    is linear in :math:`q`, the kick :math:`q` times it (sign-flipped for
+    a counter-rotating beam).
 
     References
     ----------
@@ -139,6 +142,9 @@ class Music(BeamPhysicsRelevant):
         # MuSiC prefactor [V]; depends on the beam, so computed in
         # `configure_run` once the beam is known.
         self._const: float | None = None
+        # The beam's charge with its direction, which the kick is times the
+        # induced voltage; computed in `configure_run`.
+        self._kick_charge: float | None = None
         # Turn 1 starts the recurrence fresh; later turns bridge the wake.
         self._first_turn = True
         # Reference clock time [s] at the previous track; the difference to
@@ -204,19 +210,15 @@ class Music(BeamPhysicsRelevant):
             f"{self.each_turn_i}."
         )
         n_macroparticles = beam.n_macroparticles_partial()
-        charge = beam.particle_type.charge
-        assert charge == 1, (
-            "MuSiC currently only supports singly-charged particles "
-            f"(charge == 1), but got charge={charge}."
-        )
+        # The kernel adds what it computes to dE, so it computes the kick:
+        # the voltage of the beam's current (one factor of the charge)
+        # times the charge with direction of the kicked particle (another);
+        # `_track` divides the latter out again for `induced_voltage`.
+        self._kick_charge = float(beam.signed_charge_with_direction())
         self._const = (
             -e
-            # TODO investigate: the energy kick arguably scales with
-            # charge**2 (one factor from the beam current, one from the
-            # kick onto a test particle), mirroring `WakeField`. Disabled
-            # until verified; `charge == 1` is asserted above so it would
-            # have no effect anyway.
-            # * charge**2
+            * beam.particle_type.charge
+            * self._kick_charge
             * self._R_S
             * self._omega_R
             * beam.intensity
@@ -279,6 +281,9 @@ class Music(BeamPhysicsRelevant):
             time_since_last_track,
             multiturn,
         )
+        if self._kick_charge != 1.0:
+            # the kernel computed the kick; keep the voltage itself
+            self.induced_voltage /= self._kick_charge
         self._prev_reference_time = reference_time
         self._first_turn = False
 
