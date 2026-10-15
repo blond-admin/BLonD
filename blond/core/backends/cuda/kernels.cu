@@ -516,121 +516,277 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
   __syncthreads();
 }
 
-// Far field of a pole-residue (vector fitting) wake, one thread per pole.
-// Mirrors cpp/poles.cpp; see `Specials.wake_from_pole_residue` in
-// blond/core/backends/backend.py for the contract. Pole contributions are
-// reduced into `voltage` via atomicAdd. Complex arrays (poles, residues,
-// states) are stored as interleaved real/imag: [re0, im0, re1, im1, ...].
+// Far field of a pole-residue (vector fitting) wake. Mirrors cpp/poles.cpp;
+// see `Specials.wake_from_pole_residue` in blond/core/backends/backend.py
+// for the contract. Complex arrays (poles, residues, states) are stored as
+// interleaved real/imag: [re0, im0, re1, im1, ...]. Positions are in whole
+// bins from the first bin: a bin is read out two bins behind its own
+// position, and the state is handed over one bin before the last bin.
+//
+// One thread per pole rarely fills a GPU, so the read-outs are also split
+// into chunks run in parallel. The recursion is linear: running a chunk
+// maps a state S to P * S + L, with P = exp(pole * span) over the chunk's
+// span of whole bins and L its own contribution from a zero state.
+// `pole_residue_chunk_maps` computes (P, L) for every chunk but the last, and
+// `wake_from_pole_residue` folds the maps of the earlier chunks into the
+// true state at the start of its chunk before it reads out. With one chunk
+// it is the plain recursion.
 
-// Decay a pole's state from `clock` to `to_time`, never backwards. A step of
-// exactly one bin uses the precomputed `decay_*`.
-__device__ static inline void advance_pole_state(
-    real_t &state_re, real_t &state_im, real_t &clock, const real_t to_time,
-    const real_t pole_re, const real_t pole_im, const real_t bin_dt,
-    const real_t decay_re, const real_t decay_im, const real_t tolerance) {
-  const real_t step = to_time - clock;
-  if (step <= tolerance) {
-    return;
-  }
-  real_t e_re, e_im;
-  if (fabs(step - bin_dt) <= tolerance) {
-    e_re = decay_re;
-    e_im = decay_im;
-  } else {
-    const real_t e_abs = exp(pole_re * step);
-    e_re = e_abs * cos(pole_im * step);
-    e_im = e_abs * sin(pole_im * step);
-  }
-  const real_t new_re = state_re * e_re - state_im * e_im;
-  const real_t new_im = state_re * e_im + state_im * e_re;
-  state_re = new_re;
-  state_im = new_im;
-  clock = to_time;
-}
+// The pole kernels are launched with at most POLE_THREADS_PER_BLOCK
+// threads. Their launch bounds override the global -maxrregcount, which
+// would spill the pole constants to local memory and reload them on every
+// read-out.
+#define POLE_THREADS_PER_BLOCK 128
 
-extern "C" __global__ void wake_from_pole_residue(
-    const real_t *__restrict__ profile_time, const real_t *__restrict__ profile,
-    const real_t *__restrict__ carried_charge,
-    const bool carried_is_counterrotating, const real_t state_lag_dt,
-    const real_t carried_lag_dt, const real_t *__restrict__ poles,
-    const real_t *__restrict__ residues, const bool is_counterrotating_beam,
-    const real_t *__restrict__ counterrotating_pole_signs, const real_t factor,
-    const real_t bin_dt, real_t *__restrict__ states,
-    real_t *__restrict__ voltage, const int n_bins, const int n_poles) {
-  const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (pole_i >= n_poles)
-    return;
+// One pole's constants. The read-out flip is folded into the residue.
+struct PoleConstants {
+  real_t pole_re;
+  real_t pole_im;
+  real_t flipped_res_re;
+  real_t flipped_res_im;
+  real_t decay_re;
+  real_t decay_im;
+  real_t injection;
+  real_t carried_injection;
+};
 
-  // Times relative to the first bin. A bin is read out two bins behind
-  // its own time; the carried charge was emitted before t_0.
-  const real_t t_0 = profile_time[0];
-  const real_t read_lag = real_t(2) * bin_dt;
-  const real_t tolerance = real_t(1e-6) * bin_dt;
-  const real_t t_carried = -carried_lag_dt;
-  const real_t t_handover = (profile_time[n_bins - 1] - t_0) - bin_dt;
-
-  const int pole_n = 2 * pole_i;
-  const real_t pole_re = poles[pole_n];
-  const real_t pole_im = poles[pole_n + 1];
-  const real_t res_re = residues[pole_n];
-  const real_t res_im = residues[pole_n + 1];
-
+__device__ static inline PoleConstants load_pole_constants(
+    const real_t *__restrict__ poles, const real_t *__restrict__ residues,
+    const real_t *__restrict__ counterrotating_pole_signs, const int pole_i,
+    const bool is_counterrotating_beam, const bool carried_is_counterrotating,
+    const real_t carried_charge, const real_t factor, const real_t bin_dt) {
+  PoleConstants pole;
+  pole.pole_re = poles[2 * pole_i];
+  pole.pole_im = poles[2 * pole_i + 1];
   // The flip is applied to both the injection and the read-out, so a
   // beam's own wake never flips; a charge carried from the other beam
   // keeps that beam's flip.
   const bool flipped = counterrotating_pole_signs[pole_i] == real_t(-1);
   const real_t flip = (is_counterrotating_beam && flipped) ? -1 : 1;
   const real_t carried_flip = (carried_is_counterrotating && flipped) ? -1 : 1;
+  pole.flipped_res_re = flip * residues[2 * pole_i];
+  pole.flipped_res_im = flip * residues[2 * pole_i + 1];
   // A complex pole stands in for its unstored conjugate partner.
-  const real_t pair = (pole_im == real_t(0)) ? real_t(1) : real_t(2);
-  const real_t decay_abs = exp(pole_re * bin_dt);
-  const real_t decay_re = decay_abs * cos(pole_im * bin_dt);
-  const real_t decay_im = decay_abs * sin(pole_im * bin_dt);
+  const real_t pair = (pole.pole_im == real_t(0)) ? real_t(1) : real_t(2);
+  pole.injection = flip * pair * factor;
+  pole.carried_injection = carried_flip * pair * carried_charge;
+  const real_t decay_abs = exp(pole.pole_re * bin_dt);
+  pole.decay_re = decay_abs * cos(pole.pole_im * bin_dt);
+  pole.decay_im = decay_abs * sin(pole.pole_im * bin_dt);
+  return pole;
+}
 
-  real_t state_re = states[pole_n];
-  real_t state_im = states[pole_n + 1];
-  real_t clock = -read_lag - state_lag_dt;
-  int next_bin = 0;
+// (out_re, out_im) = exp(pole * span)
+__device__ static inline void pole_exp(const PoleConstants &pole,
+                                       const real_t span, real_t &out_re,
+                                       real_t &out_im) {
+  const real_t e_abs = exp(pole.pole_re * span);
+  out_re = e_abs * cos(pole.pole_im * span);
+  out_im = e_abs * sin(pole.pole_im * span);
+}
 
-  for (int bin_i = 0; bin_i < n_bins; ++bin_i) {
-    const real_t read_time = (profile_time[bin_i] - t_0) - read_lag;
+// state *= (e_re + i e_im)
+__device__ static inline void multiply_state(const real_t e_re,
+                                             const real_t e_im,
+                                             real_t &state_re,
+                                             real_t &state_im) {
+  const real_t new_re = state_re * e_re - state_im * e_im;
+  state_im = state_re * e_im + state_im * e_re;
+  state_re = new_re;
+}
+
+// Decay the state over `span`, in [s].
+__device__ static inline void decay_pole_state(const PoleConstants &pole,
+                                               const real_t span,
+                                               real_t &state_re,
+                                               real_t &state_im) {
+  real_t e_re = 0;
+  real_t e_im = 0;
+  pole_exp(pole, span, e_re, e_im);
+  multiply_state(e_re, e_im, state_re, state_im);
+}
+
+// Advance the state by `n_steps` whole bins.
+__device__ static inline void
+advance_pole_state(const PoleConstants &pole, const index_t n_steps,
+                   const real_t bin_dt, real_t &state_re, real_t &state_im) {
+  if (n_steps == 1) {
+    multiply_state(pole.decay_re, pole.decay_im, state_re, state_im);
+  } else if (n_steps > 1) {
+    decay_pole_state(pole, real_t(n_steps) * bin_dt, state_re, state_im);
+  }
+}
+
+// Add the carried charge, emitted `lag` before the current position.
+__device__ static inline void inject_carried(const PoleConstants &pole,
+                                             const real_t lag, real_t &state_re,
+                                             real_t &state_im) {
+  real_t e_re = 0;
+  real_t e_im = 0;
+  pole_exp(pole, lag, e_re, e_im);
+  state_re += pole.carried_injection * e_re;
+  state_im += pole.carried_injection * e_im;
+}
+
+// Where the state stands before read-out `first_read`: its position, and
+// the number of bins entered by then (every bin but the last at most).
+__device__ static inline void
+chunk_start(const index_t *__restrict__ bin_offsets, const int n_bins,
+            const int first_read, index_t &position, int &next_bin) {
+  if (first_read == 0) {
+    position = -2;
+    next_bin = 0;
+    return;
+  }
+  position = bin_offsets[first_read - 1] - 2;
+  // the first bin past `position`, by bisection; bin_offsets ascends
+  int low = 0;
+  int high = n_bins - 1;
+  while (low < high) {
+    const int middle = (low + high) / 2;
+    if (bin_offsets[middle] <= position) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  next_bin = low;
+}
+
+// Read-outs [first_read, end_read) of one pole, from `position` and
+// `next_bin` on; adds them to `voltage` if READ_OUT.
+template <bool READ_OUT>
+__device__ static inline void run_pole_reads(
+    const PoleConstants &pole, const index_t *__restrict__ bin_offsets,
+    const real_t *__restrict__ profile, const int n_bins, const int first_read,
+    const int end_read, const real_t carried_lag_dt, const real_t bin_dt,
+    index_t &position, int &next_bin, real_t &state_re, real_t &state_im,
+    real_t *__restrict__ voltage) {
+  for (int read_i = first_read; read_i < end_read; ++read_i) {
+    const index_t read_position = bin_offsets[read_i] - 2;
     // every bin but the last enters the state when it is due
-    while (next_bin < n_bins - 1 &&
-           (profile_time[next_bin] - t_0) <= read_time + tolerance) {
-      advance_pole_state(state_re, state_im, clock,
-                         profile_time[next_bin] - t_0, pole_re, pole_im, bin_dt,
-                         decay_re, decay_im, tolerance);
-      state_re += flip * pair * factor * profile[next_bin];
-      ++next_bin;
+    for (; next_bin < n_bins - 1 && bin_offsets[next_bin] <= read_position;
+         ++next_bin) {
+      advance_pole_state(pole, bin_offsets[next_bin] - position, bin_dt,
+                         state_re, state_im);
+      position = bin_offsets[next_bin];
+      state_re += pole.injection * profile[next_bin];
     }
-    advance_pole_state(state_re, state_im, clock, read_time, pole_re, pole_im,
-                       bin_dt, decay_re, decay_im, tolerance);
-    atomicAdd(&voltage[bin_i], flip * (res_re * state_re - res_im * state_im));
-    if (bin_i == 0) {
-      // The carried charge enters after the first read-out; older than
-      // the clock it is decayed to it, newer it moves the clock.
-      if (t_carried <= clock) {
-        const real_t e_abs = exp(pole_re * (clock - t_carried));
-        const real_t charge = carried_flip * pair * carried_charge[0];
-        state_re += charge * e_abs * cos(pole_im * (clock - t_carried));
-        state_im += charge * e_abs * sin(pole_im * (clock - t_carried));
-      } else {
-        advance_pole_state(state_re, state_im, clock, t_carried, pole_re,
-                           pole_im, bin_dt, decay_re, decay_im, tolerance);
-        state_re += carried_flip * pair * carried_charge[0];
-      }
+    advance_pole_state(pole, read_position - position, bin_dt, state_re,
+                       state_im);
+    position = read_position;
+    if (read_i == 1) {
+      // The carried charge enters after the first read-out.
+      inject_carried(pole, real_t(position) * bin_dt + carried_lag_dt, state_re,
+                     state_im);
+    }
+    if (READ_OUT) {
+      atomicAdd(&voltage[read_i], pole.flipped_res_re * state_re -
+                                      pole.flipped_res_im * state_im);
     }
   }
-  // Hand over one bin before the last bin, every other bin in.
-  while (next_bin < n_bins - 1) {
-    advance_pole_state(state_re, state_im, clock, profile_time[next_bin] - t_0,
-                       pole_re, pole_im, bin_dt, decay_re, decay_im, tolerance);
-    state_re += flip * pair * factor * profile[next_bin];
-    ++next_bin;
-  }
-  advance_pole_state(state_re, state_im, clock, t_handover, pole_re, pole_im,
-                     bin_dt, decay_re, decay_im, tolerance);
+}
 
-  states[pole_n] = state_re;
-  states[pole_n + 1] = state_im;
+// Map (P, L) of chunk blockIdx.y for every chunk but the last; one thread
+// per pole and chunk. chunk_maps holds [n_chunks - 1][n_poles][4] values:
+// P_re, P_im, L_re, L_im.
+extern "C" __global__ void __launch_bounds__(POLE_THREADS_PER_BLOCK)
+    pole_residue_chunk_maps(
+        const index_t *__restrict__ bin_offsets,
+        const real_t *__restrict__ profile,
+        const real_t *__restrict__ carried_charge,
+        const bool carried_is_counterrotating, const real_t carried_lag_dt,
+        const real_t *__restrict__ poles, const real_t *__restrict__ residues,
+        const bool is_counterrotating_beam,
+        const real_t *__restrict__ counterrotating_pole_signs,
+        const real_t factor, const real_t bin_dt, const int n_bins,
+        const int n_poles, const int chunk_length, const int n_chunks,
+        real_t *__restrict__ chunk_maps) {
+  const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
+  const int chunk_i = blockIdx.y;
+  if (pole_i >= n_poles || chunk_i >= n_chunks - 1)
+    return;
+  const PoleConstants pole =
+      load_pole_constants(poles, residues, counterrotating_pole_signs, pole_i,
+                          is_counterrotating_beam, carried_is_counterrotating,
+                          carried_charge[0], factor, bin_dt);
+  const int first_read = chunk_i * chunk_length;
+  index_t position = 0;
+  int next_bin = 0;
+  chunk_start(bin_offsets, n_bins, first_read, position, next_bin);
+  const index_t start_position = position;
+  real_t state_re = 0;
+  real_t state_im = 0;
+  run_pole_reads<false>(pole, bin_offsets, profile, n_bins, first_read,
+                        first_read + chunk_length, carried_lag_dt, bin_dt,
+                        position, next_bin, state_re, state_im, nullptr);
+  real_t *map = chunk_maps + ((size_t)chunk_i * n_poles + pole_i) * 4;
+  pole_exp(pole, real_t(position - start_position) * bin_dt, map[0], map[1]);
+  map[2] = state_re;
+  map[3] = state_im;
+}
+
+// The read-outs of chunk blockIdx.y, added to `voltage`; one thread per
+// pole and chunk. The last chunk hands its state over in `states`. Its
+// arguments up to `chunk_maps` are those of `pole_residue_chunk_maps`.
+extern "C" __global__ void __launch_bounds__(POLE_THREADS_PER_BLOCK)
+    wake_from_pole_residue(
+        const index_t *__restrict__ bin_offsets,
+        const real_t *__restrict__ profile,
+        const real_t *__restrict__ carried_charge,
+        const bool carried_is_counterrotating, const real_t carried_lag_dt,
+        const real_t *__restrict__ poles, const real_t *__restrict__ residues,
+        const bool is_counterrotating_beam,
+        const real_t *__restrict__ counterrotating_pole_signs,
+        const real_t factor, const real_t bin_dt, const int n_bins,
+        const int n_poles, const int chunk_length, const int n_chunks,
+        const real_t *__restrict__ chunk_maps, const real_t state_lag_dt,
+        real_t *__restrict__ states, real_t *__restrict__ voltage) {
+  const int pole_i = blockIdx.x * blockDim.x + threadIdx.x;
+  const int chunk_i = blockIdx.y;
+  if (pole_i >= n_poles || chunk_i >= n_chunks)
+    return;
+  const PoleConstants pole =
+      load_pole_constants(poles, residues, counterrotating_pole_signs, pole_i,
+                          is_counterrotating_beam, carried_is_counterrotating,
+                          carried_charge[0], factor, bin_dt);
+
+  // The incoming state at the first read-out, then folded over the earlier
+  // chunks: S_{c+1} = P_c S_c + L_c.
+  real_t state_re = states[2 * pole_i];
+  real_t state_im = states[2 * pole_i + 1];
+  decay_pole_state(pole, state_lag_dt, state_re, state_im);
+  for (int earlier_i = 0; earlier_i < chunk_i; ++earlier_i) {
+    const real_t *map = chunk_maps + ((size_t)earlier_i * n_poles + pole_i) * 4;
+    multiply_state(map[0], map[1], state_re, state_im);
+    state_re += map[2];
+    state_im += map[3];
+  }
+
+  const int first_read = chunk_i * chunk_length;
+  const int end_read = min(first_read + chunk_length, n_bins);
+  index_t position = 0;
+  int next_bin = 0;
+  chunk_start(bin_offsets, n_bins, first_read, position, next_bin);
+  run_pole_reads<true>(pole, bin_offsets, profile, n_bins, first_read, end_read,
+                       carried_lag_dt, bin_dt, position, next_bin, state_re,
+                       state_im, voltage);
+  if (chunk_i != n_chunks - 1)
+    return;
+  // Hand over one bin before the last bin, every other bin in.
+  for (; next_bin < n_bins - 1; ++next_bin) {
+    advance_pole_state(pole, bin_offsets[next_bin] - position, bin_dt, state_re,
+                       state_im);
+    position = bin_offsets[next_bin];
+    state_re += pole.injection * profile[next_bin];
+  }
+  const index_t handover_position = bin_offsets[n_bins - 1] - 1;
+  advance_pole_state(pole, handover_position - position, bin_dt, state_re,
+                     state_im);
+  if (n_bins == 1) {
+    inject_carried(pole, real_t(handover_position) * bin_dt + carried_lag_dt,
+                   state_re, state_im);
+  }
+  states[2 * pole_i] = state_re;
+  states[2 * pole_i + 1] = state_im;
 }
