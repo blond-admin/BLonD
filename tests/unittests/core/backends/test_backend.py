@@ -3734,6 +3734,96 @@ class TestSpecials(BLonDTestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_many_mixed_poles(self) -> None:
+        """Many poles of mixed kind equal the unrolled sum, on every backend.
+
+        Backends may process poles in groups (SIMD blocks, threads); pole
+        counts that are not a multiple of any group size, real and complex
+        poles and flipped and unflipped poles side by side in one group,
+        and an axis with a hole (steps longer than a bin) must still give
+        every pole its own recursion.
+        """
+        bin_dt = 1e-9
+        profile_time = bin_dt * np.array([0, 1, 2, 3, 4, 9, 10, 11, 12.0])
+        profile = np.array([0.5, 3.0, 1.5, 0.0, 2.0, 0.5, 1.0, 0.7, 0.2])
+        factor = 1.7
+        carried_charge = 2.3
+        state_lag_dt, carried_lag_dt = 0.3 * bin_dt, 1.3 * bin_dt
+        rng = np.random.default_rng(42)
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for n_poles in (1, 5, 17, 40, 103):
+                is_real = np.arange(n_poles) % 4 == 1
+                poles_np = -rng.uniform(5e7, 5e8, n_poles) + 1j * np.where(
+                    is_real, 0.0, rng.uniform(1e8, 3e9, n_poles)
+                )
+                residues_np = rng.normal(size=n_poles) + 1j * np.where(
+                    is_real, 0.0, rng.normal(size=n_poles)
+                )
+                states_in = rng.normal(size=n_poles) + 1j * np.where(
+                    is_real, 0.0, rng.normal(size=n_poles)
+                )
+                signs = np.where(np.arange(n_poles) % 3 == 0, -1.0, 1.0)
+                for carried_is_counterrotating in (False, True):
+                    expected_voltage, expected_states = (
+                        self._unrolled_pole_voltage(
+                            profile_time,
+                            profile,
+                            carried_charge,
+                            carried_is_counterrotating,
+                            state_lag_dt,
+                            carried_lag_dt,
+                            poles_np,
+                            residues_np,
+                            True,
+                            signs,
+                            factor,
+                            bin_dt,
+                            states_in,
+                        )
+                    )
+                    states = backend.array(states_in, dtype=backend.complex)
+                    voltage = self._run_pole_kernel(
+                        profile_time,
+                        profile,
+                        carried_charge,
+                        carried_is_counterrotating,
+                        state_lag_dt,
+                        carried_lag_dt,
+                        poles_np,
+                        residues_np,
+                        True,
+                        signs,
+                        factor,
+                        bin_dt,
+                        states,
+                    )
+                    msg = (
+                        f"{special=} {n_poles=} {carried_is_counterrotating=}"
+                    )
+                    scale = float(np.max(np.abs(expected_voltage)))
+                    np.testing.assert_allclose(
+                        voltage,
+                        expected_voltage,
+                        rtol=1e-9,
+                        atol=1e-9 * scale,
+                        err_msg=msg,
+                    )
+                    np.testing.assert_allclose(
+                        copy_to_cpu(states),
+                        expected_states,
+                        rtol=1e-9,
+                        atol=1e-9 * float(np.max(np.abs(expected_states))),
+                        err_msg=f"states {msg}",
+                    )
+
+    @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_accepts_extra_scratch_rows(self) -> None:
         """More scratch rows than threads, as the contract allows, are fine.
 
