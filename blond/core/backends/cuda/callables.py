@@ -125,14 +125,15 @@ _RF_PARAMS_BATCH_DTYPE = np.dtype(
 _quantum_excitation_seed_counter = itertools.count(time.time_ns())
 
 
-# Warps per multiprocessor the pole-residue kernel aims for; fewer leave
-# the GPU waiting on the latency of the serial recursion (tuned on a T400).
-_POLE_WARPS_PER_MULTIPROCESSOR = 8
-# Shortest chunk of read-outs worth a thread of its own.
-_MIN_POLE_CHUNK_BINS = 64
-# Threads per block of the pole kernels; must not exceed their launch
-# bounds, POLE_THREADS_PER_BLOCK in kernels.cu.
-_POLE_THREADS_PER_BLOCK = 128
+# Shape of the pole kernels; must match POLE_TILE, POLE_BLOCK and
+# POLE_THREADS in kernels.cu.
+_POLE_TILE = 64  # bins per tile, at most
+_POLE_BLOCK = 16  # poles per block
+_POLE_THREADS = 64  # threads per block
+# Blocks per multiprocessor the pole kernels aim for (tuned on a T400).
+_POLE_BLOCKS_PER_MULTIPROCESSOR = 16
+# Fewest tiles per time chunk.
+_MIN_POLE_CHUNK_TILES = 4
 _N_MULTIPROCESSORS = cp.cuda.Device(0).attributes["MultiProcessorCount"]
 
 
@@ -140,12 +141,13 @@ def _pole_chunk_count(
     n_bins: int, n_poles: int, n_multiprocessors: int
 ) -> int:
     """
-    Return into how many chunks of read-outs the pole kernel splits the bins.
+    Return into how many time chunks the pole kernels split the bins.
 
-    One warp per 32 poles rarely fills a GPU, so the bins are split into
-    chunks run in parallel, until there are enough warps. Chunks stay at
-    least `_MIN_POLE_CHUNK_BINS` long, and no more numerous than they are
-    long: each chunk first folds the maps of all earlier chunks.
+    A block holds `_POLE_BLOCK` poles; too few blocks leave the GPU idle,
+    so the bins are split into chunks run in parallel, until there are
+    enough. Chunks keep at least `_MIN_POLE_CHUNK_TILES` tiles, and stay
+    fewer than the square root of the tiles: each chunk first folds the
+    maps of all earlier chunks.
 
     Parameters
     ----------
@@ -161,14 +163,14 @@ def _pole_chunk_count(
     n_chunks
         Number of chunks, at least 1.
     """
-    pole_warps = -(-n_poles // 32)
-    target_warps = _POLE_WARPS_PER_MULTIPROCESSOR * n_multiprocessors
-    if pole_warps >= target_warps:
+    pole_blocks = -(-n_poles // _POLE_BLOCK)
+    target_blocks = _POLE_BLOCKS_PER_MULTIPROCESSOR * n_multiprocessors
+    if pole_blocks >= target_blocks:
         return 1
     n_chunks = min(
-        -(-target_warps // pole_warps),
-        n_bins // _MIN_POLE_CHUNK_BINS,
-        math.isqrt(n_bins),
+        -(-target_blocks // pole_blocks),
+        n_bins // (_MIN_POLE_CHUNK_TILES * _POLE_TILE),
+        math.isqrt(n_bins // _POLE_TILE),
     )
     return max(n_chunks, 1)
 
@@ -191,7 +193,7 @@ def _wake_from_pole_residue_in_chunks(
     n_chunks: int,
 ) -> None:
     """
-    Launch the pole-residue kernels with the read-outs in `n_chunks` chunks.
+    Launch the pole-residue kernels with the bins in `n_chunks` chunks.
 
     See `Specials.wake_from_pole_residue` for every other parameter and
     kernels.cu for the scheme. `voltage` is overwritten.
@@ -202,41 +204,47 @@ def _wake_from_pole_residue_in_chunks(
         Position of each bin in whole bins from the first bin, of type
         `INDEX_DTYPE`; replaces ``profile_time``.
     n_chunks
-        Number of chunks of read-outs, run in parallel; 1 is the plain
-        recursion.
+        Number of time chunks, run in parallel; 1 walks all bins in one
+        pass.
     """
     n_bins = int(profile.shape[0])
     n_poles = int(poles.shape[0])
     chunk_length = -(-n_bins // n_chunks)
     n_chunks = -(-n_bins // chunk_length)
 
-    # Pole contributions are summed per warp, then added via atomicAdd;
-    # must start at zero.
+    # Each block adds its poles' read-outs via atomicAdd; must start at zero.
     voltage.fill(0)
+    # The poles' wake within a tile, summed over all poles, at lags below
+    # a tile: Re sum_p rho_p pair_p d_p^lag (the counter-rotation flips of
+    # injection and read-out cancel). Contiguous: `.real` of a complex
+    # array is a strided view, and the kernel reads the raw buffer.
+    pair_factors = cp.where(poles.imag == 0, 1.0, 2.0)
+    lags = cp.arange(_POLE_TILE, dtype=FLOAT)
+    wake = cp.ascontiguousarray(
+        (
+            (residues * pair_factors)[None, :]
+            * cp.exp(lags[:, None] * (poles * bin_dt)[None, :])
+        )
+        .sum(axis=1)
+        .real
+    )
     # From CuPy's memory pool, so no allocation after the first call.
     chunk_maps = cp.empty(max(n_chunks - 1, 1) * n_poles * 4, dtype=FLOAT)
 
-    # One thread per pole and chunk; chunks along grid.y. Blocks are whole
-    # warps, so a warp never spans two chunks (the kernel sums over it).
-    threads_per_block = (
-        _POLE_THREADS_PER_BLOCK
-        if (n_chunks == 1 and n_poles >= _POLE_THREADS_PER_BLOCK)
-        else 32
-    )
-    block = (threads_per_block, 1, 1)
-    grid = (-(-n_poles // threads_per_block), n_chunks, 1)
-    # Both kernels share these arguments; see kernels.cu. Complex arrays are
-    # viewed as interleaved real/imag float arrays, without copying.
+    block = (_POLE_THREADS, 1, 1)
+    grid = (-(-n_poles // _POLE_BLOCK), n_chunks, 1)
+    # Both kernels start with these arguments; see kernels.cu. Complex
+    # arrays are viewed as interleaved real/imag float arrays, no copy.
     shared_args = (
         bin_offsets,
         profile,
-        carried_charge,
-        np.bool_(carried_is_counterrotating),
-        FLOAT(carried_lag_dt),
         poles.view(FLOAT),
         residues.view(FLOAT),
-        np.bool_(is_counterrotating_beam),
         counterrotating_pole_signs,
+        np.bool_(is_counterrotating_beam),
+        np.bool_(carried_is_counterrotating),
+        carried_charge,
+        FLOAT(carried_lag_dt),
         FLOAT(factor),
         FLOAT(bin_dt),
         np.int32(n_bins),
@@ -250,6 +258,7 @@ def _wake_from_pole_residue_in_chunks(
     _wake_from_pole_residue(
         args=(
             *shared_args,
+            wake,
             FLOAT(state_lag_dt),
             states.view(FLOAT),
             voltage,
