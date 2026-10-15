@@ -3824,6 +3824,99 @@ class TestSpecials(BLonDTestCase):
                     )
 
     @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_long_profile_matches_python(self) -> None:
+        """A long profile with holes gives the reference result everywhere.
+
+        Long enough that a backend may split the bins into chunks that run
+        in parallel and are stitched together afterwards: the stitching
+        must reproduce the serial recursion, its hand-over state included.
+        """
+        bin_dt = 1e-9
+        n_bins = 1200
+        index = np.arange(n_bins)
+        # a hole of 7 bins after every 50 bins (a sparse, multi-bunch axis)
+        profile_time = 3.0e-4 + bin_dt * (index + 7 * (index // 50))
+        profile = 1.0 + np.sin(index / 37.0) ** 2
+        factor = 1.7
+        carried_charge = 2.3
+        rng = np.random.default_rng(7)
+        cases = []
+        for n_poles in (3, 70):
+            is_real = np.arange(n_poles) % 4 == 1
+            poles_np = -rng.uniform(5e6, 5e8, n_poles) + 1j * np.where(
+                is_real, 0.0, rng.uniform(1e8, 3e9, n_poles)
+            )
+            residues_np = rng.normal(size=n_poles) + 1j * np.where(
+                is_real, 0.0, rng.normal(size=n_poles)
+            )
+            states_in = rng.normal(size=n_poles) + 1j * np.where(
+                is_real, 0.0, rng.normal(size=n_poles)
+            )
+            signs = np.where(np.arange(n_poles) % 3 == 0, -1.0, 1.0)
+            for carried_lag_bins in (1.3, 2.5):
+                cases.append(
+                    (
+                        poles_np,
+                        residues_np,
+                        states_in,
+                        signs,
+                        carried_lag_bins,
+                    )
+                )
+
+        def run_all():
+            results = []
+            for poles_np, residues_np, states_in, signs, lag_bins in cases:
+                states = backend.array(states_in, dtype=backend.complex)
+                voltage = self._run_pole_kernel(
+                    profile_time,
+                    profile,
+                    carried_charge,
+                    True,
+                    (lag_bins - 1.0) * bin_dt,
+                    lag_bins * bin_dt,
+                    poles_np,
+                    residues_np,
+                    True,
+                    signs,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+                results.append((voltage, copy_to_cpu(states)))
+            return results
+
+        self._setUp(dtype=np.float64, special_mode="python")
+        expected = run_all()
+        for special in self.special_modes:
+            if special == "python":
+                continue
+            try:
+                self._setUp(dtype=np.float64, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test")
+                continue
+            results = run_all()
+            for case_i, ((voltage, states), (exp_v, exp_s)) in enumerate(
+                zip(results, expected, strict=True)
+            ):
+                msg = f"{special=} {case_i=}"
+                np.testing.assert_allclose(
+                    voltage,
+                    exp_v,
+                    rtol=1e-10,
+                    atol=1e-10 * float(np.max(np.abs(exp_v))),
+                    err_msg=msg,
+                )
+                np.testing.assert_allclose(
+                    states,
+                    exp_s,
+                    rtol=1e-10,
+                    atol=1e-10 * float(np.max(np.abs(exp_s))),
+                    err_msg=f"states {msg}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_accepts_extra_scratch_rows(self) -> None:
         """More scratch rows than threads, as the contract allows, are fine.
 

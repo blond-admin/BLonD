@@ -66,6 +66,9 @@ _FACTORIAL_3 = 6.0
 # branch on the few bins around the onset only (one host sync per call on
 # CuPy); below it, on the whole array (no sync).
 _NEAR_WINDOW_MIN_BINS = 4096
+# Below that, the poles are evaluated together, lags times poles at once:
+# at most this many elements per batch, so the temporaries stay a few MB.
+_MAX_BROADCAST_ELEMENTS = 2**18
 
 # Knots of the quadratic B-spline `box * box * box`, in units of the bin
 # width: it is a different quadratic on each of (-3/2, -1/2), (-1/2, 1/2)
@@ -294,6 +297,18 @@ def triple_box_average_poles(
     out = backend.zeros(len(t), dtype=backend.float)
     # The window depends on `t` and `dt` only, so it is found once.
     near_idx = _near_window(t, dt)
+    if near_idx is None:
+        # A short grid: one call per batch of poles, lags along axis 0 and
+        # poles along axis 1. Per pole, a call is a few hundred array
+        # operations -- kernel launches on a GPU -- whatever the length.
+        batch_size = max(1, _MAX_BROADCAST_ELEMENTS // max(len(t), 1))
+        lags = t[:, None]
+        for first in range(0, len(poles), batch_size):
+            batch = slice(first, first + batch_size)
+            out += triple_box_average_pole(
+                lags, poles[None, batch], residues[None, batch], dt
+            ).sum(axis=1)
+        return out
     # Length-1 slices rather than `complex(poles[i])`: the latter is a
     # device-to-host transfer per pole inside the per-turn loop.
     for pole_i in range(len(poles)):

@@ -1431,22 +1431,20 @@ def _is_far_field_pole(model: _PoleModel, tolerance: float) -> np.ndarray:
         Host boolean array, one entry per pole.
     """
     bin_dt = model.bin_dt
-    # The three near-tap lags, in [s].
-    lags = backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float)
+    # The three near-tap lags, in [s], along axis 0; the poles along axis 1,
+    # so every pole is evaluated in one call.
+    lags = backend.array([bin_dt, 0.0, -bin_dt], dtype=backend.float)[:, None]
+    poles = model.poles[None, :]
+    residues = model.residues[None, :]
+    # The taps are the real part; with the residue turned by -90 degrees
+    # they are the imaginary part, so together the magnitude, whatever the
+    # residue's phase.
+    in_phase = triple_box_average_pole(lags, poles, residues, bin_dt)
+    quadrature = triple_box_average_pole(lags, poles, -1j * residues, bin_dt)
     # Per pole, the largest magnitude of its three near taps.
-    near_field_peaks = np.empty(len(model.poles))
-    for pole_i in range(len(model.poles)):
-        # Length-1 slices: the single-pole helper wants arrays.
-        pole = model.poles[pole_i : pole_i + 1]
-        residue = model.residues[pole_i : pole_i + 1]
-        # The taps are the real part; with the residue turned by -90
-        # degrees they are the imaginary part, so together the magnitude,
-        # whatever the residue's phase.
-        in_phase = triple_box_average_pole(lags, pole, residue, bin_dt)
-        quadrature = triple_box_average_pole(lags, pole, -1j * residue, bin_dt)
-        near_field_peaks[pole_i] = np.max(
-            np.hypot(copy_to_cpu(in_phase), copy_to_cpu(quadrature))
-        )
+    near_field_peaks = np.max(
+        np.hypot(copy_to_cpu(in_phase), copy_to_cpu(quadrature)), axis=0
+    )
     # The far field from two bins on is a geometric series, so its sum is
     # tail_at_two_bins / (1 - decay_per_bin); compared below without that
     # division, which is by zero for an undamped pole.
@@ -1597,12 +1595,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             signs.extend(vector_fit.counterrotation_signs)
             self._direct_term += float(vector_fit.direct_term)
             self._inductive_term += float(vector_fit.inductive_term)
-        # FIXME: build the model (taps, tail residues, pair factors and the
-        #  far-field selection) on the host and move only what is tracked
-        #  with to the device. On the GPU, `_is_far_field_pole` loops over
-        #  the poles with length-1 device slices and a host copy each, so
-        #  this takes 1.02 s instead of 72 ms on the CPU for 121 poles
-        #  (LHC, T400), growing with the pole count.
         poles = backend.array(poles, dtype=backend.complex)
         residues = backend.array(residues, dtype=backend.complex)
         signs = backend.array(signs, dtype=backend.float)
