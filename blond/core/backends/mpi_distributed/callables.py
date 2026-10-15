@@ -28,7 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 from blond.core.backends.backend import backend
-from blond.core.beam.flags import BeamFlags
+from blond.core.backends.flags import BeamFlags
 
 
 def _global_sum(local_value: float) -> float:

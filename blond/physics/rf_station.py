@@ -34,6 +34,7 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
+from blond.core.offenders import WeakBackReference, hold_strongly
 from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.kick_pooling import (
@@ -62,6 +63,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
+
+
+class _HeadlessRing:
+    """
+    Stand-in for the `Ring` of an RF station used without simulation.
+
+    Parameters
+    ----------
+    circumference
+        Ring circumference, in [m].
+    """
+
+    def __init__(self, circumference: float) -> None:
+        self.circumference = circumference
+        self.section_lengths = np.array([circumference])
 
 
 class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -251,6 +267,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         Additional keyword arguments for method
         resolution order of inheriting elements.
     """
+
+    # The ring owns this RF station and the beam feedback, which refers
+    # back to its RF stations; strong references would form cycles
+    _ring = WeakBackReference()
+    _beam_feedback = WeakBackReference()
 
     def __init__(
         self,
@@ -1496,13 +1517,12 @@ class SingleHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring
+        hold_strongly(single_harmonic_rf_station, "_ring")
         single_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
 
         single_harmonic_rf_station.configure_run(
@@ -2063,13 +2083,13 @@ class MultiHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring and the
+        # beam feedback
+        hold_strongly(multi_harmonic_rf_station, "_ring", "_beam_feedback")
         multi_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
         multi_harmonic_rf_station.configure_run(
             beam=SimpleNamespace(
