@@ -4056,6 +4056,8 @@ class TestSpecials(BLonDTestCase):
 
         A slowly decaying GHz pole stepped over ~0.1 s has a phase of
         ~3e9 rad, beyond the range of a fast sine with an int32 quadrant.
+        A float64 phase that large is only known to ~eps * phase, so
+        backends that split it differently agree only to that.
         """
         bin_dt = 2.5e-11
         n_bins = 8
@@ -4099,11 +4101,20 @@ class TestSpecials(BLonDTestCase):
             for lag_dt, (exp_v, exp_s) in zip(lags, expected, strict=True):
                 voltage, states = run(lag_dt)
                 msg = f"{special=} {lag_dt=}"
+                phase_tolerance = 1e-15 * abs(poles_np[0].imag) * lag_dt
                 np.testing.assert_allclose(
-                    voltage, exp_v, rtol=1e-9, err_msg=msg
+                    voltage,
+                    exp_v,
+                    rtol=0,
+                    atol=phase_tolerance * float(np.max(np.abs(exp_v))),
+                    err_msg=msg,
                 )
                 np.testing.assert_allclose(
-                    states, exp_s, rtol=1e-9, err_msg=f"states {msg}"
+                    states,
+                    exp_s,
+                    rtol=0,
+                    atol=phase_tolerance * float(np.max(np.abs(exp_s))),
+                    err_msg=f"states {msg}",
                 )
 
     @pytest.mark.backend_mutation
