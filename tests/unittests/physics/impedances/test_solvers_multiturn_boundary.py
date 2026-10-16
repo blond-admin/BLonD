@@ -141,6 +141,42 @@ class TestMultiPoleSparseSolveLateReferenceTime(BLonDTestCase):
                 self.assertTrue(np.all(np.isfinite(induced_voltage)))
 
 
+class TestMultiPoleSparseSolveTwoBeamsAtOneTime(BLonDTestCase):
+    """Two beams calling one solver at the same reference time.
+
+    The solver keeps one cavity state on one time line, so calls must come
+    at strictly increasing reference times. Two beams tracked together
+    share the reference time, which must fail with a message that says so
+    rather than one about the profile length.
+    """
+
+    def test_same_reference_time_raises_clear_error(self):
+        """A call at the previous call's time names the cause."""
+        simulation, _, _, _, _ = _make_simulation(
+            solver=MultiPoleSparseSolve(),
+            sources=(
+                Resonators(
+                    1e5, 1e9, 5.0, shunt_impedances_counter_rotating=[-1e5]
+                ),
+            ),
+            n_bins=512,
+        )
+        beams = []
+        for is_counter_rotating in (False, True):
+            beam = Beam(intensity=1e11, particle_type=proton)
+            simulation.prepare_beam(
+                preparation_routine=BiGaussian(
+                    sigma_dt=SIGMA_DT, n_macroparticles=2000, seed=SEED
+                ),
+                beam=beam,
+            )
+            beam._is_counter_rotating = is_counter_rotating
+            beams.append(beam)
+
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            simulation.run_simulation(beams=tuple(beams), n_turns=2)
+
+
 class TestMultiPoleSparseSolveTurnBoundaryWake(unittest.TestCase):
     """The wake must cross the turn boundary with the right amplitude.
 
