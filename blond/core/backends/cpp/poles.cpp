@@ -31,6 +31,16 @@ inline void fast_cexp(const real_t re, const real_t im, real_t &out_re,
   out_im = cmplx_res * FAST_SIN(im);
 }
 
+// Complex exponential for an arbitrary step. The fast sine and cosine
+// lose accuracy above ~1e8 rad and overflow their quadrant above ~1.7e9
+// rad, which a lag of many RF periods reaches; such steps are rare.
+inline void exact_cexp(const real_t re, const real_t im, real_t &out_re,
+                       real_t &out_im) {
+  const real_t cmplx_res = std::exp(re);
+  out_re = cmplx_res * std::cos(im);
+  out_im = cmplx_res * std::sin(im);
+}
+
 // Complex multiply: (a + bi) * (c + di)
 inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
                  const real_t b_im, real_t &out_re, real_t &out_im) {
@@ -109,7 +119,7 @@ public:
     for (int k = 0; k < B; k++) {
       real_t e_re = 0;
       real_t e_im = 0;
-      fast_cexp(pole_re[k] * step, pole_im[k] * step, e_re, e_im);
+      exact_cexp(pole_re[k] * step, pole_im[k] * step, e_re, e_im);
       real_t new_re = 0;
       real_t new_im = 0;
       cmul(state_re[k], state_im[k], e_re, e_im, new_re, new_im);
@@ -169,8 +179,8 @@ public:
       for (int k = 0; k < B; k++) {
         real_t e_re = 0;
         real_t e_im = 0;
-        fast_cexp(pole_re[k] * (clock - t_carried),
-                  pole_im[k] * (clock - t_carried), e_re, e_im);
+        exact_cexp(pole_re[k] * (clock - t_carried),
+                   pole_im[k] * (clock - t_carried), e_re, e_im);
         state_re[k] += carried_injection[k] * e_re;
         state_im[k] += carried_injection[k] * e_im;
       }
