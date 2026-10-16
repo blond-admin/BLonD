@@ -1,3 +1,4 @@
+import importlib.util
 import unittest
 from contextlib import contextmanager
 
@@ -20,23 +21,24 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.core.backends import backend as backend_module
 from blond.core.backends.backend import Cupy64Bit, Numpy64Bit
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.impedances.sources import TravelingWaveCavity
+from blond.testing.backend_testing import FORCE_ALL_BACKENDS
 
 pytestmark = pytest.mark.backend_mutation
 
-try:
-    import cupy  # NOQA: F401
-
-    cupy_available = True
-except ModuleNotFoundError:
-    cupy_available = False
+# CuPy can import while its backend cannot start (e.g. cuBLAS missing);
+# then the CUDA cases skip, unless all backends are forced.
+cuda_available = "Cupy64Bit" in backend_module.AVAILABLE_BACKENDS or (
+    FORCE_ALL_BACKENDS and importlib.util.find_spec("cupy") is not None
+)
 
 # modes with an implementation of `wake_from_twc_fir`
 SPECIAL_MODES = ["python", "numba", "cpp"]
-if cupy_available:
+if cuda_available:
     SPECIAL_MODES.append("cuda")
 
 
@@ -366,7 +368,7 @@ def _sps_scale_case():
 
 
 @pytest.mark.cupy
-@unittest.skipUnless(cupy_available, "requires cupy")
+@unittest.skipUnless(cuda_available, "requires a usable CUDA backend")
 class TestScannedTwcKernel(unittest.TestCase):
     """CUDA: the wake as window sums of prefix sums over the bins."""
 
@@ -457,7 +459,7 @@ class TestTwcInMultiPoleSparseSolve(unittest.TestCase):
             err_msg="sparse solver TWC FIR must match TimeDomainFftSolver",
         )
 
-    @unittest.skipUnless(cupy_available, "requires cupy")
+    @unittest.skipUnless(cuda_available, "requires a usable CUDA backend")
     def test_cuda_matches_cpu(self):
         """The whole sparse solver with TWC must run on the GPU."""
         from unittest.mock import patch
