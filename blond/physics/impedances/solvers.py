@@ -1685,12 +1685,19 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         passed_dt = float(beam.reference.time - self.last_reference_time)
         carried_lag_dt = passed_dt - self._model.span_dt
         lag_bins = carried_lag_dt / bin_dt
+        # `reference.time` advances by `+=` every turn, so `passed_dt` is
+        # only known to about one ulp of `reference.time`; late in a cycle
+        # that is more than `_CALL_GAP_TOLERANCE` of a bin.
+        tolerance = (
+            _CALL_GAP_TOLERANCE
+            + 4.0 * float(np.spacing(abs(beam.reference.time))) / bin_dt
+        )
         # A gate on user-supplied geometry, so it raises rather than
         # asserting. Seamless calls (a profile spanning the whole
         # revolution period) are one bin apart; a longer profile would let
         # the bins of consecutive turns overlap and count the same charge
         # twice.
-        if lag_bins < 1.0 - _CALL_GAP_TOLERANCE:
+        if lag_bins < 1.0 - tolerance:
             raise ValueError(
                 "MultiPoleSparseSolve: the profile must not be longer than "
                 "the time between two calls of the solver. The profile "
@@ -1700,13 +1707,13 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 "of that call and the first bin of this one (at least 1 "
                 "needed)."
             )
-        if lag_bins <= 1.0 + _CALL_GAP_TOLERANCE:
+        if lag_bins <= 1.0 + tolerance:
             # Exactly one bin can land a few ulp short; never hand the
             # kernel a negative lag.
             return bin_dt
         # Between seamless and the onset the carried charge would need the
         # near-field series per pole every call.
-        if lag_bins < _CARRIED_ONSET_BINS - _CALL_GAP_TOLERANCE:
+        if lag_bins < _CARRIED_ONSET_BINS - tolerance:
             raise ValueError(
                 "MultiPoleSparseSolve: consecutive calls must be either "
                 "seamless or at least half a bin width apart. The last bin "
