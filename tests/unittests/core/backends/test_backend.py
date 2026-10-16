@@ -3617,12 +3617,18 @@ class TestSpecials(BLonDTestCase):
             states=states,
             voltage=voltage,
         )
+        # float64 knows the phase Im(p) lag only to ~eps of it, and the two
+        # split it into different products
+        phase_limit = 1e-15 * float(
+            np.max(np.abs(np.imag(poles))) * max(state_lag_dt, carried_lag_dt)
+        )
         expected = copy_to_cpu(kernel_voltage)
         np.testing.assert_allclose(
             copy_to_cpu(voltage),
             expected,
             rtol=1e-9,
-            atol=1e-9 * float(np.max(np.abs(expected), initial=0.0)),
+            atol=(1e-9 + phase_limit)
+            * float(np.max(np.abs(expected), initial=0.0)),
             err_msg="GEMM against the CUDA kernel",
         )
         expected_states = copy_to_cpu(kernel_states)
@@ -3630,7 +3636,8 @@ class TestSpecials(BLonDTestCase):
             copy_to_cpu(states),
             expected_states,
             rtol=1e-9,
-            atol=1e-9 * float(np.max(np.abs(expected_states), initial=0.0)),
+            atol=(1e-9 + phase_limit)
+            * float(np.max(np.abs(expected_states), initial=0.0)),
             err_msg="GEMM states against the CUDA kernel",
         )
 
