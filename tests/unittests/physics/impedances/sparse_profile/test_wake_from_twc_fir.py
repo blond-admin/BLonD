@@ -340,57 +340,56 @@ class TestWakeFromTwcFirLongGappedProfile(unittest.TestCase):
                 )
 
 
+def _sps_scale_case():
+    """An SPS-like lattice: 288 bunches, sites up to ~2e5, long supports.
+
+    Four batches of 72 bunches of 128 bins, every fifth bucket, with
+    eight empty buckets between batches; the supports bridge many
+    bunches, and the profile spans many chunks of the CUDA scan.
+    """
+    bin_dt = 3.9e-11
+    bins_per_bucket = 128
+    buckets = np.concatenate(
+        [batch * (72 * 5 + 8) + 5 * np.arange(72) for batch in range(4)]
+    )
+    grid_index = (
+        (buckets[:, None] * bins_per_bucket + np.arange(bins_per_bucket))
+        .ravel()
+        .astype(np.int32)
+    )
+    rng = np.random.default_rng(12)
+    hist_y = rng.poisson(50, len(grid_index)).astype(float)
+    a_tilde = np.array([567e-9, 401e-9, 61e-9])
+    frequency_r = np.array([200.222e6, 200.222e6, 799.2e6])
+    r_shunt = np.array([2.71e4, 3.48e4, 1.9e5])
+    return hist_y, grid_index, r_shunt, a_tilde, frequency_r, bin_dt
+
+
 @pytest.mark.cupy
 @unittest.skipUnless(cupy_available, "requires cupy")
-class TestChunkedTwcKernel(unittest.TestCase):
-    """The CUDA kernel splits the bins into chunks run in parallel."""
+class TestScannedTwcKernel(unittest.TestCase):
+    """CUDA: the wake as window sums of prefix sums over the bins."""
 
-    def test_chunk_count(self):
-        from blond.core.backends.cuda.callables import _twc_chunk_count
-
-        # few modes on a long profile: about sqrt(n_bins) chunks
-        self.assertEqual(_twc_chunk_count(118_272, 4, 132), 343)
-        # chunks keep at least 64 bins
-        self.assertEqual(_twc_chunk_count(1000, 4, 132), 15)
-        # enough modes to fill the GPU without chunks
-        self.assertEqual(_twc_chunk_count(118_272, 100_000, 6), 1)
-        # a short profile is never split
-        self.assertEqual(_twc_chunk_count(10, 1, 6), 1)
-
-    def test_chunks_match_single_pass(self):
-        from blond.core.backends.cuda.callables import (
-            _wake_from_twc_fir_in_chunks,
-        )
+    def test_sps_scale_matches_cpp(self):
+        """Many scan chunks, large lattice sites: no loss of precision."""
+        from blond.core.backends.cuda.callables import _TWC_SCAN_CHUNK
 
         hist_y, grid_index, r_shunt, a_tilde, frequency_r, bin_dt = (
-            _long_gapped_case()
+            _sps_scale_case()
         )
+        self.assertGreater(len(hist_y), 30 * _TWC_SCAN_CHUNK)
         results = {}
-        with specials_mode("cuda"):
-            for n_chunks in (1, 2, 7, 33):
-                voltage = backend.zeros(len(hist_y), dtype=backend.float)
-                _wake_from_twc_fir_in_chunks(
-                    profile=backend.array(hist_y, dtype=backend.float),
-                    grid_index=backend.array(grid_index, dtype=np.int32),
-                    r_shunt=backend.array(r_shunt, dtype=backend.float),
-                    a_tilde=backend.array(a_tilde, dtype=backend.float),
-                    omega_r=backend.array(
-                        2 * np.pi * frequency_r, dtype=backend.float
-                    ),
-                    bin_dt=bin_dt,
-                    factor=1.0,
-                    voltage=voltage,
-                    n_chunks=n_chunks,
+        for mode in ("cpp", "cuda"):
+            with specials_mode(mode):
+                results[mode] = run_kernel(
+                    hist_y, r_shunt, a_tilde, frequency_r, bin_dt, grid_index
                 )
-                results[n_chunks] = copy_to_cpu(voltage)
-        for n_chunks in (2, 7, 33):
-            np.testing.assert_allclose(
-                results[n_chunks],
-                results[1],
-                rtol=1e-11,
-                atol=1e-11 * np.max(np.abs(results[1])),
-                err_msg=f"{n_chunks=}",
-            )
+        np.testing.assert_allclose(
+            results["cuda"],
+            results["cpp"],
+            rtol=1e-8,
+            atol=1e-8 * np.max(np.abs(results["cpp"])),
+        )
 
 
 class TestTwcInMultiPoleSparseSolve(unittest.TestCase):
