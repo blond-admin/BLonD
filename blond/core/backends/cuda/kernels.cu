@@ -876,3 +876,130 @@ extern "C" __global__ void __launch_bounds__(POLE_THREADS)
     first = next;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Far field of a pole-residue wake as tiled GEMMs: the scan over the tiles.
+// Not part of the `Specials` parity contract; see
+// `CudaNoParitySpecials.wake_from_pole_residue_gemm` in callables.py for
+// the scheme. The bins are cut into tiles of K bins; per tile t the GEMMs
+// give Z_t, the tile's own sum over its bins for every pole, and the scan
+// carries the state Y_t from tile to tile:
+//   Y_{t+1} = A Y_t + G Z_t + inj h_last LB   (+ the carried charge
+//                                              after tile 0)
+// with A, G and LB tabulated per step type `type_ids[t]` (one per distinct
+// gap between tiles; -1: the last tile, no step after it). The scan is
+// two-level: `pole_gemm_scan_local` scans each group of tiles from zero and
+// keeps the group's propagator, `pole_gemm_scan_groups` stitches the groups
+// in order, and `pole_gemm_scan_fix` adds each group's true start state.
+// Arrays [tiles][poles] are pole-fastest; complex values are planar.
+
+__device__ static inline void pole_gemm_cmul(const real_t ar, const real_t ai,
+                                             const real_t br, const real_t bi,
+                                             real_t &cr, real_t &ci) {
+  cr = ar * br - ai * bi;
+  ci = ar * bi + ai * br;
+}
+
+extern "C" __global__ void pole_gemm_scan_local(
+    const real_t *__restrict__ z_re, const real_t *__restrict__ z_im,
+    const int *__restrict__ type_ids, const real_t *__restrict__ last_charge,
+    const real_t *__restrict__ a_re, const real_t *__restrict__ a_im,
+    const real_t *__restrict__ g_re, const real_t *__restrict__ g_im,
+    const real_t *__restrict__ lb_re, const real_t *__restrict__ lb_im,
+    const real_t *__restrict__ injection, const real_t *__restrict__ carry_re,
+    const real_t *__restrict__ carry_im, const int carry_tile,
+    const int n_tiles, const int n_poles, const int group_length,
+    real_t *__restrict__ y_re, real_t *__restrict__ y_im,
+    real_t *__restrict__ end_re, real_t *__restrict__ end_im,
+    real_t *__restrict__ prop_re, real_t *__restrict__ prop_im) {
+  const int p = blockIdx.x * blockDim.x + threadIdx.x;
+  const int group = blockIdx.y;
+  if (p >= n_poles)
+    return;
+  const int t0 = group * group_length;
+  const int t1 = min(t0 + group_length, n_tiles);
+  real_t yr = 0, yi = 0, pr = 1, pi = 0;
+  const real_t inj = injection[p];
+  for (int t = t0; t < t1; ++t) {
+    const size_t i = (size_t)t * n_poles + p;
+    y_re[i] = yr;
+    y_im[i] = yi;
+    const int type = type_ids[t];
+    if (type < 0)
+      continue; // the last tile: no step after it
+    const size_t k = (size_t)type * n_poles + p;
+    const real_t ar = a_re[k], ai = a_im[k];
+    real_t nr, ni, br, bi;
+    pole_gemm_cmul(ar, ai, yr, yi, nr, ni);
+    pole_gemm_cmul(g_re[k], g_im[k], z_re[i], z_im[i], br, bi);
+    nr += br + inj * last_charge[t] * lb_re[k];
+    ni += bi + inj * last_charge[t] * lb_im[k];
+    if (t == carry_tile) {
+      nr += carry_re[p];
+      ni += carry_im[p];
+    }
+    yr = nr;
+    yi = ni;
+    real_t qr, qi;
+    pole_gemm_cmul(ar, ai, pr, pi, qr, qi);
+    pr = qr;
+    pi = qi;
+  }
+  const size_t j = (size_t)group * n_poles + p;
+  end_re[j] = yr;
+  end_im[j] = yi;
+  prop_re[j] = pr;
+  prop_im[j] = pi;
+}
+
+extern "C" __global__ void pole_gemm_scan_groups(
+    const real_t *__restrict__ end_re, const real_t *__restrict__ end_im,
+    const real_t *__restrict__ prop_re, const real_t *__restrict__ prop_im,
+    const int n_groups, const int n_poles, real_t *__restrict__ start_re,
+    real_t *__restrict__ start_im, real_t *__restrict__ state_re,
+    real_t *__restrict__ state_im) {
+  const int p = blockIdx.x * blockDim.x + threadIdx.x;
+  if (p >= n_poles)
+    return;
+  real_t sr = state_re[p], si = state_im[p];
+  for (int group = 0; group < n_groups; ++group) {
+    const size_t j = (size_t)group * n_poles + p;
+    start_re[j] = sr;
+    start_im[j] = si;
+    real_t nr, ni;
+    pole_gemm_cmul(prop_re[j], prop_im[j], sr, si, nr, ni);
+    sr = nr + end_re[j];
+    si = ni + end_im[j];
+  }
+  state_re[p] = sr; // the state at the next slab's first tile
+  state_im[p] = si;
+}
+
+extern "C" __global__ void pole_gemm_scan_fix(
+    const int *__restrict__ type_ids, const real_t *__restrict__ a_re,
+    const real_t *__restrict__ a_im, const real_t *__restrict__ start_re,
+    const real_t *__restrict__ start_im, const int n_tiles, const int n_poles,
+    const int group_length, real_t *__restrict__ y_re,
+    real_t *__restrict__ y_im) {
+  const int p = blockIdx.x * blockDim.x + threadIdx.x;
+  const int group = blockIdx.y;
+  if (p >= n_poles)
+    return;
+  const int t0 = group * group_length;
+  const int t1 = min(t0 + group_length, n_tiles);
+  const size_t j = (size_t)group * n_poles + p;
+  real_t cr = start_re[j], ci = start_im[j];
+  for (int t = t0; t < t1; ++t) {
+    const size_t i = (size_t)t * n_poles + p;
+    y_re[i] += cr;
+    y_im[i] += ci;
+    const int type = type_ids[t];
+    if (type < 0)
+      break;
+    const size_t k = (size_t)type * n_poles + p;
+    real_t nr, ni;
+    pole_gemm_cmul(a_re[k], a_im[k], cr, ci, nr, ni);
+    cr = nr;
+    ci = ni;
+  }
+}

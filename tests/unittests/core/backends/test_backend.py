@@ -390,6 +390,27 @@ class TestNumpyBackend(BLonDTestCase):
             self.numpy_backend.set_specials("doesnt exist")
 
 
+class TestNoParity(BLonDTestCase):
+    """Only the CUDA backend has kernels outside the parity contract."""
+
+    def test_cpu_backends_have_none(self) -> None:
+        from blond.core.backends.backend import Specials
+        from blond.core.backends.numba.callables import NumbaSpecials
+        from blond.core.backends.python.callables import PythonSpecials
+
+        for specials in (Specials, PythonSpecials, NumbaSpecials):
+            with self.subTest(specials=specials.__name__):
+                self.assertIsNone(specials.no_parity)
+
+    @skip_if_no_cupy
+    def test_cuda_backend_has_the_gemm_far_field(self) -> None:
+        from blond.core.backends.cuda.callables import CudaSpecials
+
+        self.assertTrue(
+            callable(CudaSpecials.no_parity.wake_from_pole_residue_gemm)
+        )
+
+
 class TestSpecials(BLonDTestCase):
     def setUp(self) -> None:
         self.n_voltages = 3

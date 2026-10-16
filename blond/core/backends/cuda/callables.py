@@ -14,6 +14,7 @@ import itertools
 import math
 import os
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import cupy as cp  # type: ignore
@@ -82,6 +83,9 @@ _loss_box = gpu_module.get_function("loss_box")
 _histogram_sparse = gpu_module.get_function("histogram_sparse")
 _pole_residue_chunk_maps = gpu_module.get_function("pole_residue_chunk_maps")
 _wake_from_pole_residue = gpu_module.get_function("wake_from_pole_residue")
+_pole_gemm_scan_local = gpu_module.get_function("pole_gemm_scan_local")
+_pole_gemm_scan_groups = gpu_module.get_function("pole_gemm_scan_groups")
+_pole_gemm_scan_fix = gpu_module.get_function("pole_gemm_scan_fix")
 _apply_sr_without_quantum_excitation = gpu_module.get_function(
     "apply_sr_without_quantum_excitation"
 )
@@ -266,7 +270,447 @@ def _wake_from_pole_residue_in_chunks(
     )
 
 
+# Tile lengths of the GEMM far field, longest first.
+_GEMM_TILE_LENGTHS = (128, 64, 32, 16)
+# Fewest poles for which the GEMM far field beats `wake_from_pole_residue`
+# (measured on a T400, between 10 and 20 poles; below, the GEMM's fixed
+# cost per call dominates). A100, H100 and H200 were only measured from
+# 200 poles on, where the GEMM is faster.
+_MIN_GEMM_POLES = 20
+# Memory budget of the GEMM's per-slab [tiles x poles] arrays: at most
+# 2 GiB and an eighth of the GPU's memory.
+_MAX_GEMM_SLAB_BYTES = min(2**31, cp.cuda.Device(0).mem_info[1] // 8)
+# Threads per block of the GEMM scan kernels, one pole per thread.
+_GEMM_SCAN_THREADS = 128
+
+
+@dataclass(frozen=True, eq=False)
+class PoleTileGemmPlan:
+    """
+    Grid and pole tables of `CudaNoParitySpecials`' GEMM far field.
+
+    Built once per grid and set of poles by
+    `CudaNoParitySpecials.pole_tile_gemm_plan`; see
+    `CudaNoParitySpecials.wake_from_pole_residue_gemm` for the scheme.
+    Device arrays unless noted; complex tables are planar (re, im).
+    """
+
+    n_bins: int
+    n_tiles: int
+    tile_length: int
+    bin_dt: float
+    # Tiles per slab, from the memory budget.
+    slab_tiles: int
+    # Host: first bin of each tile.
+    tile_first: NumpyArray
+    # Bins in the last tile.
+    last_tile_length: int
+    # Positions, in whole bins from the first bin, of the second tile's
+    # first bin and of the last bin.
+    second_start: int
+    last_offset: int
+    # Per tile: the bins of its charges, the halo (the previous bin, if
+    # adjacent) first; `n_bins` points at a zero.
+    gather: CupyArray
+    # Per tile: its last bin (`n_bins` for the last tile).
+    last_bin: CupyArray
+    # Per tile: the type of the step to the next tile, -1 for the last.
+    type_ids: CupyArray
+    # Per pole: p bin_dt, the conjugate-pair factor, the counter-rotation
+    # sign and the residue.
+    pole_dt: CupyArray
+    pair: CupyArray
+    signs: CupyArray
+    residues: CupyArray
+    # d^m, m = 0..K, [K + 1, poles].
+    powers: CupyArray
+    # Per step type [types, poles]: the state's decay over the step, Z's
+    # over the gap, and the tile's last bin's over the gap but one.
+    step: tuple[CupyArray, CupyArray]
+    own: tuple[CupyArray, CupyArray]
+    last: tuple[CupyArray, CupyArray]
+    # The wake summed over all poles at lags below a tile, as a
+    # [K + 1, K] Toeplitz matrix applied to a tile's charges.
+    toeplitz: CupyArray
+    # Per direction of the beam (is counter-rotating): injection and
+    # read-out per pole, F (charges to Z) and E (state to read-outs).
+    by_rotation: dict[bool, tuple]
+
+
+def _gemm_tile_length(run_lengths: NumpyArray) -> int | None:
+    """The longest tile length dividing every run but the last, or None."""
+    return next(
+        (k for k in _GEMM_TILE_LENGTHS if np.all(run_lengths[:-1] % k == 0)),
+        None,
+    )
+
+
+def _gemm_rotation_tables(
+    pair: CupyArray,
+    signs: CupyArray,
+    residues: CupyArray,
+    powers: CupyArray,
+    tile_length: int,
+    is_counterrotating_beam: bool,
+) -> tuple:
+    """Injection, read-out, F and E for one direction of the beam."""
+    k = tile_length
+    flip = cp.where((signs == -1) & is_counterrotating_beam, -1.0, 1.0)
+    injection = flip * pair
+    readout = flip * residues
+    source = cp.zeros((k + 1, len(injection)), dtype=np.complex128)
+    source[:k] = injection[None, :] * powers[k - 1 :: -1]
+    reads = (readout[None, :] * powers[:k]).T
+    return (
+        injection,
+        readout,
+        source.real.copy(),
+        source.imag.copy(),
+        reads.real.copy(),
+        reads.imag.copy(),
+    )
+
+
+def _gemm_scan(
+    plan: PoleTileGemmPlan,
+    z_re: CupyArray,
+    z_im: CupyArray,
+    t0: int,
+    t1: int,
+    last_charge: CupyArray,
+    injection: CupyArray,
+    carry_into_tile_1: CupyArray,
+    state_re: CupyArray,
+    state_im: CupyArray,
+) -> tuple[CupyArray, CupyArray]:
+    """The states Y of tiles [t0, t1); advances `state_*` to tile t1."""
+    n_tiles, n_poles = t1 - t0, z_re.shape[1]
+    type_ids = plan.type_ids[t0:t1]
+    carry_tile = 0 if t0 == 0 else -1  # the step after global tile 0
+    carry_re = carry_into_tile_1.real.copy()
+    carry_im = carry_into_tile_1.imag.copy()
+    y_re = cp.empty((n_tiles, n_poles), dtype=FLOAT)
+    y_im = cp.empty((n_tiles, n_poles), dtype=FLOAT)
+    # ~sqrt(2 n_tiles) groups: the local and the stitching pass balance
+    n_groups = max(1, min(n_tiles, round(math.sqrt(2 * n_tiles))))
+    group_length = -(-n_tiles // n_groups)
+    n_groups = -(-n_tiles // group_length)
+    end_re, end_im, prop_re, prop_im, start_re, start_im = (
+        cp.empty((n_groups, n_poles), dtype=FLOAT) for _ in range(6)
+    )
+    block = (_GEMM_SCAN_THREADS, 1, 1)
+    pole_blocks = -(-n_poles // _GEMM_SCAN_THREADS)
+    _pole_gemm_scan_local(
+        args=(
+            z_re,
+            z_im,
+            type_ids,
+            last_charge,
+            *plan.step,
+            *plan.own,
+            *plan.last,
+            injection,
+            carry_re,
+            carry_im,
+            np.int32(carry_tile),
+            np.int32(n_tiles),
+            np.int32(n_poles),
+            np.int32(group_length),
+            y_re,
+            y_im,
+            end_re,
+            end_im,
+            prop_re,
+            prop_im,
+        ),
+        block=block,
+        grid=(pole_blocks, n_groups, 1),
+    )
+    _pole_gemm_scan_groups(
+        args=(
+            end_re,
+            end_im,
+            prop_re,
+            prop_im,
+            np.int32(n_groups),
+            np.int32(n_poles),
+            start_re,
+            start_im,
+            state_re,
+            state_im,
+        ),
+        block=block,
+        grid=(pole_blocks, 1, 1),
+    )
+    _pole_gemm_scan_fix(
+        args=(
+            type_ids,
+            *plan.step,
+            start_re,
+            start_im,
+            np.int32(n_tiles),
+            np.int32(n_poles),
+            np.int32(group_length),
+            y_re,
+            y_im,
+        ),
+        block=block,
+        grid=(pole_blocks, n_groups, 1),
+    )
+    return y_re, y_im
+
+
+class CudaNoParitySpecials:
+    """
+    CUDA kernels outside the `Specials` parity contract.
+
+    Reached as ``backend.specials.no_parity`` on the CUDA backend (None on
+    the others, see `Specials.no_parity`).
+    """
+
+    @staticmethod
+    def pole_tile_gemm_plan(
+        bin_offsets: NumpyArray,
+        poles: CupyArray,
+        residues: CupyArray,
+        counterrotating_pole_signs: CupyArray,
+        bin_dt: float,
+        max_slab_bytes: int = _MAX_GEMM_SLAB_BYTES,
+    ) -> PoleTileGemmPlan | None:
+        """
+        Plan the GEMM far field on a fixed grid, if it pays off.
+
+        Parameters
+        ----------
+        bin_offsets
+            Host array: position of each bin in whole bins from the first
+            bin, increasing.
+        poles
+            Complex poles, in [rad/s].
+        residues
+            Complex residues, as for `Specials.wake_from_pole_residue`.
+        counterrotating_pole_signs
+            Per pole, -1 if its sign flips for a counter-rotating beam.
+        bin_dt
+            Bin width, in [s].
+        max_slab_bytes
+            Memory budget of the per-slab [tiles x poles] arrays, in bytes.
+
+        Returns
+        -------
+        plan
+            None if there are fewer than `_MIN_GEMM_POLES` poles, or if the
+            runs of contiguous bins, but the last, share no tile length of
+            16 bins or more; `wake_from_pole_residue` is then the faster or
+            the only choice.
+        """
+        offsets = np.asarray(bin_offsets, dtype=np.int64)
+        offsets = offsets - offsets[0]
+        n_bins = len(offsets)
+        breaks = np.flatnonzero(np.diff(offsets) != 1) + 1
+        run_starts = np.concatenate(([0], breaks))
+        run_lengths = np.diff(np.concatenate((run_starts, [n_bins])))
+        k = _gemm_tile_length(run_lengths)
+        if len(poles) < _MIN_GEMM_POLES or k is None:
+            return None
+        first = np.concatenate(
+            [
+                np.arange(s, s + n, k)
+                for s, n in zip(run_starts, run_lengths, strict=True)
+            ]
+        )
+        n_tiles = len(first)
+        starts = offsets[first]
+        # charges per tile: halo, then the tile's bins; n_bins is a zero
+        halo = np.full(n_tiles, n_bins)
+        adjacent = offsets[first[1:] - 1] + 1 == starts[1:]
+        halo[1:][adjacent] = first[1:][adjacent] - 1
+        columns = first[:, None] + np.arange(k)[None, :]
+        columns[columns >= np.append(first[1:], n_bins)[:, None]] = n_bins
+        last_bin = np.minimum(first + k - 1, n_bins)
+        last_bin[-1] = n_bins  # no step after the last tile
+        # steps between tiles: their gap beyond a tile, as types
+        gaps = starts[1:] - starts[:-1] - k
+        type_gaps, type_ids = np.unique(gaps, return_inverse=True)
+
+        pole_dt = poles * bin_dt
+        pair = 2.0 - (poles.imag == 0)
+        powers = cp.exp(cp.arange(k + 1)[:, None] * pole_dt[None, :])
+        type_gaps = cp.asarray(type_gaps, dtype=FLOAT)[:, None]
+        step = cp.exp((type_gaps + k) * pole_dt[None, :])
+        own = cp.exp(type_gaps * pole_dt[None, :])
+        last = cp.where(
+            type_gaps > 0, cp.exp((type_gaps - 1) * pole_dt[None, :]), 0.0
+        )
+        # the flips of injection and read-out cancel in the summed wake
+        wake = cp.asnumpy((powers[:k] * (residues * pair)[None, :]).sum(1))
+        lag = np.arange(k)[None, :] - np.arange(k + 1)[:, None] - 1
+        toeplitz = np.where(lag >= 0, wake.real[np.clip(lag, 0, k - 1)], 0)
+        bytes_per_tile = len(poles) * 8 * 8 + (k + 1) * 8
+        return PoleTileGemmPlan(
+            n_bins=n_bins,
+            n_tiles=n_tiles,
+            tile_length=k,
+            bin_dt=bin_dt,
+            slab_tiles=max(1, min(n_tiles, max_slab_bytes // bytes_per_tile)),
+            tile_first=first,
+            last_tile_length=n_bins - int(first[-1]),
+            second_start=int(starts[1]) if n_tiles > 1 else 0,
+            last_offset=int(offsets[-1]),
+            gather=cp.asarray(
+                np.concatenate((halo[:, None], columns), axis=1)
+            ),
+            last_bin=cp.asarray(last_bin),
+            type_ids=cp.asarray(np.append(type_ids, -1), dtype=np.int32),
+            pole_dt=pole_dt,
+            pair=pair,
+            signs=counterrotating_pole_signs,
+            residues=residues,
+            powers=powers,
+            step=(step.real.copy(), step.imag.copy()),
+            own=(own.real.copy(), own.imag.copy()),
+            last=(last.real.copy(), last.imag.copy()),
+            toeplitz=cp.asarray(toeplitz, dtype=FLOAT),
+            by_rotation={
+                rotation: _gemm_rotation_tables(
+                    pair,
+                    counterrotating_pole_signs,
+                    residues,
+                    powers,
+                    k,
+                    rotation,
+                )
+                for rotation in (False, True)
+            },
+        )
+
+    @staticmethod
+    def wake_from_pole_residue_gemm(
+        # read
+        plan: PoleTileGemmPlan,
+        profile: CupyArray,
+        carried_charge: CupyArray,
+        carried_is_counterrotating: bool,
+        state_lag_dt: float,
+        carried_lag_dt: float,
+        is_counterrotating_beam: bool,
+        factor: float,
+        # write
+        states: CupyArray,
+        voltage: CupyArray,
+    ) -> None:
+        """
+        `Specials.wake_from_pole_residue` as tiled GEMMs, on `plan`'s grid.
+
+        Same contract and result as `Specials.wake_from_pole_residue`; the
+        grid, poles and residues come from `plan`. The poles are a diagonal
+        linear state-space model, evaluated in tiles of K contiguous bins:
+
+            Z_t     = h_t . F                     tile t's own sum
+            Y_{t+1} = A_t Y_t + G_t Z_t + ...     scan over the tiles
+            V_t     = Re(Y_t . E) + h_t . T       read-outs of tile t
+
+        with h_t the tile's charges (and a halo), d = exp(p bin_dt),
+        F = inj d^(K - 1 - s), E = r d^k, and T the wake summed over the
+        poles at lags below a tile. The sum over the poles is the inner
+        dimension of both GEMMs, which cuBLAS runs on the FP64 tensor cores
+        of sm_80+ GPUs; the scan is the only sequential part (kernels.cu).
+        The tiles are processed in slabs of `plan.slab_tiles`.
+
+        Parameters
+        ----------
+        plan
+            From `pole_tile_gemm_plan`, for this grid and these poles.
+        profile
+            Beam profile histogram, one value per bin.
+        carried_charge
+            Length 1: charge of the previous call's last bin.
+        carried_is_counterrotating
+            Whether the call of the carried charge was counter-rotating.
+        state_lag_dt
+            How far before the first read-out the states are referenced,
+            in [s].
+        carried_lag_dt
+            How long before the first bin the carried charge was emitted,
+            in [s].
+        is_counterrotating_beam
+            Whether the beam is counter-rotating.
+        factor
+            To convert `profile` to charge per bin.
+        states
+            Complex state per pole; read and overwritten with the state one
+            bin before the last bin.
+        voltage
+            The far-field voltage per bin, in [V]; overwritten.
+        """
+        for array in (profile, carried_charge, voltage):
+            assert array.dtype == FLOAT
+            assert array.flags.c_contiguous
+        assert states.dtype == np.complex128
+        assert profile.shape[0] == plan.n_bins
+        assert voltage.shape[0] == plan.n_bins
+
+        k, n_tiles = plan.tile_length, plan.n_tiles
+        injection, _, f_re, f_im, e_re, e_im = plan.by_rotation[
+            is_counterrotating_beam
+        ]
+        pole_dt = plan.pole_dt
+        charge = cp.zeros(plan.n_bins + 1, dtype=FLOAT)
+        charge[: plan.n_bins] = profile * factor
+        carried_flip = cp.where(
+            (plan.signs == -1) & carried_is_counterrotating, -1.0, 1.0
+        )
+        # the carried charge, at -1, and the incoming state, at -2
+        carried = (
+            carried_flip
+            * plan.pair
+            * carried_charge[0]
+            * cp.exp(pole_dt * (carried_lag_dt / plan.bin_dt - 1.0))
+        )
+        state = states * cp.exp(pole_dt * (state_lag_dt / plan.bin_dt))
+        carry_into_tile_1 = carried * cp.exp(pole_dt * (plan.second_start - 1))
+        state_re = state.real.copy()
+        state_im = state.imag.copy()
+
+        for t0 in range(0, n_tiles, plan.slab_tiles):
+            t1 = min(t0 + plan.slab_tiles, n_tiles)
+            charges = charge[plan.gather[t0:t1]]
+            y_re, y_im = _gemm_scan(
+                plan,
+                charges @ f_re,
+                charges @ f_im,
+                t0,
+                t1,
+                charge[plan.last_bin[t0:t1]],
+                injection,
+                carry_into_tile_1,
+                state_re,
+                state_im,
+            )
+            reads = y_re @ e_re - y_im @ e_im + charges @ plan.toeplitz
+            if t0 == 0:  # the carried charge in tile 0, from read-out 1 on
+                carried_reads = (carried @ (e_re + 1j * e_im)).real
+                reads[0, 1:] += carried_reads[: k - 1]
+            first = int(plan.tile_first[t0])
+            stop = int(plan.tile_first[t1]) if t1 < n_tiles else plan.n_bins
+            voltage[first:stop] = reads.reshape(-1)[: stop - first]
+            if t1 == n_tiles:
+                last_charges = charges[-1]
+                last_state = y_re[-1] + 1j * y_im[-1]
+        # hand over: one bin before the last bin, every bin but the last in
+        length = plan.last_tile_length
+        own = last_charges[:length] @ (
+            injection[None, :] * plan.powers[length - 1 :: -1][:length]
+        )
+        handover = plan.powers[length] * last_state + own
+        if n_tiles == 1:
+            handover += carried * cp.exp(pole_dt * plan.last_offset)
+        states[:] = handover
+
+
 class CudaSpecials(Specials):  # NOQA: D101
+    no_parity = CudaNoParitySpecials()
+
     @staticmethod
     def get_max_threads() -> int:  # NOQA: D102
         """
