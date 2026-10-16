@@ -1676,13 +1676,26 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         Raises
         ------
         ValueError
-            If the lag is shorter than one bin width, or longer than one
-            but shorter than 1.5.
+            If no time passed since the previous call, if the lag is
+            shorter than one bin width, or longer than one but shorter
+            than 1.5.
         """
         bin_dt = self._model.bin_dt
         if self.last_reference_time is None:
             return 2.0 * bin_dt
         passed_dt = float(beam.reference.time - self.last_reference_time)
+        if passed_dt <= 0.0:
+            # The cavity state lives on one time line. Two beams reaching
+            # the solver at the same time would need their charge
+            # superposed in one call, which is not implemented.
+            raise ValueError(
+                "MultiPoleSparseSolve: calls must come at strictly "
+                "increasing reference times, but this call is "
+                f"{passed_dt} s after the previous one. Two beams that "
+                "reach one solver at the same reference time (e.g. a co- "
+                "and a counter-rotating beam in one `run_simulation`) "
+                "are not supported."
+            )
         carried_lag_dt = passed_dt - self._model.span_dt
         lag_bins = carried_lag_dt / bin_dt
         # `reference.time` advances by `+=` every turn, so `passed_dt` is
