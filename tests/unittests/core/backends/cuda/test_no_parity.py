@@ -73,7 +73,7 @@ class TestPoleTileGemm(BLonDTestCase):
         kernel_states = cp.asarray(states_in)
         gemm_states = cp.asarray(states_in)
         for call_i in range(3):
-            carried_lag = float(rng.choice([1.0, 1.4, 2.0, 7.3, 300.0]))
+            carried_lag = float(rng.choice([1.0, 1.4, 2.0, 7.3, 300.0, 4e6]))
             call = {
                 "carried_charge": cp.asarray([rng.normal()]),
                 "carried_is_counterrotating": bool(rng.random() < 0.5),

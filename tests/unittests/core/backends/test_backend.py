@@ -3938,6 +3938,73 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_long_lag_matches_python(self) -> None:
+        """A lag of many RF periods gives the reference result everywhere.
+
+        A slowly decaying GHz pole stepped over ~0.1 s has a phase of
+        ~3e9 rad, beyond the range of a fast sine with an int32 quadrant.
+        A float64 phase that large is only known to ~eps * phase, so
+        backends that split it differently agree only to that.
+        """
+        bin_dt = 2.5e-11
+        n_bins = 8
+        profile_time = np.arange(n_bins) * bin_dt
+        profile = np.linspace(0.5, 1.5, n_bins)
+        poles_np = np.array([-1.0 + 1j * (2 * np.pi * 5e9 + 0.123)])
+        residues_np = np.array([1.0 + 0.3j])
+        states_in = np.array([1.0 + 0.5j])
+        signs = np.ones(1)
+
+        def run(lag_dt):
+            states = backend.array(states_in, dtype=backend.complex)
+            voltage = self._run_pole_kernel(
+                profile_time,
+                profile,
+                0.7,
+                False,
+                lag_dt,
+                lag_dt + 0.5 * bin_dt,
+                poles_np,
+                residues_np,
+                False,
+                signs,
+                1.0,
+                bin_dt,
+                states,
+            )
+            return voltage, copy_to_cpu(states)
+
+        lags = (1e-2, 1e-1)
+        self._setUp(dtype=np.float64, special_mode="python")
+        expected = [run(lag_dt) for lag_dt in lags]
+        for special in self.special_modes:
+            if special == "python":
+                continue
+            try:
+                self._setUp(dtype=np.float64, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test")
+                continue
+            for lag_dt, (exp_v, exp_s) in zip(lags, expected, strict=True):
+                voltage, states = run(lag_dt)
+                msg = f"{special=} {lag_dt=}"
+                phase_tolerance = 1e-15 * abs(poles_np[0].imag) * lag_dt
+                np.testing.assert_allclose(
+                    voltage,
+                    exp_v,
+                    rtol=0,
+                    atol=phase_tolerance * float(np.max(np.abs(exp_v))),
+                    err_msg=msg,
+                )
+                np.testing.assert_allclose(
+                    states,
+                    exp_s,
+                    rtol=0,
+                    atol=phase_tolerance * float(np.max(np.abs(exp_s))),
+                    err_msg=f"states {msg}",
+                )
+
+    @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_accepts_extra_scratch_rows(self) -> None:
         """More scratch rows than threads, as the contract allows, are fine.
 
