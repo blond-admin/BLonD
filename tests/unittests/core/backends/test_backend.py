@@ -25,7 +25,9 @@ from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.generals.warnings_ import PrecisionWarning
 from blond.testing.backend_testing import (
+    FORCE_ALL_BACKENDS,
     BLonDTestCase,
+    cuda_backend_usable,
     multi_backend_testcase,
     skip_if_no_cupy,
 )
@@ -33,7 +35,9 @@ from blond.testing.backend_testing import (
 try:
     import cupy as cp  # type: ignore
 
-    cupy_available = True
+    # CuPy can import while the CUDA backend cannot (e.g. no cuBLAS);
+    # skip the CUDA cases then, unless all backends are forced.
+    cupy_available = FORCE_ALL_BACKENDS or cuda_backend_usable()
 except ModuleNotFoundError:
     cupy_available = False
 
@@ -127,12 +131,8 @@ class TestBackendBaseClass(BLonDTestCase):
     def _apply_environment_variables_for_every_mode(self):
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["64", "fail"]
-        try:
-            import cupy
-
+        if cupy_available:
             backend_modes = ["cuda"] + backend_modes
-        except ModuleNotFoundError:
-            pass
         print(f"{backend_modes=}")
         # The probe values below (notably "fail") must not survive this
         # test: tests run in random order, so anything left in the
