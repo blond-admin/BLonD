@@ -29,7 +29,10 @@ from blond import (
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    skip_if_cuda_unusable,
+)
 
 CIRCUMFERENCE = 26658.883
 N_BINS = 512
@@ -113,12 +116,9 @@ class TestMultiPoleSparseSolveGemm(BLonDTestCase):
     """The GEMM far field gives the kernel's voltage over several turns."""
 
     def setUp(self) -> None:
-        try:
-            from blond.core.backends.cuda.callables import CudaSpecials
-        except ImportError as exc:
-            if "cupy" in str(exc):
-                self.skipTest("Cupy not available")
-            raise
+        skip_if_cuda_unusable(self)
+        from blond.core.backends.cuda.callables import CudaSpecials
+
         self.cuda_specials = CudaSpecials
         original_backend = type(backend)
         original_mode = backend.specials_mode

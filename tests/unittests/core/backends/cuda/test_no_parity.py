@@ -9,7 +9,10 @@ and hand-over state, call after call.
 import numpy as np
 import pytest
 
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    skip_if_cuda_unusable,
+)
 
 BIN_DT = 2.5e-11
 
@@ -41,14 +44,11 @@ class TestPoleTileGemm(BLonDTestCase):
     """The GEMM far field equals `CudaSpecials.wake_from_pole_residue`."""
 
     def setUp(self) -> None:
-        try:
-            import cupy as cp
+        skip_if_cuda_unusable(self)
+        import cupy as cp
 
-            from blond.core.backends.cuda.callables import CudaSpecials
-        except ImportError as exc:
-            if "cupy" in str(exc):
-                self.skipTest("Cupy not available")
-            raise
+        from blond.core.backends.cuda.callables import CudaSpecials
+
         self.cp = cp
         self.specials = CudaSpecials
 
@@ -159,14 +159,11 @@ class TestPoleNearField(BLonDTestCase):
     """`pole_near_field` equals the solver's near field and hand-over."""
 
     def setUp(self) -> None:
-        try:
-            import cupy as cp
+        skip_if_cuda_unusable(self)
+        import cupy as cp
 
-            from blond.core.backends.cuda.callables import CudaSpecials
-        except ImportError as exc:
-            if "cupy" in str(exc):
-                self.skipTest("Cupy not available")
-            raise
+        from blond.core.backends.cuda.callables import CudaSpecials
+
         self.cp = cp
         self.specials = CudaSpecials
 
