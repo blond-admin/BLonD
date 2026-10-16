@@ -576,10 +576,10 @@ class CudaNoParitySpecials:
         Returns
         -------
         plan
-            None if there are fewer than `_MIN_GEMM_POLES` poles, or if the
-            runs of contiguous bins, but the last, share no tile length of
-            16 bins or more; `wake_from_pole_residue` is then the faster or
-            the only choice.
+            None if there are no poles or fewer than `_MIN_GEMM_POLES`, or
+            if the runs of contiguous bins, but the last, share no tile
+            length of 16 bins or more; `wake_from_pole_residue` is then the
+            faster or the only choice.
         """
         offsets = np.asarray(bin_offsets, dtype=np.int64)
         offsets = offsets - offsets[0]
@@ -588,7 +588,7 @@ class CudaNoParitySpecials:
         run_starts = np.concatenate(([0], breaks))
         run_lengths = np.diff(np.concatenate((run_starts, [n_bins])))
         k = _gemm_tile_length(run_lengths)
-        if len(poles) < _MIN_GEMM_POLES or k is None:
+        if len(poles) == 0 or len(poles) < _MIN_GEMM_POLES or k is None:
             return None
         first = np.concatenate(
             [

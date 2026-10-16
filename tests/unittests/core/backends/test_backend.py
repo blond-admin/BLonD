@@ -3498,7 +3498,11 @@ class TestSpecials(BLonDTestCase):
         states,
         extra_scratch_rows=0,
     ):
-        """Run the active backend's kernel; `states` is a backend array, updated."""
+        """Run the active backend's kernel; `states` is a backend array, updated.
+
+        On CUDA, the GEMM far field is checked against the kernel as well.
+        """
+        states_in = states.copy()
         n_bins = len(profile)
         voltage = backend.zeros(n_bins, dtype=backend.float)
         voltage_threaded = backend.zeros(
@@ -3526,7 +3530,109 @@ class TestSpecials(BLonDTestCase):
             voltage=voltage,
             voltage_threaded=voltage_threaded,
         )
+        if backend.specials_mode == "cuda":
+            self._check_pole_gemm_against_kernel(
+                profile_time,
+                profile,
+                carried_charge,
+                carried_is_counterrotating,
+                state_lag_dt,
+                carried_lag_dt,
+                poles,
+                residues,
+                is_counterrotating_beam,
+                signs,
+                factor,
+                bin_dt,
+                states_in,
+                states,
+                voltage,
+            )
         return copy_to_cpu(voltage)
+
+    def _check_pole_gemm_against_kernel(
+        self,
+        profile_time,
+        profile,
+        carried_charge,
+        carried_is_counterrotating,
+        state_lag_dt,
+        carried_lag_dt,
+        poles,
+        residues,
+        is_counterrotating_beam,
+        signs,
+        factor,
+        bin_dt,
+        states_in,
+        kernel_states,
+        kernel_voltage,
+    ):
+        """The CUDA GEMM far field gives the kernel's voltage and states.
+
+        Below `_MIN_GEMM_POLES` poles and on runs shorter than 16 bins no
+        plan is built in production; both limits are lifted here, so every
+        kernel test checks the GEMM too.
+        """
+        from blond.core.backends.cuda import callables as cuda_callables
+
+        offsets = np.rint(
+            (np.asarray(profile_time) - profile_time[0]) / bin_dt
+        ).astype(np.int64)
+        with (
+            mock.patch.object(cuda_callables, "_MIN_GEMM_POLES", 0),
+            mock.patch.object(
+                cuda_callables,
+                "_GEMM_TILE_LENGTHS",
+                (128, 64, 32, 16, 8, 4, 2, 1),
+            ),
+        ):
+            plan = backend.specials.no_parity.pole_tile_gemm_plan(
+                bin_offsets=offsets,
+                poles=backend.array(poles, dtype=backend.complex),
+                residues=backend.array(residues, dtype=backend.complex),
+                counterrotating_pole_signs=backend.array(
+                    signs, dtype=backend.float
+                ),
+                bin_dt=bin_dt,
+            )
+        if len(poles) == 0:
+            # cuBLAS rejects empty GEMMs; the kernel handles no poles
+            self.assertIsNone(plan)
+            return
+        self.assertIsNotNone(plan)
+        states = states_in.copy()
+        voltage = backend.zeros(len(profile), dtype=backend.float) + np.nan
+        backend.specials.no_parity.wake_from_pole_residue_gemm(
+            plan=plan,
+            profile=backend.array(profile, dtype=backend.float),
+            carried_charge=backend.array(
+                [carried_charge], dtype=backend.float
+            ),
+            carried_is_counterrotating=carried_is_counterrotating,
+            state_lag_dt=state_lag_dt,
+            carried_lag_dt=carried_lag_dt,
+            is_counterrotating_beam=is_counterrotating_beam,
+            factor=factor,
+            states=states,
+            voltage=voltage,
+        )
+        expected = copy_to_cpu(kernel_voltage)
+        np.testing.assert_allclose(
+            copy_to_cpu(voltage),
+            expected,
+            rtol=1e-9,
+            atol=1e-9 * float(np.max(np.abs(expected), initial=0.0)),
+            err_msg="GEMM against the CUDA kernel",
+        )
+        expected_states = copy_to_cpu(kernel_states)
+        np.testing.assert_allclose(
+            copy_to_cpu(states),
+            expected_states,
+            rtol=1e-9,
+            atol=1e-9 * float(np.max(np.abs(expected_states), initial=0.0)),
+            err_msg="GEMM states against the CUDA kernel",
+        )
 
     @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_matches_unrolled_sum(self) -> None:
