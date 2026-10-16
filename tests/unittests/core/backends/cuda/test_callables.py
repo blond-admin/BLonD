@@ -3,7 +3,10 @@ import unittest
 import numpy as np
 import pytest
 
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    skip_if_cuda_unusable,
+)
 
 
 @pytest.mark.cupy
@@ -16,12 +19,9 @@ class TestPoleChunkCount(BLonDTestCase):
     """
 
     def setUp(self) -> None:
-        try:
-            from blond.core.backends.cuda.callables import _pole_chunk_count
-        except ImportError as exc:
-            if "cupy" in str(exc):
-                self.skipTest("Cupy not available")
-            raise
+        skip_if_cuda_unusable(self)
+        from blond.core.backends.cuda.callables import _pole_chunk_count
+
         self.chunk_count = _pole_chunk_count
 
     def test_no_chunks_when_poles_fill_the_gpu(self) -> None:
@@ -47,14 +47,11 @@ class TestChunkedPoleKernel(BLonDTestCase):
     """The chunked launch reproduces the unchunked one."""
 
     def setUp(self) -> None:
-        try:
-            import cupy as cp
+        skip_if_cuda_unusable(self)
+        import cupy as cp
 
-            from blond.core.backends.cuda import callables
-        except ImportError as exc:
-            if "cupy" in str(exc):
-                self.skipTest("Cupy not available")
-            raise
+        from blond.core.backends.cuda import callables
+
         self.cp = cp
         self.callables = callables
 

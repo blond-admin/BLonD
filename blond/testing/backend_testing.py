@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import unittest
 import warnings
-from functools import partial, wraps
+from functools import cache, partial, wraps
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -53,6 +53,50 @@ def _set_forcing() -> bool:
 
 
 FORCE_ALL_BACKENDS = _set_forcing()
+
+
+@cache
+def cuda_backend_usable() -> bool:
+    """
+    Whether the CUDA backend can be loaded on this machine.
+
+    CuPy can import while the CUDA backend cannot, e.g. when cuBLAS is
+    missing or the driver fails to initialise, so `cupy_available` alone
+    does not tell whether the CUDA tests can run.
+
+    Returns
+    -------
+    bool
+        True if `blond.core.backends.cuda.callables` imports.
+    """
+    if not cupy_available:
+        return False
+    try:
+        import blond.core.backends.cuda.callables  # noqa: F401
+    # Any exception means the backend is unusable, as for
+    # `backend.AVAILABLE_BACKENDS`.
+    except Exception as exc:
+        warnings.warn(f"CUDA backend is not usable: {exc!r}", stacklevel=2)
+        return False
+    return True
+
+
+def skip_if_cuda_unusable(testcase: unittest.TestCase) -> None:
+    """
+    Skip `testcase` if CuPy is missing or the CUDA backend is unusable.
+
+    With `FORCE_ALL_BACKENDS`, an unusable CUDA backend is not skipped,
+    so that its tests fail instead.
+
+    Parameters
+    ----------
+    testcase
+        The running test case.
+    """
+    if not cupy_available:
+        testcase.skipTest(f"{cupy_available=}")
+    if not (FORCE_ALL_BACKENDS or cuda_backend_usable()):
+        testcase.skipTest("CUDA backend is not usable")
 
 
 def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
@@ -212,6 +256,9 @@ def skip_if_no_cupy(fn: Callable) -> Callable:
     """
     Convenience wrapper to skip a test case if cupy is not available.
 
+    The test case is also skipped if the CUDA backend is unusable, see
+    `skip_if_cuda_unusable`.
+
     Parameters
     ----------
     fn
@@ -231,10 +278,8 @@ def skip_if_no_cupy(fn: Callable) -> Callable:
 
     @wraps(fn)
     def func(self):
-        if not cupy_available:
-            self.skipTest(f"{cupy_available=}")
-        else:
-            fn(self)
+        skip_if_cuda_unusable(self)
+        fn(self)
 
     return func
 
