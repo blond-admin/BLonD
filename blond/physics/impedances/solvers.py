@@ -59,6 +59,8 @@ from blond.physics.profiles import (
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
@@ -1397,6 +1399,10 @@ class _FarField:
     residues: NumpyArray | CupyArray
     # Their `_PoleModel.counterrotating_pole_signs`.
     pole_signs: NumpyArray | CupyArray
+    # The plan of `backend.specials.no_parity.wake_from_pole_residue_gemm`
+    # on this grid, which then replaces `wake_from_pole_residue`; None
+    # where the backend has none or it would not pay off.
+    gemm_plan: Any = None
 
 
 @dataclass(eq=False)
@@ -1629,10 +1635,25 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 _is_far_field_pole(self._model, self._far_field_tolerance)
             )
         )
+        far_poles = poles[kept]
+        far_residues = self._model.tail_residues[kept]
+        far_signs = signs[kept]
+        gemm_plan = None
+        no_parity = backend.specials.no_parity
+        if no_parity is not None:
+            offsets = np.rint(copy_to_cpu(hist_x - hist_x[0]) / bin_dt)
+            gemm_plan = no_parity.pole_tile_gemm_plan(
+                bin_offsets=offsets.astype(np.int64),
+                poles=far_poles,
+                residues=far_residues,
+                counterrotating_pole_signs=far_signs,
+                bin_dt=bin_dt,
+            )
         self._far_field = _FarField(
-            poles=poles[kept],
-            residues=self._model.tail_residues[kept],
-            pole_signs=signs[kept],
+            poles=far_poles,
+            residues=far_residues,
+            pole_signs=far_signs,
+            gemm_plan=gemm_plan,
         )
         self._carry = _Carry(charge=backend.zeros(1, dtype=backend.float))
 
@@ -1871,6 +1892,78 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             model.pair_factors * sign * wake
         )
 
+    def _far_field_voltage(
+        self,
+        beam: BeamBaseClass,
+        hist_x: NumpyArray | CupyArray,
+        hist_y: NumpyArray | CupyArray,
+        factor: float,
+        carried_lag_dt: float,
+    ) -> NumpyArray | CupyArray:
+        """
+        The far field: the recursion over the kept poles.
+
+        The residues are scaled to the bin-averaged wake past its onset.
+        Reads and advances the poles' states. Evaluated as tiled GEMMs by
+        ``backend.specials.no_parity`` where its plan exists (the CUDA
+        backend, with enough poles on a grid that tiles), else by
+        `Specials.wake_from_pole_residue`; both give the same result.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+        hist_x
+            Bin centres of the profile, in [s].
+        hist_y
+            Histogram of the profile.
+        factor
+            Conversion of `hist_y` to the charge per bin.
+        carried_lag_dt
+            Lag of the carried charge to the first bin, in [s].
+
+        Returns
+        -------
+        voltage
+            The far-field voltage per bin, in [V].
+        """
+        far_field, carry = self._far_field, self._carry
+        bin_dt = self._model.bin_dt
+        voltage = backend.zeros(len(hist_y), dtype=backend.float)
+        no_parity = backend.specials.no_parity
+        if far_field.gemm_plan is not None and no_parity is not None:
+            no_parity.wake_from_pole_residue_gemm(
+                plan=far_field.gemm_plan,
+                profile=hist_y,
+                carried_charge=carry.charge,
+                carried_is_counterrotating=carry.is_counter_rotating,
+                state_lag_dt=carried_lag_dt - bin_dt,
+                carried_lag_dt=carried_lag_dt,
+                is_counterrotating_beam=beam.is_counter_rotating,
+                factor=factor,
+                states=self._states,
+                voltage=voltage,
+            )
+        elif len(far_field.poles) > 0:
+            backend.specials.wake_from_pole_residue(
+                profile_time=hist_x,
+                profile=hist_y,
+                carried_charge=carry.charge,
+                carried_is_counterrotating=carry.is_counter_rotating,
+                state_lag_dt=carried_lag_dt - bin_dt,
+                carried_lag_dt=carried_lag_dt,
+                poles=far_field.poles,
+                residues=far_field.residues,
+                is_counterrotating_beam=beam.is_counter_rotating,
+                counterrotating_pole_signs=far_field.pole_signs,
+                factor=factor,
+                bin_dt=bin_dt,
+                states=self._states,
+                voltage=voltage,
+                voltage_threaded=self._thread_scratch(),
+            )
+        return voltage
+
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
@@ -1889,34 +1982,16 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         """
         if self._model is None:
             self._initialise()
-        model, far_field, carry = self._model, self._far_field, self._carry
+        model, carry = self._model, self._carry
         profile = self._parent_wakefield.profile
         hist_x, hist_y = profile.hist_x, profile.hist_y
         bin_dt = model.bin_dt
         factor = self._hist_y_to_intensity_factor(beam=beam, profile=profile)
         carried_lag_dt = self._carried_lag_since_previous_call(beam)
 
-        # Far field: the recursion, with the residues scaled to the
-        # bin-averaged wake past its onset.
-        voltage = backend.zeros(len(hist_y), dtype=backend.float)
-        if len(far_field.poles) > 0:
-            backend.specials.wake_from_pole_residue(
-                profile_time=hist_x,
-                profile=hist_y,
-                carried_charge=carry.charge,
-                carried_is_counterrotating=carry.is_counter_rotating,
-                state_lag_dt=carried_lag_dt - bin_dt,
-                carried_lag_dt=carried_lag_dt,
-                poles=far_field.poles,
-                residues=far_field.residues,
-                is_counterrotating_beam=beam.is_counter_rotating,
-                counterrotating_pole_signs=far_field.pole_signs,
-                factor=factor,
-                bin_dt=bin_dt,
-                states=self._states,
-                voltage=voltage,
-                voltage_threaded=self._thread_scratch(),
-            )
+        voltage = self._far_field_voltage(
+            beam, hist_x, hist_y, factor, carried_lag_dt
+        )
 
         # Near field: the previous bin, the bin itself and the next bin --
         # when adjacent; a neighbour across a gap is the recursion's.
