@@ -1495,6 +1495,9 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         self._states: NumpyArray | CupyArray | None = None
         # Kernel scratch, one voltage row per thread, summed afterwards.
         self._voltage_threaded: NumpyArray | CupyArray | None = None
+        # The carried charge's wake at a seamless hand-over, per whether
+        # the two calls rotate opposite ways; see `_near_field_by_kernel`.
+        self._seamless_carried_wakes: dict[bool, float] = {}
         # Reference time of the previous call, in [s]; None before the
         # first call. Gives the lag to the carried charge.
         self.last_reference_time: float | None = None
@@ -1687,15 +1690,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     def _carried_charge_voltage(
         self, carried_lag_dt: float, sign: NumpyArray | CupyArray | float
     ) -> NumpyArray | CupyArray:
-        r"""
+        """
         The carried charge's whole contribution to this call's first bin.
-
-        Past the onset the bin-averaged wake of every pole is the pure
-        exponential, :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3
-        e^{p (t - \frac32\Delta t)}`, which is the tail residue advanced
-        by :math:`t - 2\Delta t`; that is evaluated for all poles at once,
-        those outside the recursion included. A seamless hand-over sits on the near tap and takes the
-        per-pole closed form.
 
         Parameters
         ----------
@@ -1709,10 +1705,37 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         voltage
             Length-1 array, in [V].
         """
+        return self._carry.charge * self._carried_wake(carried_lag_dt, sign)
+
+    def _carried_wake(
+        self, carried_lag_dt: float, sign: NumpyArray | CupyArray | float
+    ) -> NumpyArray | CupyArray:
+        r"""
+        The wake of the carried bin at this call's first bin, all poles.
+
+        Past the onset the bin-averaged wake of every pole is the pure
+        exponential, :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3
+        e^{p (t - \frac32\Delta t)}`, which is the tail residue advanced
+        by :math:`t - 2\Delta t`; that is evaluated for all poles at once,
+        those outside the recursion included. A seamless hand-over sits on
+        the near tap and takes the per-pole closed form.
+
+        Parameters
+        ----------
+        carried_lag_dt
+            Lag from the carried bin to this call's first bin, in [s].
+        sign
+            Per-pole sign with which the carried charge is seen, or 1.0.
+
+        Returns
+        -------
+        wake
+            Length-1 array, in [V/C].
+        """
         model = self._model
         bin_dt = model.bin_dt
         if carried_lag_dt == bin_dt:
-            return self._carry.charge * triple_box_average_poles(
+            return triple_box_average_poles(
                 backend.array([carried_lag_dt], dtype=backend.float),
                 model.poles,
                 model.residues * sign,
@@ -1722,8 +1745,66 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             model.tail_residues
             * backend.exp(model.poles * (carried_lag_dt - 2.0 * bin_dt))
         ).real
-        return self._carry.charge * backend.sum(
-            model.pair_factors * sign * wake
+        return backend.sum(model.pair_factors * sign * wake, keepdims=True)
+
+    def _near_field_by_kernel(
+        self,
+        no_parity: Any,
+        hist_y: NumpyArray | CupyArray,
+        factor: float,
+        carried_lag_dt: float,
+        flipped: bool,
+        voltage: NumpyArray | CupyArray,
+    ) -> None:
+        """
+        The near field, the carried charge and its hand-over, in one kernel.
+
+        `calc_induced_voltage`'s steps after the far field, by
+        ``no_parity.pole_near_field``. A seamless hand-over's closed form
+        is the same every call, so it is evaluated once per direction.
+
+        Parameters
+        ----------
+        no_parity
+            ``backend.specials.no_parity``.
+        hist_y
+            Histogram of the profile.
+        factor
+            Conversion of `hist_y` to the charge per bin.
+        carried_lag_dt
+            Lag of the carried charge to the first bin, in [s].
+        flipped
+            Whether the carried charge's call rotated the other way.
+        voltage
+            Induced voltage per bin, in [V]; added to.
+        """
+        model = self._model
+        carried: dict[str, Any] = {}
+        if carried_lag_dt == model.bin_dt:
+            if flipped not in self._seamless_carried_wakes:
+                sign = model.counterrotating_pole_signs if flipped else 1.0
+                self._seamless_carried_wakes[flipped] = float(
+                    copy_to_cpu(self._carried_wake(carried_lag_dt, sign))[0]
+                )
+            carried["carried_wake"] = self._seamless_carried_wakes[flipped]
+        else:
+            weights = model.pair_factors
+            if flipped:
+                weights = weights * model.counterrotating_pole_signs
+            carried.update(
+                carried_poles=model.poles,
+                carried_residues=model.tail_residues,
+                carried_weights=weights,
+                carried_shift_dt=carried_lag_dt - 2.0 * model.bin_dt,
+            )
+        no_parity.pole_near_field(
+            profile=hist_y,
+            factor=factor,
+            taps=model.taps,
+            adjacent=model.adjacent,
+            carried_charge=self._carry.charge,
+            voltage=voltage,
+            **carried,
         )
 
     def _far_field_voltage(
@@ -1827,23 +1908,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
 
         # Near field: the previous bin, the bin itself and the next bin --
-        # when adjacent; a neighbour across a gap is the recursion's.
-        taps, adjacent = model.taps, model.adjacent
-        voltage += (factor * taps[1]) * hist_y
-        voltage[1:] += factor * taps[0] * adjacent * hist_y[:-1]
-        voltage[:-1] += factor * taps[2] * adjacent * hist_y[1:]
-
-        # The carried charge's whole contribution to the first bin, at the
-        # true lag. A pole's sign enters once if the two calls rotate
-        # opposite ways.
-        sign = (
-            model.counterrotating_pole_signs
-            if beam.is_counter_rotating != carry.is_counter_rotating
-            else 1.0
-        )
-        voltage[:1] += self._carried_charge_voltage(carried_lag_dt, sign)
-
-        carry.charge[:] = factor * hist_y[-1:]
+        # when adjacent; a neighbour across a gap is the recursion's. Then
+        # the carried charge's whole contribution to the first bin, at the
+        # true lag; a pole's sign enters once if the two calls rotate
+        # opposite ways. Last, the last bin's charge is carried on.
+        flipped = beam.is_counter_rotating != carry.is_counter_rotating
+        no_parity = backend.specials.no_parity
+        if no_parity is not None:
+            self._near_field_by_kernel(
+                no_parity, hist_y, factor, carried_lag_dt, flipped, voltage
+            )
+        else:
+            taps, adjacent = model.taps, model.adjacent
+            voltage += (factor * taps[1]) * hist_y
+            voltage[1:] += factor * taps[0] * adjacent * hist_y[:-1]
+            voltage[:-1] += factor * taps[2] * adjacent * hist_y[1:]
+            sign = model.counterrotating_pole_signs if flipped else 1.0
+            voltage[:1] += self._carried_charge_voltage(carried_lag_dt, sign)
+            carry.charge[:] = factor * hist_y[-1:]
         carry.is_counter_rotating = beam.is_counter_rotating
         self.last_reference_time = copy(beam.reference.time)
         return voltage

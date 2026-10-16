@@ -35,14 +35,26 @@ CIRCUMFERENCE = 26658.883
 N_BINS = 512
 
 
-def _run(solver: MultiPoleSparseSolve, n_turns: int = 4) -> np.ndarray:
-    """Induced voltage after `n_turns` of a frozen three-bunch beam."""
+def _run(
+    solver: MultiPoleSparseSolve,
+    n_turns: int = 4,
+    profile_fraction: float = 1.0,
+) -> np.ndarray:
+    """
+    Induced voltage after `n_turns` of a frozen three-bunch beam.
+
+    The profile spans `profile_fraction` of the revolution period, from
+    its start: 1 makes the calls seamless, less leaves a gap between them.
+    """
     ring = Ring(circumference=CIRCUMFERENCE)
     magnetic_cycle = ConstantMagneticCycle(
         reference_particle=proton, value=450e9, in_unit="momentum"
     )
     t_rev = magnetic_cycle.get_t_rev_init(CIRCUMFERENCE, particle_type=proton)
-    profile = StaticProfile(cut_left=0.0, cut_right=t_rev, n_bins=N_BINS)
+    n_bins = round(N_BINS * profile_fraction)
+    profile = StaticProfile(
+        cut_left=0.0, cut_right=t_rev * n_bins / N_BINS, n_bins=n_bins
+    )
     rng = np.random.default_rng(0)
     n_resonators = 30  # 30 complex poles: enough for the GEMM
     wakefield = WakeField(
@@ -128,3 +140,22 @@ class TestMultiPoleSparseSolveGemm(BLonDTestCase):
         np.testing.assert_allclose(
             voltage, expected, rtol=1e-9, atol=1e-9 * scale
         )
+
+    def test_near_field_kernel_matches_python(self) -> None:
+        """`pole_near_field` gives the near field and carried charge."""
+        no_parity = self.cuda_specials.no_parity
+        for fraction in (1.0, 0.75):  # seamless calls, then a gap
+            with self.subTest(profile_fraction=fraction):
+                with mock.patch.object(
+                    no_parity,
+                    "pole_near_field",
+                    wraps=no_parity.pole_near_field,
+                ) as near_field:
+                    voltage = _run(MultiPoleSparseSolve(), 4, fraction)
+                self.assertEqual(near_field.call_count, 4)
+                with mock.patch.object(self.cuda_specials, "no_parity", None):
+                    expected = _run(MultiPoleSparseSolve(), 4, fraction)
+                scale = float(np.max(np.abs(expected)))
+                np.testing.assert_allclose(
+                    voltage, expected, rtol=1e-9, atol=1e-9 * scale
+                )
