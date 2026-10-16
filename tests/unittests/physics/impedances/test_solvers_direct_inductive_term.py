@@ -263,6 +263,25 @@ class TestMultiPoleSparseSolveMatchesFreqDomain(BLonDTestCase):
         )
         self._assert_matches(combined, separate)
 
+    def test_terms_are_folded_into_the_near_taps(self):
+        """Both act on a bin and its neighbours, as the taps do: one pass."""
+        solver = MultiPoleSparseSolve()
+        _run_one_turn(
+            (
+                _VectorFittedSource(
+                    direct_term=DIRECT_TERM, inductive_term=INDUCTIVE_TERM
+                ),
+            ),
+            solver,
+        )
+        bin_dt = solver._model.bin_dt
+        inductive = 0.5 * INDUCTIVE_TERM / bin_dt**2
+        np.testing.assert_allclose(
+            copy_to_cpu(solver._model.taps),
+            [-inductive, DIRECT_TERM / bin_dt, inductive],
+            rtol=1e-12,
+        )
+
     def test_terms_of_several_sources_add(self):
         voltage = _run_one_turn(
             (

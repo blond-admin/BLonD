@@ -1373,7 +1373,14 @@ class _PoleModel:
     # wake(t) = tail_residue * exp(p (t - 2 bin_dt)).
     tail_residues: NumpyArray | CupyArray
     # Near field: the bin-averaged wake summed over all poles at lags of
-    # +1, 0 and -1 bin, in [V/C]; applied to a bin's neighbours.
+    # +1, 0 and -1 bin, in [V/C]; applied to a bin's neighbours. Plus the
+    # direct and inductive terms, which act on the profile directly and
+    # never through the poles: the direct term d delta(t) is d / bin_dt on
+    # the bin itself; the inductive term e delta'(t) is e dI/dt by the
+    # central difference that `InductiveImpedance` uses for the
+    # frequency-domain solvers, e / (2 bin_dt^2) on the next bin and minus
+    # that on the previous, where adjacent: a bin next to a gap sees the
+    # empty bins beyond.
     taps: NumpyArray | CupyArray
     # Per pair of consecutive bins, True if they are one bin apart (so the
     # near taps apply); False across a gap in the profile.
@@ -1613,6 +1620,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         _check_whole_bin_gaps(hist_x, bin_dt)
 
         pole_dt = poles * bin_dt
+        # The inductive term's share of the near taps; see `_PoleModel.taps`.
+        inductive = 0.5 * self._inductive_term / bin_dt**2
         self._model = _PoleModel(
             poles=poles,
             residues=residues,
@@ -1628,6 +1637,10 @@ class MultiPoleSparseSolve(WakeFieldSolver):
                 poles,
                 residues,
                 bin_dt,
+            )
+            + backend.array(
+                [-inductive, self._direct_term / bin_dt, inductive],
+                dtype=backend.float,
             ),
             adjacent=(hist_x[1:] - hist_x[:-1]) < 1.5 * bin_dt,
             bin_dt=bin_dt,
@@ -1747,29 +1760,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage_threaded=self._thread_scratch(),
         )
         return voltage
-
-    def _central_difference(
-        self, hist_y: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Central difference of the profile, per bin.
-
-        A neighbour across a gap, or beyond either end, is an empty bin.
-
-        Parameters
-        ----------
-        hist_y
-            Histogram of the profile.
-
-        Returns
-        -------
-        difference
-            ``(hist_y[i + 1] - hist_y[i - 1]) / 2``.
-        """
-        difference = backend.zeros_like(hist_y)
-        difference[:-1] += self._model.adjacent * hist_y[1:]
-        difference[1:] -= self._model.adjacent * hist_y[:-1]
-        return 0.5 * difference
 
     def _thread_scratch(self) -> NumpyArray | CupyArray:
         """
@@ -2066,7 +2056,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         model, carry = self._model, self._carry
         profile = self._parent_wakefield.profile
         hist_x, hist_y = profile.hist_x, profile.hist_y
-        bin_dt = model.bin_dt
         factor = self._hist_y_to_intensity_factor(beam=beam, profile=profile)
         carried_lag_dt = self._carried_lag_since_previous_call(beam)
 
@@ -2075,7 +2064,8 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         )
 
         # Near field: the previous bin, the bin itself and the next bin --
-        # when adjacent; a neighbour across a gap is the recursion's. Then
+        # when adjacent; a neighbour across a gap is the recursion's. The
+        # taps include the direct and inductive terms. Then
         # the carried charge's whole contribution to the first bin, at the
         # true lag; a pole's sign enters once if the two calls rotate
         # opposite ways. Last, the last bin's charge is carried on.
@@ -2094,14 +2084,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             voltage[:1] += self._carried_charge_voltage(carried_lag_dt, sign)
             carry.charge[:] = factor * hist_y[-1:]
 
-        # The direct and inductive terms act on the profile directly, never
-        # through the taps, which are the poles' bin-averaged wake.
-        if self._direct_term != 0.0:
-            voltage += (factor * self._direct_term / bin_dt) * hist_y
-        if self._inductive_term != 0.0:
-            voltage += (
-                factor * self._inductive_term / bin_dt**2
-            ) * self._central_difference(hist_y)
         if self._twc_r_shunt is not None:
             if (
                 self.last_reference_time is not None
