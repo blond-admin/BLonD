@@ -706,9 +706,10 @@ class CudaNoParitySpecials:
 
         with h_t the tile's charges (and a halo), d = exp(p bin_dt),
         F = inj d^(K - 1 - s), E = r d^k, and T the wake summed over the
-        poles at lags below a tile. The sum over the poles is the inner
-        dimension of both GEMMs, which cuBLAS runs on the FP64 tensor cores
-        of sm_80+ GPUs; the scan is the only sequential part (kernels.cu).
+        poles at lags below a tile. The first GEMM sums over a tile's
+        charges, the second over the poles (and the charges, for T); both
+        need no atomics, and cuBLAS runs them on the FP64 tensor cores of
+        sm_80+ GPUs. The scan is the only sequential part (kernels.cu).
         The tiles are processed in slabs of the plan's workspace. Per slab
         that is a kernel for the charges, a GEMM, three for the scan, a
         GEMM and one for the read-outs, and one more for the hand-over: the

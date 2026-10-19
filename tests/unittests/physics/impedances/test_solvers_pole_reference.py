@@ -1599,5 +1599,35 @@ class TestFastPolesLeaveTheFarField(BLonDTestCase):
                     )
 
 
+class TestPolesMustDecay(BLonDTestCase):
+    """A pole whose wake does not decay is rejected when the model is built.
+
+    With Re(p) >= 0 the wake grows (or never fades), so the far-field
+    state grows without bound; the GEMM far field's tabulated powers of
+    exp(p bin_dt) overflow to inf and the voltage turns to NaN.
+    """
+
+    def _initialise_with_poles(self, poles):
+        """Build the pole model of a solver whose only source has `poles`."""
+        source = _PoleResidueSource(poles, np.ones(len(poles)) * 1e9)
+        profile = mock.Mock(
+            hist_x=backend.arange(8, dtype=backend.float) * BIN_DT,
+            hist_step=BIN_DT,
+        )
+        solver = MultiPoleSparseSolve()
+        solver._parent_wakefield = mock.Mock(sources=[source], profile=profile)
+        solver._initialise()
+
+    def test_growing_pole_is_rejected(self) -> None:
+        stable = -1e8 + 2e9j
+        growing = 1e6 + 1e9j
+        with self.assertRaisesRegex(ValueError, "pole 1"):
+            self._initialise_with_poles([stable, growing])
+
+    def test_undamped_pole_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "pole 0"):
+            self._initialise_with_poles([0.0 + 1e9j])
+
+
 if __name__ == "__main__":
     unittest.main()

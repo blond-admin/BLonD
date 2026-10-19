@@ -94,7 +94,7 @@ class Specials(ABC):
     for not producing non-finite coordinates in the first place.
     """
 
-    #: Kernels outside the parity contract: a backend may offer them where
+    #: Kernels outside the parity contract, which a backend may offer where
     #: they beat its parity kernels (e.g. `CudaNoParitySpecials`); None on
     #: a backend without any. Callers check for None and fall back to the
     #: parity kernels.
