@@ -1318,6 +1318,34 @@ def _check_whole_bin_gaps(
         )
 
 
+def _check_decaying_poles(poles: NumpyArray | CupyArray) -> None:
+    """
+    Check that every pole's wake decays, Re(p) < 0.
+
+    A pole with Re(p) >= 0 has a wake that grows, or never fades: the
+    far-field state then grows without bound, and the GEMM far field's
+    tabulated powers of exp(p bin_dt) overflow to inf.
+
+    Parameters
+    ----------
+    poles
+        Poles of the model, in [rad/s].
+
+    Raises
+    ------
+    ValueError
+        If a pole has a non-negative real part.
+    """
+    is_not_decaying = copy_to_cpu(poles).real >= 0
+    if np.any(is_not_decaying):
+        first = int(np.argmax(is_not_decaying))
+        raise ValueError(
+            "MultiPoleSparseSolve: every pole must have a negative real "
+            f"part (a decaying wake), but pole {first} is "
+            f"{complex(copy_to_cpu(poles)[first])} rad/s."
+        )
+
+
 @dataclass(frozen=True, eq=False)
 class _PoleModel:
     """
@@ -1544,6 +1572,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         poles = backend.array(poles, dtype=backend.complex)
         residues = backend.array(residues, dtype=backend.complex)
         signs = backend.array(signs, dtype=backend.float)
+        _check_decaying_poles(poles)
         profile = self._parent_wakefield.profile
         hist_x = profile.hist_x
         bin_dt = float(profile.hist_step)
