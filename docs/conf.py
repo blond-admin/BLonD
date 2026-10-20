@@ -149,8 +149,6 @@ export_marimo_notebooks(
     {
         "models_new/pole-residue/bin_averaged_wake_derivation.py": True,
         "models_new/pole-residue/explain_nearfield_farfield_model.py": False,
-        "models_new/pole-residue/"
-        "explain_nearfield_farfield_model_rechenbuch.py": False,
     }
 )
 
@@ -445,6 +443,10 @@ nitpick_ignore_regex = [
     # (NumpyArray = numpy.typing.NDArray, CupyArray = cupy.ndarray). They are
     # spelled as bare names in annotations/docstrings and have no own page.
     (r"py:.*", r"(NumpyArray|CupyArray)"),
+    # sphinx-autodoc-typehints >= 3.17 emits a whole union of array aliases
+    # (e.g. ``numpy.typing.NDArray | cupy.ndarray[...]``) as one ``py:class``
+    # target, and NDArray is ``py:data`` in numpy's inventory, not a class.
+    (r"py:class", r"numpy\.(typing\.NDArray|ndarray\[).*"),
     # numpydoc/napoleon type-vocabulary words that are not cross-references
     # (e.g. ``x : int, optional`` or ``flag : bool, default=False``); they leak
     # in as bogus ``py:class`` targets.

@@ -11,8 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from scipy.constants import elementary_charge as e
 
@@ -23,8 +22,11 @@ from blond.core.ordering import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
-from blond.generals.cupy_.no_cupy_import import is_cupy_array
-from blond.generals.hashing_ import hash_linspace
+from blond.physics.impedances.multipole.vector_fit import VectorFit
+from blond.physics.impedances.wake_per_bin.time_domain import (
+    TimeDomainCounterRotationWakePerBin,
+    TimeDomainWakePerBin,
+)
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -127,144 +129,18 @@ class WakeFieldSource(ABC):
         self.is_dynamic = is_dynamic
 
 
-def _bspline_stencil(
-    wake: NumpyArray | CupyArray,
-) -> NumpyArray | CupyArray:
-    """
-    Average a piecewise-linear wake with the quadratic B-spline of one bin.
-
-    On a uniform grid that is the stencil
-    ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384``; the
-    edges repeat the boundary sample.
-
-    Parameters
-    ----------
-    wake
-        Wake sampled on a uniform grid, in [V].
-
-    Returns
-    -------
-    wake_per_bin
-        Bin-averaged wake, in [V].
-    """
-    previous_1 = backend.concatenate((wake[:1], wake[:-1]))
-    previous_2 = backend.concatenate((wake[:1], wake[:1], wake[:-2]))
-    next_1 = backend.concatenate((wake[1:], wake[-1:]))
-    next_2 = backend.concatenate((wake[2:], wake[-1:], wake[-1:]))
-    return (
-        previous_2 + 76.0 * previous_1 + 230.0 * wake + 76.0 * next_1 + next_2
-    ) / 384.0
-
-
-def _impedance_from_wake_per_bin(
-    source: TimeDomain | TimeDomainCounterRotation,
-    wake_per_bin: Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray],
-    time: NumpyArray | CupyArray,
-    n_fft: int | None,
-    cache_name: str,
-) -> NumpyArray | CupyArray:
-    """
-    FFT of a bin-averaged wake, with the non-causal tap included.
-
-    The bin-averaged wake reaches one bin before the charge, so it is
-    sampled from ``time - dt`` and the spectrum is advanced by that one
-    sample again to put lag zero where the caller expects it. The result is
-    cached on ``source`` under ``cache_name`` (and ``cache_name + "_hash"``)
-    until ``time`` changes.
-
-    Parameters
-    ----------
-    source
-        The wake source the cache lives on.
-    wake_per_bin
-        Function returning the bin-averaged wake at given times, in [V].
-    time
-        Time array to get the wake for, in [s].
-    n_fft
-        Number of points of the FFT; ``None`` transforms the wake as is.
-    cache_name
-        Attribute name of the cached impedance on ``source``.
-
-    Returns
-    -------
-    impedance_from_wake
-        Impedance array.
-    """
-    hash_ = hash_linspace(time)
-    if hash_ == getattr(source, cache_name + "_hash", None):
-        return getattr(source, cache_name)
-    wake = wake_per_bin(time - (time[1] - time[0]))
-    n_transform = len(wake) if n_fft is None else n_fft
-    advance = backend.exp(
-        1j
-        * backend.twopi
-        * backend.arange(n_transform // 2 + 1, dtype=backend.float)
-        / n_transform
-    )
-    impedance_from_wake = backend.fft.rfft(wake, n=n_fft) * advance
-    setattr(source, cache_name + "_hash", hash_)
-    setattr(source, cache_name, impedance_from_wake)
-    return impedance_from_wake
-
-
-class TimeDomain(ABC):
+class TimeDomain(TimeDomainWakePerBin, ABC):
     """Indication of a source is defined in time domain."""
-
-    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
-        """
-        Point-charge wake sampled at ``time``, in [V].
-
-        Parameters
-        ----------
-        time
-            Time array at which the wake is evaluated, in [s].
-
-        Returns
-        -------
-        wake
-            Point-charge wake, in [V].
-        """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not provide a point-charge wake."
-        )
-
-    def get_wake_per_bin(
-        self, time: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Wake averaged with the quadratic B-spline of one bin width, in [V].
-
-        Time-domain solvers apply this instead of :meth:`get_wake`: the
-        induced voltage of a histogram is the wake integrated over the bin,
-        and averaging with ``box * box * box`` keeps a resonance above the
-        profile's Nyquist frequency from aliasing onto the bunch spectrum
-        (see :mod:`blond.physics.impedances.bin_average`). The kernel is
-        non-zero from ``-1.5 * dt``, so callers sample from one bin before
-        the profile. The default treats :meth:`get_wake` as piecewise
-        linear between its samples; sources with a closed form override it.
-
-        Parameters
-        ----------
-        time
-            Time array (bin centres, uniformly spaced) at which the wake is
-            evaluated, in [s].
-
-        Returns
-        -------
-        wake
-            Bin-averaged wake, in [V].
-        """
-        return _bspline_stencil(self.get_wake(time))
 
     def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-        n_fft: int | None,
+        n_fft: int,
     ) -> NumpyArray | CupyArray:
         """
-        Impedance equivalent to the bin-averaged wake, ``rfft(get_wake_per_bin)``.
+        Get impedance equivalent to the partial wake in time domain.
 
         Parameters
         ----------
@@ -282,38 +158,11 @@ class TimeDomain(ABC):
         impedance_from_wake
             Impedance array.
         """
-        return _impedance_from_wake_per_bin(
-            self,
-            self.get_wake_per_bin,
-            time,
-            n_fft,
-            "_cache_impedance_from_wake",
-        )
+        return self._impedance_from_wake_per_bin(time, n_fft)
 
 
-class TimeDomainCounterRotation(ABC):
+class TimeDomainCounterRotation(TimeDomainCounterRotationWakePerBin, ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
-
-    def get_wake_per_bin_counter_rotation(
-        self, time: NumpyArray | CupyArray
-    ) -> NumpyArray | CupyArray:
-        """
-        Bin-averaged wake for the counter-rotating case, in [V].
-
-        See :meth:`TimeDomain.get_wake_per_bin`.
-
-        Parameters
-        ----------
-        time
-            Time array (bin centres, uniformly spaced) at which the wake is
-            evaluated, in [s].
-
-        Returns
-        -------
-        wake
-            Bin-averaged wake, in [V].
-        """
-        return _bspline_stencil(self.get_wake_counter_rotation(time))
 
     @abstractmethod  # pragma: no cover
     def get_wake(
@@ -355,10 +204,10 @@ class TimeDomainCounterRotation(ABC):
         time: NumpyArray | CupyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-        n_fft: int | None,
+        n_fft: int,
     ) -> NumpyArray | CupyArray:
         """
-        Impedance equivalent to the counter-rotating bin-averaged wake.
+        Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
 
         Parameters
         ----------
@@ -376,13 +225,7 @@ class TimeDomainCounterRotation(ABC):
         impedance_from_wake
             Impedance array.
         """
-        return _impedance_from_wake_per_bin(
-            self,
-            self.get_wake_per_bin_counter_rotation,
-            time,
-            n_fft,
-            "_cache_impedance_from_wake_counter_rotation",
-        )
+        return self._impedance_from_wake_per_bin_counter_rotation(time, n_fft)
 
 
 class FreqDomain(ABC):
@@ -779,108 +622,13 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
         return wf
 
 
-class _VectorFitFields(NamedTuple):
-    """The fields of `VectorFit`, see there."""
-
-    poles: NumpyArray
-    residues: NumpyArray
-    counterrotation_signs: NumpyArray
-    direct_term: float = 0.0
-    inductive_term: float = 0.0
-
-
-class VectorFit(_VectorFitFields):
-    r"""
-    A vector-fitted impedance model.
-
-    The impedance is :math:`Z(s) = \sum_k \rho_k / (s - p_k) + d + e\,s`
-    with :math:`s = 2\pi i f`, where each complex pole stands in for its
-    conjugate partner. The constant term :math:`d` and the inductive term
-    :math:`e` have no pole-residue representation; their wakes are
-    :math:`d\,\delta(t)` and :math:`e\,\delta'(t)`.
-
-    The arrays are host (NumPy) arrays on every backend: the fit describes
-    the model, which a solver builds once and then moves to the device
-    whatever it tracks with. Device (CuPy) arrays are rejected.
-
-    Attributes
-    ----------
-    poles
-        Complex poles :math:`p_k`, in [rad/s].
-    residues
-        Complex residues :math:`\rho_k`, in [Ohm/s].
-    counterrotation_signs
-        Signs of the poles to deal with higher order oscillators
-        in counterrotation, ``1`` for none.
-    direct_term
-        Constant term :math:`d`, in [Ohm].
-    inductive_term
-        Inductive term :math:`e`, i.e. the inductance :math:`L` in
-        :math:`Z = 2\pi i f L`, in [Ohm s].
-    """
-
-    __slots__ = ()
-
-    def __new__(
-        cls,
-        poles: NumpyArray,
-        residues: NumpyArray,
-        counterrotation_signs: NumpyArray,
-        direct_term: float = 0.0,
-        inductive_term: float = 0.0,
-    ) -> VectorFit:
-        """
-        Build the fit, rejecting device arrays.
-
-        Parameters
-        ----------
-        poles
-            Complex poles, in [rad/s].
-        residues
-            Complex residues, in [Ohm/s].
-        counterrotation_signs
-            Signs of the poles, ``1`` for none.
-        direct_term
-            Constant term, in [Ohm].
-        inductive_term
-            Inductive term, in [Ohm s].
-
-        Returns
-        -------
-        vector_fit
-            The vector fit.
-        """
-        for name, array in (
-            ("poles", poles),
-            ("residues", residues),
-            ("counterrotation_signs", counterrotation_signs),
-        ):
-            assert not is_cupy_array(array), (
-                f"`VectorFit.{name}` must be a host (NumPy) array, but got "
-                "a CuPy array; pass it through `copy_to_cpu` first."
-            )
-        return super().__new__(
-            cls,
-            poles,
-            residues,
-            counterrotation_signs,
-            direct_term,
-            inductive_term,
-        )
-
-    @classmethod
-    def _make(cls, iterable: Iterable) -> VectorFit:
-        # `_replace` builds through `_make`, which would bypass `__new__`.
-        return cls(*iterable)
-
-
 class SupportsVectorFittedModel(ABC):
     """
     Mixin to define sources with poles.
 
     See Also
     --------
-    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
+    blond.physics.impedances.multipole.solver.MultiPoleSparseSolve : The corresponding wakefield solver.
     """
 
     @abstractmethod  # pragma: no cover
@@ -897,40 +645,5 @@ class SupportsVectorFittedModel(ABC):
         vector_fit
             The vector-fitted model, with host (NumPy) arrays on every
             backend.
-        """
-        pass
-
-
-class SupportsTWCFIRModel(ABC):
-    r"""
-    Mixin for sources with a finite-support travelling-wave-cavity wake.
-
-    The wake :math:`W(t) = (4 R / \tilde a)(1 - t / \tilde a)
-    \cos(\omega_r t)` for :math:`0 < t < \tilde a` has no pole-residue
-    representation; `MultiPoleSparseSolve` applies it with the
-    `Specials.wake_from_twc_fir` recursion instead.
-
-    See Also
-    --------
-    blond.physics.impedances.solvers.MultiPoleSparseSolve : The corresponding wakefield solver.
-    """
-
-    @abstractmethod  # pragma: no cover
-    def get_twc_fir(
-        self,
-    ) -> tuple[
-        NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray
-    ]:
-        """
-        Provide the travelling-wave-cavity wake parameters per mode.
-
-        Returns
-        -------
-        r_shunt
-            Shunt impedance per mode, in [Ohm].
-        a_tilde
-            Wake support (filling) time per mode, in [s].
-        omega_r
-            Angular resonant frequency per mode, in [rad/s].
         """
         pass

@@ -55,8 +55,8 @@ SEED = 42
 DEV_DRAW = False
 
 
-def _make_simulation(solver, sources, n_bins):
-    """Assemble an LHC-like ring whose profile spans the whole turn."""
+def _make_simulation(solver, sources, n_bins, profile_turns=1.0):
+    """Assemble an LHC-like ring whose profile spans ``profile_turns``."""
     ring = Ring(circumference=CIRCUMFERENCE)
     magnetic_cycle = ConstantMagneticCycle(
         reference_particle=proton, value=SYNC_MOMENTUM, in_unit="momentum"
@@ -64,7 +64,9 @@ def _make_simulation(solver, sources, n_bins):
     t_rev = magnetic_cycle.get_t_rev_init(
         ring.circumference, particle_type=proton
     )
-    profile = StaticProfile(cut_left=0.0, cut_right=t_rev, n_bins=n_bins)
+    profile = StaticProfile(
+        cut_left=0.0, cut_right=profile_turns * t_rev, n_bins=n_bins
+    )
     wakefield = WakeField(sources=sources, solver=solver, profile=profile)
     drift = DriftSimple(
         momentum_compaction_factor=momentum_compaction_factor(
@@ -175,6 +177,33 @@ class TestMultiPoleSparseSolveTwoBeamsAtOneTime(BLonDTestCase):
 
         with self.assertRaisesRegex(ValueError, "strictly increasing"):
             simulation.run_simulation(beams=tuple(beams), n_turns=2)
+
+
+class TestMultiPoleSparseSolveProfileLongerThanTurn(BLonDTestCase):
+    """A profile longer than the time between two calls must be rejected.
+
+    The bins of consecutive calls would overlap and count the same charge
+    twice, so the solver refuses rather than tracking a wrong wake.
+    """
+
+    def test_profile_longer_than_call_gap_raises(self):
+        """The second call names the profile length as the cause."""
+        simulation, _, _, _, _ = _make_simulation(
+            solver=MultiPoleSparseSolve(),
+            sources=(Resonators(1e5, 1e9, 5.0),),
+            n_bins=512,
+            profile_turns=1.5,
+        )
+        beam = Beam(intensity=1e11, particle_type=proton)
+        simulation.prepare_beam(
+            preparation_routine=BiGaussian(
+                sigma_dt=SIGMA_DT, n_macroparticles=2000, seed=SEED
+            ),
+            beam=beam,
+        )
+
+        with self.assertRaisesRegex(ValueError, "must not be longer"):
+            simulation.run_simulation(beams=beam, n_turns=2)
 
 
 class TestMultiPoleSparseSolveTurnBoundaryWake(unittest.TestCase):
