@@ -1086,14 +1086,14 @@ class SemiEmpiricMatcher(MatchingRoutine):
             e.g. a flat potential well.
         """
         ts_cpu = copy_to_cpu(ts)
-        well = copy_to_cpu(potential_well)
-        i_min = int(np.argmin(well))
+        potential_well_cpu = copy_to_cpu(potential_well)
+        i_min = int(np.argmin(potential_well_cpu))
         neighbours = slice(max(i_min - 3, 0), i_min + 4)
         # V''(t) at the bucket centre, by a parabola through 7 points
         curvature = (
             2
             * np.polyfit(
-                ts_cpu[neighbours] - ts_cpu[i_min], well[neighbours], 2
+                ts_cpu[neighbours] - ts_cpu[i_min], potential_well_cpu[neighbours], 2
             )[0]
         )
         drift_term = abs(eta) / (
