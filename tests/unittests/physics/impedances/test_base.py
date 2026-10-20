@@ -11,6 +11,8 @@ from unittest import mock
 import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField, backend
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.physics.impedances.base import TimeDomainCounterRotation
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -44,3 +46,32 @@ class TestWakeField(BLonDTestCase):
 
         voltage = kick_interpolated.call_args.kwargs["voltage"]
         self.assertIs(voltage, self.wakefield.induced_voltage)
+
+
+class _RampCounterRotation(TimeDomainCounterRotation):
+    """Counter-rotating source that keeps the default bin average."""
+
+    def get_wake(self, time):
+        return time
+
+    def get_wake_counter_rotation(self, time):
+        return 2.0 * time
+
+
+class TestTimeDomainCounterRotation(BLonDTestCase):
+    def test_get_wake_per_bin_counter_rotation_default_is_the_stencil(self):
+        """The default B-spline averages the counter-rotating wake.
+
+        The symmetric stencil keeps a linear wake unchanged wherever all
+        five taps lie inside the samples, and it averages
+        ``get_wake_counter_rotation``, not ``get_wake``.
+        """
+        time = backend.arange(8, dtype=backend.float)
+
+        wake_per_bin = copy_to_cpu(
+            _RampCounterRotation().get_wake_per_bin_counter_rotation(time)
+        )
+
+        np.testing.assert_allclose(
+            wake_per_bin[2:-2], 2.0 * np.arange(2, 6), rtol=1e-12
+        )
