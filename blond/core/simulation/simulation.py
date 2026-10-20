@@ -635,7 +635,7 @@ class Simulation(Preparable):
             if backend.specials_mode != "cuda"
             else probe_bunch.read_partial_dE().get(),
             initial=0,
-        ) / len(dt)
+        ) / (len(dt) - 1)
 
         if self.ring.is_below_transition(beam=probe_bunch):
             # peaks and troughs are flipped when below transition
