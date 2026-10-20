@@ -62,6 +62,18 @@ if TYPE_CHECKING:  # pragma: no cover
 # (|p t| < 1, so the omitted tail is below 1 / 23! ~ 4e-23).
 _PHI3_SERIES_TERMS = 20
 _FACTORIAL_3 = 6.0
+# From this many bins on, `triple_box_average_poles` evaluates the near
+# branch on the few bins around the onset only (one host sync per call on
+# CuPy); below it, on the whole array (no sync).
+_NEAR_WINDOW_MIN_BINS = 4096
+# Below that, the poles are evaluated together, lags times poles at once:
+# at most this many elements per batch, so the temporaries stay a few MB.
+_MAX_BROADCAST_ELEMENTS = 2**18
+
+# Knots of the quadratic B-spline `box * box * box`, in units of the bin
+# width: it is a different quadratic on each of (-3/2, -1/2), (-1/2, 1/2)
+# and (1/2, 3/2), and zero outside.
+_BSPLINE_KNOTS = (-1.5, -0.5, 0.5, 1.5)
 
 
 def causal_third_antiderivative_factor(
@@ -135,7 +147,11 @@ def _smoothed_pole(
 
 
 def triple_box_average_pole(
-    t: NumpyArray | CupyArray, pole: complex, residue: complex, dt: float
+    t: NumpyArray | CupyArray,
+    pole: complex,
+    residue: complex,
+    dt: float,
+    near_idx: NumpyArray | CupyArray | None = None,
 ) -> NumpyArray | CupyArray:
     r"""
     Bin-averaged wake of a single pole, :math:`\overline W = W * B_2`.
@@ -157,6 +173,11 @@ def triple_box_average_pole(
         Residue :math:`\rho`.
     dt
         Bin width, in [s].
+    near_idx
+        Indices of ``t`` with ``-1.5 * dt < t <= 1.5 * dt``, the only lags
+        where the near branch is nonzero (see ``_near_window``). If
+        given, the near branch is evaluated there only; if None, on the
+        whole array, which needs no host sync but is slow on long grids.
 
     Returns
     -------
@@ -165,27 +186,86 @@ def triple_box_average_pole(
     """
     onset = 1.5 * dt
     fully_causal = t > onset
-    # Both branches are evaluated everywhere and selected with `where`: a
-    # boolean-mask gather would sync a CuPy array to the host, and this is
-    # reached from the per-turn loop. Each branch's argument is clamped to
-    # its own side of the onset so the discarded values stay finite.
-    t_far = backend.where(fully_causal, t, onset)
-    t_near = backend.where(fully_causal, onset, t)
-
-    far = (residue * _smoothed_pole(t_far, pole, dt)).real
-    near = (
-        residue
-        * (
-            causal_third_antiderivative_factor(t_near + 1.5 * dt, pole)
-            - 3.0 * causal_third_antiderivative_factor(t_near + 0.5 * dt, pole)
-            + 3.0 * causal_third_antiderivative_factor(t_near - 0.5 * dt, pole)
-            - causal_third_antiderivative_factor(t_near - 1.5 * dt, pole)
-        )
-    ).real / dt**3
     # 2 - True == 1 for a real pole, 2 - False == 2 for a complex one; works
     # for a host scalar and a device slice alike, without a branch.
     pair_factor = 2.0 - (pole.imag == 0)
+    # The far argument is clamped to its side of the onset so the discarded
+    # values stay finite.
+    t_far = backend.where(fully_causal, t, onset)
+    far = (residue * _smoothed_pole(t_far, pole, dt)).real
+    if near_idx is not None:
+        # Zero, not the clamped far value, before the kernel's support.
+        wake = backend.where(fully_causal, far, 0.0)
+        wake[near_idx] = _near_branch(t[near_idx], pole, residue, dt)
+        return pair_factor * wake
+    # Both branches are evaluated everywhere and selected with `where`: a
+    # boolean-mask gather would sync a CuPy array to the host, and this is
+    # reached from the per-turn loop. The near argument is clamped to its
+    # side of the onset so the discarded values stay finite.
+    t_near = backend.where(fully_causal, onset, t)
+    near = _near_branch(t_near, pole, residue, dt)
     return pair_factor * backend.where(fully_causal, far, near)
+
+
+def _near_branch(
+    t: NumpyArray | CupyArray, pole: complex, residue: complex, dt: float
+) -> NumpyArray | CupyArray:
+    r"""
+    Single-pole wake from the third difference of :math:`\varphi_3`.
+
+    Parameters
+    ----------
+    t
+        Time array, in [s]. Meant for ``t <= 1.5 * dt``; zero for
+        ``t <= -1.5 * dt``.
+    pole
+        Pole :math:`p = -\alpha + i \bar\omega`, in [rad/s].
+    residue
+        Residue :math:`\rho`.
+    dt
+        Bin width, in [s].
+
+    Returns
+    -------
+    wake
+        Bin-averaged wake, without the pair factor.
+    """
+    return (
+        residue
+        * (
+            causal_third_antiderivative_factor(t + 1.5 * dt, pole)
+            - 3.0 * causal_third_antiderivative_factor(t + 0.5 * dt, pole)
+            + 3.0 * causal_third_antiderivative_factor(t - 0.5 * dt, pole)
+            - causal_third_antiderivative_factor(t - 1.5 * dt, pole)
+        )
+    ).real / dt**3
+
+
+def _near_window(
+    t: NumpyArray | CupyArray, dt: float
+) -> NumpyArray | CupyArray | None:
+    """
+    Find the indices where the near branch of a bin average is nonzero.
+
+    Parameters
+    ----------
+    t
+        Time array, in [s].
+    dt
+        Bin width, in [s].
+
+    Returns
+    -------
+    near_idx
+        Indices of ``-1.5 * dt < t <= 1.5 * dt``, or None for an array
+        shorter than ``_NEAR_WINDOW_MIN_BINS``, which is evaluated whole.
+    """
+    # Finding the window syncs a CuPy array to the host once. Short arrays,
+    # the per-turn lags of `MultiPoleSparseSolve` among them, skip it: the
+    # full-array evaluation is cheap there and needs no sync.
+    if len(t) < _NEAR_WINDOW_MIN_BINS:
+        return None
+    return backend.where((t > -1.5 * dt) & (t <= 1.5 * dt))[0]
 
 
 def triple_box_average_poles(
@@ -215,10 +295,119 @@ def triple_box_average_poles(
     """
     assert len(poles) == len(residues)
     out = backend.zeros(len(t), dtype=backend.float)
+    # The window depends on `t` and `dt` only, so it is found once.
+    near_idx = _near_window(t, dt)
+    if near_idx is None:
+        # A short grid: one call per batch of poles, lags along axis 0 and
+        # poles along axis 1. Per pole, a call is a few hundred array
+        # operations -- kernel launches on a GPU -- whatever the length.
+        batch_size = max(1, _MAX_BROADCAST_ELEMENTS // max(len(t), 1))
+        lags = t[:, None]
+        for first in range(0, len(poles), batch_size):
+            batch = slice(first, first + batch_size)
+            out += triple_box_average_pole(
+                lags, poles[None, batch], residues[None, batch], dt
+            ).sum(axis=1)
+        return out
     # Length-1 slices rather than `complex(poles[i])`: the latter is a
     # device-to-host transfer per pole inside the per-turn loop.
     for pole_i in range(len(poles)):
         out += triple_box_average_pole(
-            t, poles[pole_i : pole_i + 1], residues[pole_i : pole_i + 1], dt
+            t,
+            poles[pole_i : pole_i + 1],
+            residues[pole_i : pole_i + 1],
+            dt,
+            near_idx,
         )
     return out
+
+
+def quadratic_bspline(x: float) -> float:
+    r"""
+    Quadratic B-spline :math:`box * box * box` of unit width, at ``x``.
+
+    The kernel every time-domain source is bin-averaged with (see
+    :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`),
+    normalised to unit integral and expressed in units of the bin width, so
+    that its support is :math:`(-3/2,\, 3/2)`.
+
+    Parameters
+    ----------
+    x
+        Position in units of the bin width.
+
+    Returns
+    -------
+    weight
+        :math:`B_2(x)`, in units of one over the bin width.
+    """
+    abs_x = abs(x)
+    if abs_x >= 1.5:  # NOQA PLR2004
+        return 0.0
+    if abs_x <= 0.5:  # NOQA PLR2004
+        return 0.75 - x * x
+    return 0.5 * (1.5 - abs_x) ** 2
+
+
+def bspline_window_moments(offset: float, width: float) -> tuple[float, float]:
+    r"""
+    The two B-spline moments over a window of ``width`` bins.
+
+    The moments are
+
+    .. math::
+        I_0 = \int_0^{w} B_2(v + \eta) \,\mathrm{d}\eta , \qquad
+        I_1 = \int_0^{w} (w - \eta) B_2(v + \eta) \,\mathrm{d}\eta
+
+    with :math:`v` = ``offset`` and :math:`w` = ``width``, both in units of
+    the bin width. :math:`I_0` is the B-spline average of the box that spans
+    the window, and :math:`I_1 / w` is the B-spline average of the ramp that
+    rises linearly from 0 to 1 across it, both evaluated at ``offset`` past
+    the window's upper end.
+
+    The integrands are a quadratic and a cubic, so splitting the window at
+    the B-spline's knots and applying Simpson's rule -- exact up to cubics --
+    on each piece evaluates them exactly. Written as an integral of a
+    non-negative integrand there is no cancellation, which a divided
+    difference of the B-spline's antiderivatives would suffer from as
+    ``width`` goes to zero.
+
+    Parameters
+    ----------
+    offset
+        Lower end of the integration window, in units of the bin width.
+    width
+        Width of the integration window, in units of the bin width.
+
+    Returns
+    -------
+    moments
+        The pair :math:`(I_0,\, I_1)`, dimensionless.
+    """
+    if width <= 0.0:
+        return 0.0, 0.0
+    edges = [0.0]
+    edges += [
+        knot - offset for knot in _BSPLINE_KNOTS if 0.0 < knot - offset < width
+    ]
+    edges += [width]
+    zeroth = first = 0.0
+    for lower, upper in zip(edges[:-1], edges[1:], strict=True):
+        middle = 0.5 * (lower + upper)
+        span = upper - lower
+        weight_lower = quadratic_bspline(offset + lower)
+        weight_middle = quadratic_bspline(offset + middle)
+        weight_upper = quadratic_bspline(offset + upper)
+        zeroth += (
+            span / 6.0 * (weight_lower + 4.0 * weight_middle + weight_upper)
+        )
+        first += (
+            span
+            / 6.0
+            * (
+                (width - lower) * weight_lower
+                + 4.0 * (width - middle) * weight_middle
+                + (width - upper) * weight_upper
+            )
+        )
+    return zeroth, first

@@ -274,10 +274,10 @@ class TestMultiPoleSparseSolveMatchesFreqDomain(BLonDTestCase):
             ),
             solver,
         )
-        bin_dt = solver._bin_dt
+        bin_dt = solver._model.bin_dt
         inductive = 0.5 * INDUCTIVE_TERM / bin_dt**2
         np.testing.assert_allclose(
-            copy_to_cpu(solver._taps),
+            copy_to_cpu(solver._model.taps),
             [-inductive, DIRECT_TERM / bin_dt, inductive],
             rtol=1e-12,
         )

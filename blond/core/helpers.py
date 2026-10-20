@@ -225,6 +225,10 @@ def _find(
         ],
         where=(),
     )
+    # `_walk` references itself via its closure, and that cycle kept `found`
+    # (e.g. the beam) alive until a full GC: the beam memory leak. Breaking
+    # it lets reference counting free the found instances right away.
+    _walk = None
 
     return found
 

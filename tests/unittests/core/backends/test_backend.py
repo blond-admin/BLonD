@@ -1,3 +1,4 @@
+import contextlib
 import ctypes as ct
 import os
 import subprocess
@@ -22,8 +23,11 @@ from blond.core.backends.backend import (
 from blond.core.backends.cpp.callables import _get_len, check_index_abi
 from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
+from blond.generals.warnings_ import PrecisionWarning
 from blond.testing.backend_testing import (
+    FORCE_ALL_BACKENDS,
     BLonDTestCase,
+    cuda_backend_usable,
     multi_backend_testcase,
     skip_if_no_cupy,
 )
@@ -31,7 +35,9 @@ from blond.testing.backend_testing import (
 try:
     import cupy as cp  # type: ignore
 
-    cupy_available = True
+    # CuPy can import while the CUDA backend cannot (e.g. no cuBLAS);
+    # skip the CUDA cases then, unless all backends are forced.
+    cupy_available = FORCE_ALL_BACKENDS or cuda_backend_usable()
 except ModuleNotFoundError:
     cupy_available = False
 
@@ -125,12 +131,8 @@ class TestBackendBaseClass(BLonDTestCase):
     def _apply_environment_variables_for_every_mode(self):
         backend_modes = ["python", "cpp", "cpp_single_core", "numba", "fail"]
         backend_bits = ["64", "fail"]
-        try:
-            import cupy
-
+        if cupy_available:
             backend_modes = ["cuda"] + backend_modes
-        except ModuleNotFoundError:
-            pass
         print(f"{backend_modes=}")
         # The probe values below (notably "fail") must not survive this
         # test: tests run in random order, so anything left in the
@@ -386,6 +388,27 @@ class TestNumpyBackend(BLonDTestCase):
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
+
+
+class TestNoParity(BLonDTestCase):
+    """Only the CUDA backend has kernels outside the parity contract."""
+
+    def test_cpu_backends_have_none(self) -> None:
+        from blond.core.backends.backend import Specials
+        from blond.core.backends.numba.callables import NumbaSpecials
+        from blond.core.backends.python.callables import PythonSpecials
+
+        for specials in (Specials, PythonSpecials, NumbaSpecials):
+            with self.subTest(specials=specials.__name__):
+                self.assertIsNone(specials.no_parity)
+
+    @skip_if_no_cupy
+    def test_cuda_backend_has_the_gemm_far_field(self) -> None:
+        from blond.core.backends.cuda.callables import CudaSpecials
+
+        self.assertTrue(
+            callable(CudaSpecials.no_parity.wake_from_pole_residue_gemm)
+        )
 
 
 class TestSpecials(BLonDTestCase):
@@ -3475,7 +3498,11 @@ class TestSpecials(BLonDTestCase):
         states,
         extra_scratch_rows=0,
     ):
-        """Run the active backend's kernel; `states` is a backend array, updated."""
+        """Run the active backend's kernel; `states` is a backend array, updated.
+
+        On CUDA, the GEMM far field is checked against the kernel as well.
+        """
+        states_in = states.copy()
         n_bins = len(profile)
         voltage = backend.zeros(n_bins, dtype=backend.float)
         voltage_threaded = backend.zeros(
@@ -3503,7 +3530,116 @@ class TestSpecials(BLonDTestCase):
             voltage=voltage,
             voltage_threaded=voltage_threaded,
         )
+        if backend.specials_mode == "cuda":
+            self._check_pole_gemm_against_kernel(
+                profile_time,
+                profile,
+                carried_charge,
+                carried_is_counterrotating,
+                state_lag_dt,
+                carried_lag_dt,
+                poles,
+                residues,
+                is_counterrotating_beam,
+                signs,
+                factor,
+                bin_dt,
+                states_in,
+                states,
+                voltage,
+            )
         return copy_to_cpu(voltage)
+
+    def _check_pole_gemm_against_kernel(
+        self,
+        profile_time,
+        profile,
+        carried_charge,
+        carried_is_counterrotating,
+        state_lag_dt,
+        carried_lag_dt,
+        poles,
+        residues,
+        is_counterrotating_beam,
+        signs,
+        factor,
+        bin_dt,
+        states_in,
+        kernel_states,
+        kernel_voltage,
+    ):
+        """The CUDA GEMM far field gives the kernel's voltage and states.
+
+        Below `_MIN_GEMM_POLES` poles and on runs shorter than 16 bins no
+        plan is built in production; both limits are lifted here, so every
+        kernel test checks the GEMM too.
+        """
+        from blond.core.backends.cuda import callables as cuda_callables
+
+        offsets = np.rint(
+            (np.asarray(profile_time) - profile_time[0]) / bin_dt
+        ).astype(np.int64)
+        with (
+            mock.patch.object(cuda_callables, "_MIN_GEMM_POLES", 0),
+            mock.patch.object(
+                cuda_callables,
+                "_GEMM_TILE_LENGTHS",
+                (128, 64, 32, 16, 8, 4, 2, 1),
+            ),
+        ):
+            plan = backend.specials.no_parity.pole_tile_gemm_plan(
+                bin_offsets=offsets,
+                poles=backend.array(poles, dtype=backend.complex),
+                residues=backend.array(residues, dtype=backend.complex),
+                counterrotating_pole_signs=backend.array(
+                    signs, dtype=backend.float
+                ),
+                bin_dt=bin_dt,
+            )
+        if len(poles) == 0:
+            # cuBLAS rejects empty GEMMs; the kernel handles no poles
+            self.assertIsNone(plan)
+            return
+        self.assertIsNotNone(plan)
+        states = states_in.copy()
+        voltage = backend.zeros(len(profile), dtype=backend.float) + np.nan
+        backend.specials.no_parity.wake_from_pole_residue_gemm(
+            plan=plan,
+            profile=backend.array(profile, dtype=backend.float),
+            carried_charge=backend.array(
+                [carried_charge], dtype=backend.float
+            ),
+            carried_is_counterrotating=carried_is_counterrotating,
+            state_lag_dt=state_lag_dt,
+            carried_lag_dt=carried_lag_dt,
+            is_counterrotating_beam=is_counterrotating_beam,
+            factor=factor,
+            states=states,
+            voltage=voltage,
+        )
+        # float64 knows the phase Im(p) lag only to ~eps of it, and the two
+        # split it into different products
+        phase_limit = 1e-15 * float(
+            np.max(np.abs(np.imag(poles))) * max(state_lag_dt, carried_lag_dt)
+        )
+        expected = copy_to_cpu(kernel_voltage)
+        np.testing.assert_allclose(
+            copy_to_cpu(voltage),
+            expected,
+            rtol=1e-9,
+            atol=(1e-9 + phase_limit)
+            * float(np.max(np.abs(expected), initial=0.0)),
+            err_msg="GEMM against the CUDA kernel",
+        )
+        expected_states = copy_to_cpu(kernel_states)
+        np.testing.assert_allclose(
+            copy_to_cpu(states),
+            expected_states,
+            rtol=1e-9,
+            atol=(1e-9 + phase_limit)
+            * float(np.max(np.abs(expected_states), initial=0.0)),
+            err_msg="GEMM states against the CUDA kernel",
+        )
 
     @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_matches_unrolled_sum(self) -> None:
@@ -3730,6 +3866,256 @@ class TestSpecials(BLonDTestCase):
                 np.zeros(n_bins),
                 err_msg=f"`{special}` gave a voltage without poles",
             )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_many_mixed_poles(self) -> None:
+        """Many poles of mixed kind equal the unrolled sum, on every backend.
+
+        Backends may process poles in groups (SIMD blocks, threads); pole
+        counts that are not a multiple of any group size, real and complex
+        poles and flipped and unflipped poles side by side in one group,
+        and an axis with a hole (steps longer than a bin) must still give
+        every pole its own recursion.
+        """
+        bin_dt = 1e-9
+        profile_time = bin_dt * np.array([0, 1, 2, 3, 4, 9, 10, 11, 12.0])
+        profile = np.array([0.5, 3.0, 1.5, 0.0, 2.0, 0.5, 1.0, 0.7, 0.2])
+        factor = 1.7
+        carried_charge = 2.3
+        state_lag_dt, carried_lag_dt = 0.3 * bin_dt, 1.3 * bin_dt
+        rng = np.random.default_rng(42)
+
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            for n_poles in (1, 5, 17, 40, 103, 130):
+                is_real = np.arange(n_poles) % 4 == 1
+                poles_np = -rng.uniform(5e7, 5e8, n_poles) + 1j * np.where(
+                    is_real, 0.0, rng.uniform(1e8, 3e9, n_poles)
+                )
+                residues_np = rng.normal(size=n_poles) + 1j * np.where(
+                    is_real, 0.0, rng.normal(size=n_poles)
+                )
+                states_in = rng.normal(size=n_poles) + 1j * np.where(
+                    is_real, 0.0, rng.normal(size=n_poles)
+                )
+                signs = np.where(np.arange(n_poles) % 3 == 0, -1.0, 1.0)
+                for carried_is_counterrotating in (False, True):
+                    expected_voltage, expected_states = (
+                        self._unrolled_pole_voltage(
+                            profile_time,
+                            profile,
+                            carried_charge,
+                            carried_is_counterrotating,
+                            state_lag_dt,
+                            carried_lag_dt,
+                            poles_np,
+                            residues_np,
+                            True,
+                            signs,
+                            factor,
+                            bin_dt,
+                            states_in,
+                        )
+                    )
+                    states = backend.array(states_in, dtype=backend.complex)
+                    voltage = self._run_pole_kernel(
+                        profile_time,
+                        profile,
+                        carried_charge,
+                        carried_is_counterrotating,
+                        state_lag_dt,
+                        carried_lag_dt,
+                        poles_np,
+                        residues_np,
+                        True,
+                        signs,
+                        factor,
+                        bin_dt,
+                        states,
+                    )
+                    msg = (
+                        f"{special=} {n_poles=} {carried_is_counterrotating=}"
+                    )
+                    scale = float(np.max(np.abs(expected_voltage)))
+                    np.testing.assert_allclose(
+                        voltage,
+                        expected_voltage,
+                        rtol=1e-9,
+                        atol=1e-9 * scale,
+                        err_msg=msg,
+                    )
+                    np.testing.assert_allclose(
+                        copy_to_cpu(states),
+                        expected_states,
+                        rtol=1e-9,
+                        atol=1e-9 * float(np.max(np.abs(expected_states))),
+                        err_msg=f"states {msg}",
+                    )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_long_profile_matches_python(self) -> None:
+        """A long profile with holes gives the reference result everywhere.
+
+        Long enough that a backend may split the bins into chunks that run
+        in parallel and are stitched together afterwards: the stitching
+        must reproduce the serial recursion, its hand-over state included.
+        """
+        bin_dt = 1e-9
+        n_bins = 1200
+        index = np.arange(n_bins)
+        # a hole of 7 bins after every 50 bins (a sparse, multi-bunch axis)
+        profile_time = 3.0e-4 + bin_dt * (index + 7 * (index // 50))
+        profile = 1.0 + np.sin(index / 37.0) ** 2
+        factor = 1.7
+        carried_charge = 2.3
+        rng = np.random.default_rng(7)
+        cases = []
+        for n_poles in (3, 70):
+            is_real = np.arange(n_poles) % 4 == 1
+            poles_np = -rng.uniform(5e6, 5e8, n_poles) + 1j * np.where(
+                is_real, 0.0, rng.uniform(1e8, 3e9, n_poles)
+            )
+            residues_np = rng.normal(size=n_poles) + 1j * np.where(
+                is_real, 0.0, rng.normal(size=n_poles)
+            )
+            states_in = rng.normal(size=n_poles) + 1j * np.where(
+                is_real, 0.0, rng.normal(size=n_poles)
+            )
+            signs = np.where(np.arange(n_poles) % 3 == 0, -1.0, 1.0)
+            for carried_lag_bins in (1.3, 2.5):
+                cases.append(
+                    (
+                        poles_np,
+                        residues_np,
+                        states_in,
+                        signs,
+                        carried_lag_bins,
+                    )
+                )
+
+        def run_all():
+            results = []
+            for poles_np, residues_np, states_in, signs, lag_bins in cases:
+                states = backend.array(states_in, dtype=backend.complex)
+                voltage = self._run_pole_kernel(
+                    profile_time,
+                    profile,
+                    carried_charge,
+                    True,
+                    (lag_bins - 1.0) * bin_dt,
+                    lag_bins * bin_dt,
+                    poles_np,
+                    residues_np,
+                    True,
+                    signs,
+                    factor,
+                    bin_dt,
+                    states,
+                )
+                results.append((voltage, copy_to_cpu(states)))
+            return results
+
+        self._setUp(dtype=np.float64, special_mode="python")
+        expected = run_all()
+        for special in self.special_modes:
+            if special == "python":
+                continue
+            try:
+                self._setUp(dtype=np.float64, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test")
+                continue
+            results = run_all()
+            for case_i, ((voltage, states), (exp_v, exp_s)) in enumerate(
+                zip(results, expected, strict=True)
+            ):
+                msg = f"{special=} {case_i=}"
+                np.testing.assert_allclose(
+                    voltage,
+                    exp_v,
+                    rtol=1e-10,
+                    atol=1e-10 * float(np.max(np.abs(exp_v))),
+                    err_msg=msg,
+                )
+                np.testing.assert_allclose(
+                    states,
+                    exp_s,
+                    rtol=1e-10,
+                    atol=1e-10 * float(np.max(np.abs(exp_s))),
+                    err_msg=f"states {msg}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_wake_from_pole_residue_long_lag_matches_python(self) -> None:
+        """A lag of many RF periods gives the reference result everywhere.
+
+        A slowly decaying GHz pole stepped over ~0.1 s has a phase of
+        ~3e9 rad, beyond the range of a fast sine with an int32 quadrant.
+        A float64 phase that large is only known to ~eps * phase, so
+        backends that split it differently agree only to that.
+        """
+        bin_dt = 2.5e-11
+        n_bins = 8
+        profile_time = np.arange(n_bins) * bin_dt
+        profile = np.linspace(0.5, 1.5, n_bins)
+        poles_np = np.array([-1.0 + 1j * (2 * np.pi * 5e9 + 0.123)])
+        residues_np = np.array([1.0 + 0.3j])
+        states_in = np.array([1.0 + 0.5j])
+        signs = np.ones(1)
+
+        def run(lag_dt):
+            states = backend.array(states_in, dtype=backend.complex)
+            voltage = self._run_pole_kernel(
+                profile_time,
+                profile,
+                0.7,
+                False,
+                lag_dt,
+                lag_dt + 0.5 * bin_dt,
+                poles_np,
+                residues_np,
+                False,
+                signs,
+                1.0,
+                bin_dt,
+                states,
+            )
+            return voltage, copy_to_cpu(states)
+
+        lags = (1e-2, 1e-1)
+        self._setUp(dtype=np.float64, special_mode="python")
+        expected = [run(lag_dt) for lag_dt in lags]
+        for special in self.special_modes:
+            if special == "python":
+                continue
+            try:
+                self._setUp(dtype=np.float64, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test")
+                continue
+            for lag_dt, (exp_v, exp_s) in zip(lags, expected, strict=True):
+                voltage, states = run(lag_dt)
+                msg = f"{special=} {lag_dt=}"
+                phase_tolerance = 1e-15 * abs(poles_np[0].imag) * lag_dt
+                np.testing.assert_allclose(
+                    voltage,
+                    exp_v,
+                    rtol=0,
+                    atol=phase_tolerance * float(np.max(np.abs(exp_v))),
+                    err_msg=msg,
+                )
+                np.testing.assert_allclose(
+                    states,
+                    exp_s,
+                    rtol=0,
+                    atol=phase_tolerance * float(np.max(np.abs(exp_s))),
+                    err_msg=f"states {msg}",
+                )
 
     @pytest.mark.backend_mutation
     def test_wake_from_pole_residue_accepts_extra_scratch_rows(self) -> None:
@@ -4066,6 +4452,20 @@ class TestSpecials(BLonDTestCase):
                     f"in the persisted state ({special=} {gap_bins=})",
                 )
 
+    @contextlib.contextmanager
+    def _expect_precision_warning(self, in_dtype):
+        """Assert a `PrecisionWarning` for complex -> float casts only."""
+        if not np.issubdtype(in_dtype, np.complexfloating):
+            yield
+            return
+        # The cast also emits NumPy's ComplexWarning; record both.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            yield
+        self.assertTrue(
+            any(issubclass(w.category, PrecisionWarning) for w in caught)
+        )
+
     @multi_backend_testcase("Numpy64Bit")
     @pytest.mark.backend_mutation
     def test_cast_float_arr_np_only(self):
@@ -4084,7 +4484,10 @@ class TestSpecials(BLonDTestCase):
             np.complex64,
             np.complex128,
         ):
-            cast = backend.cast_arr_float_if_needed(target.astype(in_dtype))
+            with self._expect_precision_warning(in_dtype):
+                cast = backend.cast_arr_float_if_needed(
+                    target.astype(in_dtype)
+                )
             self.assertTrue(cast.dtype == backend.float)
             self.assertIsInstance(cast, backend.ndarray)
             np.testing.assert_array_equal(cast, target)
@@ -4124,7 +4527,8 @@ class TestSpecials(BLonDTestCase):
             # transferring back and forth between cupy and numpy.
             target = backend.array([1, 2, 3], dtype=backend.float)
             to_cast = target.astype(in_dtype)
-            cast = backend.cast_arr_float_if_needed(to_cast)
+            with self._expect_precision_warning(in_dtype):
+                cast = backend.cast_arr_float_if_needed(to_cast)
             self.assertTrue(cast.dtype == backend.float)
             self.assertIsInstance(cast, backend.ndarray)
 
@@ -4155,7 +4559,11 @@ class TestSpecials(BLonDTestCase):
             np.complex64,
             np.complex128,
         ):
-            cast = backend.cast_arr_complex_if_needed(target.astype(in_dtype))
+            # Discard the (zero) imaginary part explicitly, as the cupy
+            # variant of this test does, instead of a lossy astype.
+            cast = backend.cast_arr_complex_if_needed(
+                target.real.astype(in_dtype)
+            )
             self.assertTrue(cast.dtype == backend.complex)
             self.assertIsInstance(cast, backend.ndarray)
             np.testing.assert_array_equal(cast, target)
@@ -4671,10 +5079,16 @@ class TestSpecials(BLonDTestCase):
     @multi_backend_testcase
     @pytest.mark.backend_mutation
     def test_cast_exceptions(self):
-        with self.assertRaises(ArrayCastingError):
+        with (
+            self.assertRaises(ArrayCastingError),
+            self.assertWarns(PrecisionWarning),
+        ):
             backend.cast_arr_float_if_needed(["a", "b", "c"])
 
-        with self.assertRaises(ArrayCastingError):
+        with (
+            self.assertRaises(ArrayCastingError),
+            self.assertWarns(PrecisionWarning),
+        ):
             backend.cast_arr_float_if_needed({1, 2, 3})
 
         with self.assertRaises(ArrayCastingError):
@@ -4793,3 +5207,38 @@ class TestCppGetLen(BLonDTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCastPrecisionWarning(BLonDTestCase):
+    """`PrecisionWarning` only for casts that can lose information."""
+
+    def _precision_warnings(self, function):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            function()
+        return [
+            warning
+            for warning in caught
+            if issubclass(warning.category, PrecisionWarning)
+        ]
+
+    def test_lossless_casts_do_not_warn(self):
+        for cast, values in (
+            (backend.cast_arr_float_if_needed, np.array([1, 2], np.int64)),
+            (backend.cast_arr_float_if_needed, [1, 2]),
+            (backend.cast_arr_complex_if_needed, np.array([1, 2], np.int64)),
+            (backend.cast_arr_complex_if_needed, np.array([1.0, 2.0])),
+        ):
+            # repr: xdist must serialise subTest params (no ndarrays)
+            with self.subTest(cast=cast.__name__, values=repr(values)):
+                self.assertEqual(
+                    self._precision_warnings(lambda: cast(values)), []
+                )
+
+    def test_lossy_cast_warns_at_the_caller(self):
+        values = np.array([1 + 1j, 2 + 0j], dtype=np.complex128)
+        caught = self._precision_warnings(
+            lambda: backend.cast_arr_float_if_needed(values)
+        )
+        self.assertEqual(len(caught), 1)
+        self.assertEqual(caught[0].filename, __file__)

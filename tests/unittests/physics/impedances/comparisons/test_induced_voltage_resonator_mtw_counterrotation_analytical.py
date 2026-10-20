@@ -293,7 +293,8 @@ class TestInducedVoltageResonatorPhysics(BLonDTestCase):
                 # Both solvers apply the same bin-averaged wake, the
                 # convolution solver as a kernel, the pole solver as a
                 # far-field recursion plus three near taps; they agree to
-                # round-off. The atol only rescues the near-zero bins.
+                # round-off (max deviation 1.1e-13 of the peak). Relative to
+                # the peak, since the near-zero bins have no useful rtol.
                 scale = np.max(
                     np.abs(
                         cav_obs_list_pole[inter_turn_ind].induced_voltage[
@@ -304,8 +305,8 @@ class TestInducedVoltageResonatorPhysics(BLonDTestCase):
                 np.testing.assert_allclose(
                     cav_obs_list_conv[inter_turn_ind].induced_voltage[trn_ind],
                     cav_obs_list_pole[inter_turn_ind].induced_voltage[trn_ind],
-                    atol=scale * 1e-9,
-                    rtol=1e-9,
+                    atol=scale * 1e-12,
+                    rtol=0,
                 )
 
     @pytest.mark.backend_mutation

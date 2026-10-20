@@ -12,7 +12,10 @@ def _():
 
     import marimo as mo
     import sympy as sp
-    from algebra_with_sympy import Eqn
+
+    def Eqn(lhs, rhs):
+        """Equation shown as written: lhs = rhs, never evaluated to True."""
+        return sp.Eq(lhs, rhs, evaluate=False)
 
     class key:
         """Marks a central result: step() draws a frame around it."""

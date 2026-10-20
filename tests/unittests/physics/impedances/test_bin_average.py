@@ -17,6 +17,7 @@ Simon Lauber
 
 import traceback
 import unittest
+from unittest import mock
 
 import mpmath as mp
 import numpy as np
@@ -24,6 +25,7 @@ import pytest
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.physics.impedances import bin_average
 from blond.physics.impedances.bin_average import (
     triple_box_average_pole,
     triple_box_average_poles,
@@ -408,6 +410,152 @@ class TestTripleBoxAverageSumRule(BLonDTestCase):
                         expected,
                         delta=1e-10 * pair_factor * abs(residue / pole),
                     )
+
+
+class TestTripleBoxAverageLongGrid(BLonDTestCase):
+    """On a long grid only the bins next to the onset need the near branch.
+
+    The near branch (four third antiderivatives, each a 19-step Horner
+    loop) is nonzero only for ``-1.5 * dt < t <= 1.5 * dt``. Evaluating it
+    on every bin made the one-time wake setup of a full SPS turn (~6e5
+    bins, ~250 poles) take minutes.
+    """
+
+    def setUp(self):
+        self.dt = 1e-10  # [s]
+        # Starts well before -1.5 * dt, so bins exist where the near
+        # branch is zero but the clamped far branch is not.
+        self.time = backend.array(
+            (np.arange(20_000) - 50) * self.dt, dtype=backend.float
+        )
+        self.poles = backend.array(
+            [-3e9 + 0.0j, -2e8 + 4e9j, -5e6 + 7e8j], dtype=backend.complex
+        )
+        self.residues = backend.array(
+            [2.5e3 + 0.0j, 1.0e4 - 3.0e3j, -7.0e2 + 2.0e2j],
+            dtype=backend.complex,
+        )
+
+    def test_near_branch_only_evaluated_next_to_the_onset(self):
+        """The near branch sees only the few bins around ``t = 0``."""
+        with mock.patch.object(
+            bin_average,
+            "causal_third_antiderivative_factor",
+            wraps=bin_average.causal_third_antiderivative_factor,
+        ) as phi_3:
+            bin_average.triple_box_average_poles(
+                self.time, self.poles, self.residues, self.dt
+            )
+        largest_call = max(len(call.args[0]) for call in phi_3.call_args_list)
+        # -1.5 * dt < t <= 1.5 * dt holds for three bins of this grid.
+        self.assertLessEqual(largest_call, 3)
+
+    def test_matches_full_array_evaluation(self):
+        """The windowed sum equals the per-pole full-array evaluation."""
+        expected = np.zeros(len(self.time))
+        for pole_i in range(len(self.poles)):
+            expected += copy_to_cpu(
+                triple_box_average_pole(
+                    self.time,
+                    self.poles[pole_i : pole_i + 1],
+                    self.residues[pole_i : pole_i + 1],
+                    self.dt,
+                )
+            )
+        result = copy_to_cpu(
+            triple_box_average_poles(
+                self.time, self.poles, self.residues, self.dt
+            )
+        )
+        np.testing.assert_allclose(result, expected, rtol=1e-14, atol=0.0)
+        # Before the kernel's support the wake is exactly zero.
+        np.testing.assert_array_equal(result[:49], 0.0)
+
+
+class TestTripleBoxAverageShortGridAllPolesAtOnce(BLonDTestCase):
+    """On a short grid all poles are evaluated in one broadcast call.
+
+    Each call of `triple_box_average_pole` is a few hundred small array
+    operations -- on a GPU, a few hundred kernel launches. Walking the
+    poles one by one made the per-turn near taps of a few hundred poles
+    cost a second per turn on the GPU.
+    """
+
+    def setUp(self):
+        self.dt = 1e-10  # [s]
+        self.time = backend.array(
+            (np.arange(512) - 50) * self.dt, dtype=backend.float
+        )
+        rng = np.random.default_rng(11)
+        n_poles = 50
+        is_real = np.arange(n_poles) % 4 == 1
+        self.poles = backend.array(
+            -rng.uniform(1e6, 5e9, n_poles)
+            + 1j * np.where(is_real, 0.0, rng.uniform(1e8, 9e9, n_poles)),
+            dtype=backend.complex,
+        )
+        self.residues = backend.array(
+            rng.normal(size=n_poles)
+            + 1j * np.where(is_real, 0.0, rng.normal(size=n_poles)),
+            dtype=backend.complex,
+        )
+
+    def _per_pole_sum(self) -> np.ndarray:
+        expected = np.zeros(len(self.time))
+        for pole_i in range(len(self.poles)):
+            expected += copy_to_cpu(
+                triple_box_average_pole(
+                    self.time,
+                    self.poles[pole_i : pole_i + 1],
+                    self.residues[pole_i : pole_i + 1],
+                    self.dt,
+                )
+            )
+        return expected
+
+    def test_poles_evaluated_in_one_call(self):
+        with mock.patch.object(
+            bin_average,
+            "triple_box_average_pole",
+            wraps=bin_average.triple_box_average_pole,
+        ) as single_pole:
+            bin_average.triple_box_average_poles(
+                self.time, self.poles, self.residues, self.dt
+            )
+        self.assertEqual(single_pole.call_count, 1)
+
+    def test_matches_per_pole_sum(self):
+        expected = self._per_pole_sum()
+        result = copy_to_cpu(
+            triple_box_average_poles(
+                self.time, self.poles, self.residues, self.dt
+            )
+        )
+        np.testing.assert_allclose(
+            result, expected, rtol=1e-13, atol=1e-13 * np.abs(expected).max()
+        )
+
+    def test_poles_batched_to_bound_memory(self):
+        """Batches of poles keep the broadcast array small."""
+        expected = self._per_pole_sum()
+        # room for 7 poles of 512 lags per batch: 8 batches for 50 poles
+        with (
+            mock.patch.object(bin_average, "_MAX_BROADCAST_ELEMENTS", 7 * 512),
+            mock.patch.object(
+                bin_average,
+                "triple_box_average_pole",
+                wraps=bin_average.triple_box_average_pole,
+            ) as single_pole,
+        ):
+            result = copy_to_cpu(
+                bin_average.triple_box_average_poles(
+                    self.time, self.poles, self.residues, self.dt
+                )
+            )
+        self.assertEqual(single_pole.call_count, 8)
+        np.testing.assert_allclose(
+            result, expected, rtol=1e-13, atol=1e-13 * np.abs(expected).max()
+        )
 
 
 class TestTripleBoxAverageStaysOnTheDevice(BLonDTestCase):
