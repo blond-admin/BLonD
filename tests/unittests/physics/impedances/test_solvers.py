@@ -3698,9 +3698,9 @@ class TestIsFarFieldPole(BLonDTestCase):
     """The far-field selection evaluates all poles' near taps at once."""
 
     def setUp(self) -> None:
-        from blond.physics.impedances import solvers
+        from blond.physics.impedances.multipole import model as pole_model
 
-        self.solvers = solvers
+        self.pole_model = pole_model
         bin_dt = 1e-10
         rng = np.random.default_rng(5)
         n_poles = 40
@@ -3716,7 +3716,7 @@ class TestIsFarFieldPole(BLonDTestCase):
         poles = backend.array(poles, dtype=backend.complex)
         residues = backend.array(residues, dtype=backend.complex)
         pole_dt = poles * bin_dt
-        self.model = solvers._PoleModel(
+        self.model = pole_model._PoleModel(
             poles=poles,
             residues=residues,
             counterrotating_pole_signs=backend.ones(n_poles),
@@ -3766,15 +3766,15 @@ class TestIsFarFieldPole(BLonDTestCase):
         # the case is only meaningful if it keeps some poles and drops some
         self.assertTrue(expected.any())
         self.assertFalse(expected.all())
-        result = self.solvers._is_far_field_pole(self.model, self.tolerance)
+        result = self.pole_model._is_far_field_pole(self.model, self.tolerance)
         np.testing.assert_array_equal(result, expected)
 
     def test_near_taps_of_all_poles_in_two_calls(self) -> None:
         with patch.object(
-            self.solvers,
+            self.pole_model,
             "triple_box_average_pole",
-            wraps=self.solvers.triple_box_average_pole,
+            wraps=self.pole_model.triple_box_average_pole,
         ) as single_pole:
-            self.solvers._is_far_field_pole(self.model, self.tolerance)
+            self.pole_model._is_far_field_pole(self.model, self.tolerance)
         # in phase and in quadrature, each for every pole at once
         self.assertEqual(single_pole.call_count, 2)

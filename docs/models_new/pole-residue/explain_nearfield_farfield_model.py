@@ -1008,10 +1008,10 @@ def _(mo):
     >
     > Cost $\mathcal O(1)$ per bin and pole; sum over all poles at the end.
 
-    In BLonD, steps 5–7 are `wake_from_pole_residue` with
-    `STATE_LAG_BINS = 2`; the shipped kernel folds the conjugate-pair factor
-    2 into the injected charge instead of the readout — same product — and
-    injects a real pole undoubled.
+    In BLonD, steps 5–7 are `Specials.wake_from_pole_residue`, which reads
+    every bin out two bins behind its own time; the shipped kernel folds the
+    conjugate-pair factor 2 into the injected charge instead of the readout
+    — same product — and injects a real pole undoubled.
 
     **Why let the state lag, rather than reference it at $t_i$?**
     Referencing at $t_i$ leaves the recursion itself benign — decay $z$,
@@ -1086,10 +1086,10 @@ def _(mo):
     * $q_{i}\, \overline W(0)$ — the bin's own charge,
     * $q_{i+1}\, \overline W(-\Delta t)$ — the non-causal tap of section 2.
 
-    In `MultiPoleSparseSolve` these are `_lag_prev_factors`,
-    `_lag_zero_factor` and `_lag_next_factors`, tabulated once at setup
-    (`_setup_near_field_kernel`) and applied as three shifted multiply-adds
-    per turn (`_add_near_field_voltage`). The figure below shows the whole
+    In `MultiPoleSparseSolve` these are `_PoleModel.taps`, tabulated once
+    at the first call (`_initialise`) and applied as three shifted
+    multiply-adds per call (`calc_induced_voltage`, or the
+    `pole_near_field` kernel where the backend provides one). The figure below shows the whole
     story in one frame: one function, two regimes.
     """)
     return
@@ -1297,8 +1297,8 @@ def _(mo):
     of a profile the partner bin lies outside the current call: its tap is
     dropped there, and the mirror contribution across a turn boundary is
     handed over at the true (generally fractional) lag by the solver's carry
-    logic (`_carry_previous_call`, `_trailing_tap`) — a one-bin edge effect,
-    absent for a profile padded with empty bins.
+    logic (`_Carry`, `_carried_wake`) — a one-bin edge effect, absent for a
+    profile padded with empty bins.
 
     **Floating point.** Two forms of one function are used on purpose — (4.1)
     across the onset, (4.3) beyond it; section 4's measurement shows the
@@ -1501,23 +1501,23 @@ def _(mo):
 
     | this note | code |
     |---|---|
-    | $p$, $\rho$ of a resonator (Recipe 1) | `Resonators.get_vectorfit`, `Resonators._wake_per_bin` — `blond/physics/impedances/sources.py` |
+    | $p$, $\rho$ of a resonator (Recipe 1) | `Resonators.get_vectorfit` — `blond/physics/impedances/sources.py`; `ResonatorsWakePerBin._wake_per_bin` — `blond/physics/impedances/wake_per_bin/sources.py` |
     | $B_2$ (2.2) | `quadratic_bspline` — `blond/physics/impedances/bin_average.py` |
     | $\varphi_3$ (4.2), series form for $\lvert p\tau\rvert < 1$ | `causal_third_antiderivative_factor` — ibid. |
     | far form (4.3) | `_smoothed_pole` — ibid. |
     | Recipe 2 complete | `triple_box_average_pole(s)` — ibid.; exposed as `Resonators.get_wake_per_bin` |
     | $Z_\mathrm{eff}$ (3.1), loss-factor numbers | table (b) of section 3 (without the histogram sinc); docstring of `bin_average.py` |
-    | recursion (Recipe 3, steps 5–7) | `Specials.wake_from_pole_residue`, one implementation per backend; `STATE_LAG_BINS` — `blond/core/backends/backend.py` |
-    | $\rho_\mathrm{rec}$, initial $S$ (steps 2, 4) | `MultiPoleSparseSolve._setup_far_field_recursion` — `blond/physics/impedances/solvers.py` |
-    | three near-field taps (steps 3, 8) | `MultiPoleSparseSolve._setup_near_field_kernel`, `_add_near_field_voltage` |
-    | turn-boundary / fractional-lag hand-over (section 7) | `MultiPoleSparseSolve._carry_previous_call`, `_trailing_tap`, `_inject_off_grid_carry` |
+    | recursion (Recipe 3, steps 5–7) | `Specials.wake_from_pole_residue`, one implementation per backend — `blond/core/backends/` |
+    | $\rho_\mathrm{rec}$, initial $S$ (steps 2, 4) | `_PoleModel.tail_residues` — `blond/physics/impedances/multipole/model.py`; `MultiPoleSparseSolve._initialise` — `blond/physics/impedances/multipole/solver.py` |
+    | three near-field taps (steps 3, 8) | `_PoleModel.taps`; `MultiPoleSparseSolve.calc_induced_voltage` |
+    | turn-boundary / fractional-lag hand-over (section 7) | `_Carry`; `MultiPoleSparseSolve._carried_lag_since_previous_call`, `_carried_wake` |
 
     Not covered here, because it is bookkeeping on the same mathematics
     rather than new mathematics: sparse profiles with gaps, the hand-over
     between calls a fraction of a bin apart, and counter-rotating beams. The
     recursion state is referenced by *time* (the emission clock), so all of
     these reduce to choosing the right decay intervals and injection
-    instants; the solver docstrings in `solvers.py` spell them out.
+    instants; the solver docstrings in `multipole/solver.py` spell them out.
 
     The other time-domain solvers (`SingleTurnResonatorConvolutionSolver`,
     `MultiPassResonatorSolver`, `ContinuousMultiTurnTimeDomainSolver`)

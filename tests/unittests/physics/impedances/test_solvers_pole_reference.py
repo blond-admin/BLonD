@@ -1181,7 +1181,7 @@ class TestCarriedLag(BLonDTestCase):
         # the onset only the one call that builds the near-field taps may
         # reach it.
         with mock.patch(
-            "blond.physics.impedances.solvers.triple_box_average_poles",
+            "blond.physics.impedances.multipole.solver.triple_box_average_poles",
             wraps=triple_box_average_poles,
         ) as spied:
             _run_fractional_call_gap_case(2.0, n_calls=4)
