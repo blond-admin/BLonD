@@ -782,10 +782,20 @@ class WakeField(ImpedanceBaseClass, SupportsPooledInterpolationKickMixIn):
 class _VectorFitFields(NamedTuple):
     """The fields of `VectorFit`, see there."""
 
+    # Documented here rather than in an "Attributes" section of `VectorFit`:
+    # autodoc already lists the fields as members, so the section would
+    # describe each one twice and fail the doc build.
+    #: Complex poles :math:`p_k`, in [rad/s].
     poles: NumpyArray
+    #: Complex residues :math:`\rho_k`, in [Ohm/s].
     residues: NumpyArray
+    #: Signs of the poles to deal with higher order oscillators in
+    #: counterrotation, ``1`` for none.
     counterrotation_signs: NumpyArray
+    #: Constant term :math:`d`, in [Ohm].
     direct_term: float = 0.0
+    #: Inductive term :math:`e`, i.e. the inductance :math:`L` in
+    #: :math:`Z = 2\pi i f L`, in [Ohm s].
     inductive_term: float = 0.0
 
 
@@ -802,21 +812,6 @@ class VectorFit(_VectorFitFields):
     The arrays are host (NumPy) arrays on every backend: the fit describes
     the model, which a solver builds once and then moves to the device
     whatever it tracks with. Device (CuPy) arrays are rejected.
-
-    Attributes
-    ----------
-    poles
-        Complex poles :math:`p_k`, in [rad/s].
-    residues
-        Complex residues :math:`\rho_k`, in [Ohm/s].
-    counterrotation_signs
-        Signs of the poles to deal with higher order oscillators
-        in counterrotation, ``1`` for none.
-    direct_term
-        Constant term :math:`d`, in [Ohm].
-    inductive_term
-        Inductive term :math:`e`, i.e. the inductance :math:`L` in
-        :math:`Z = 2\pi i f L`, in [Ohm s].
     """
 
     __slots__ = ()
