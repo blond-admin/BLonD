@@ -141,6 +141,9 @@ def reference_pole_voltage(
     """
     times = copy_to_cpu(profile_hist_x)
     charges = copy_to_cpu(profile_hist_y) * factor
+    # A vector fit holds host arrays; the kernel takes backend arrays.
+    poles = backend.array(poles, dtype=backend.complex)
+    residues = backend.array(residues, dtype=backend.complex)
     voltage = np.zeros(len(times))
     for i, t_obs in enumerate(times):
         lags = t_obs - times
@@ -1014,7 +1017,10 @@ def _run_two_beam_shared_solver(call_gaps, n_calls=6, beam_order=(0, 1)):
     self_hist_x = copy_to_cpu(profile.hist_x)
     span_dt = (n_bins_profile - 1) * bin_dt
     poles, residues, pole_signs, *_ = source.get_vectorfit()
-    counter_rotating_sign = float(copy_to_cpu(pole_signs)[0])
+    counter_rotating_sign = float(pole_signs[0])
+    # A vector fit holds host arrays; the kernel takes backend arrays.
+    poles = backend.array(poles, dtype=backend.complex)
+    residues = backend.array(residues, dtype=backend.complex)
 
     # The tracked turn is the sequence's first call, by the co-rotating
     # beam, at whatever time it happened.
@@ -1181,7 +1187,7 @@ class TestCarriedLag(BLonDTestCase):
         # the onset only the one call that builds the near-field taps may
         # reach it.
         with mock.patch(
-            "blond.physics.impedances.solvers.triple_box_average_poles",
+            "blond.physics.impedances.multipole.solver.triple_box_average_poles",
             wraps=triple_box_average_poles,
         ) as spied:
             _run_fractional_call_gap_case(2.0, n_calls=4)
@@ -1257,16 +1263,15 @@ class _PoleResidueSource(WakeFieldSource, SupportsVectorFittedModel):
 
     def __init__(self, poles, residues):
         super().__init__(is_dynamic=False)
-        # Backend arrays, as `Resonators.get_vectorfit` returns: the
-        # reference convolution feeds them to backend kernels.
-        self._poles = backend.array(poles, dtype=backend.complex)
-        self._residues = backend.array(residues, dtype=backend.complex)
+        # Host arrays, as `VectorFit` requires on every backend.
+        self._poles = np.asarray(copy_to_cpu(poles), dtype=complex)
+        self._residues = np.asarray(copy_to_cpu(residues), dtype=complex)
 
     def get_vectorfit(self):
         return (
             self._poles,
             self._residues,
-            backend.ones(len(self._poles), dtype=backend.float),
+            np.ones(len(self._poles)),
         )
 
 
