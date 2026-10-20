@@ -641,6 +641,75 @@ class TestImpedanceTableTime(BLonDTestCase):
         np.testing.assert_allclose(literal, np.array([3.5]))
         np.testing.assert_allclose(default, np.array([7.0]))
 
+    def test_get_wake_single_point_literal_table_is_causal(self):
+        """A one-sample table has no first spacing to place the onset by.
+
+        It is still causal: zero below the sample, the sample above it.
+        """
+        literal_table = ImpedanceTableTime(
+            wake_x=backend.array(np.array([0.0])),
+            wake_y=backend.array(np.array([7.0])),
+            first_sample_is_half_jump=False,
+        )
+        query = backend.array(np.array([-1e-11, 1e-11]))
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wake = copy_to_cpu(literal_table.get_wake(query))
+
+        np.testing.assert_allclose(wake, np.array([0.0, 7.0]))
+
+    def test_get_wake_per_bin_repeated_onset_time_is_an_explicit_jump(self):
+        """A table may spell the causal jump as two samples at one time.
+
+        ``wake_x = [0, 0, dt, ...]`` states the right limit at the onset
+        directly in ``wake_y[1]``, so the bin average must integrate a
+        jump to ``wake_y[1]`` and ignore the half-jump reading of
+        ``wake_y[0]``. The reference integrates that model against the
+        quadratic B-spline numerically, with the midpoint rule so that no
+        sample sits on the jump.
+        """
+        bin_step = 1e-11
+        wake_x = np.array([0.0, 0.0, 1.0, 2.0, 3.0, 4.0]) * bin_step
+        wake_y = np.array([7.0, 6.0, 5.0, 4.0, 3.0, 2.0])
+        table = ImpedanceTableTime(
+            wake_x=backend.array(wake_x), wake_y=backend.array(wake_y)
+        )
+        query = np.arange(-1, 4) * bin_step
+
+        n_steps = 300_000
+        offset_step = 3.0 / n_steps  # [bins]
+        offsets = -1.5 + (np.arange(n_steps) + 0.5) * offset_step
+        distance = np.abs(offsets)
+        bspline = np.where(
+            distance < 0.5,
+            0.75 - distance**2,
+            np.where(distance < 1.5, 0.5 * (1.5 - distance) ** 2, 0.0),
+        )
+        expected = np.array(
+            [
+                np.sum(
+                    np.interp(
+                        bin_centre + offsets * bin_step,
+                        wake_x[1:],
+                        wake_y[1:],
+                        left=0.0,
+                    )
+                    * bspline
+                )
+                * offset_step
+                for bin_centre in query
+            ]
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wake_per_bin = copy_to_cpu(
+                table.get_wake_per_bin(backend.array(query))
+            )
+
+        np.testing.assert_allclose(wake_per_bin, expected, atol=1e-6)
+
 
 class TestInductiveImpedance(BLonDTestCase):
     def setUp(self):
@@ -650,6 +719,11 @@ class TestInductiveImpedance(BLonDTestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_get_wake_is_not_provided(self):
+        """An inductive impedance has no point-charge wake to sample."""
+        with self.assertRaisesRegex(NotImplementedError, "InductiveImpedance"):
+            self.inductive_impedance.get_wake(backend.linspace(0, 1e-9, 8))
 
     def test_get_freq_y(self):
         simulation = Mock(Simulation)
@@ -952,6 +1026,13 @@ class TestResonators(BLonDTestCase):
         co = copy_to_cpu(res.get_wake_per_bin(time))
         cr = copy_to_cpu(res.get_wake_per_bin_counter_rotation(time))
         np.testing.assert_allclose(co, -cr, atol=1e-12 * np.max(np.abs(co)))
+
+    def test_get_wake_per_bin_counter_rotation_needs_shunt_impedances(self):
+        """Without counter-rotating shunts there is no wake to average."""
+        res = Resonators(np.array([1.0]), np.array([1e9]), np.array([5.0]))
+        time = backend.array(np.arange(8) * 0.05e-9)
+        with self.assertRaisesRegex(RuntimeError, "needs to be set"):
+            res.get_wake_per_bin_counter_rotation(time)
 
     def test_get_wake_per_bin_is_exact_bin_average(self):
         """The closed form equals a fine numerical B-spline average.
