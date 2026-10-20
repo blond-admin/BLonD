@@ -23,6 +23,7 @@ from blond import (
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     _POTENTIAL_WELL_OVERSAMPLING,
     SemiEmpiricMatcher,
+    _curvature_at_minimum,
     get_grid_correction_from_one_turn_map,
     get_hamilton_semi_analytic,
     get_one_turn_map_empiric,
@@ -612,6 +613,56 @@ class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
             "not linearly stable", (0, 1), voltage=30e9
         )
 
+    def test_energy_scale_from_analytic_well_on_coarse_grid(self):
+        # The curvature of the well must be estimated well below the
+        # O(mu**2) energy scale it corrects, also on a coarse grid. An
+        # analytic well keeps the normalisation of the empiric one out.
+        voltage, harmonic, n_grid = 6e6, 35640, 128 - 1
+        simulation, beam = _lhc_kick_then_drift(voltage=voltage)
+        beam.reference.total_energy = (
+            simulation.magnetic_cycle.get_total_energy_init(
+                particle_type=proton
+            )
+        )
+        t_rev = simulation.magnetic_cycle.get_t_rev_init(
+            simulation.ring.circumference, particle_type=proton
+        )
+        omega_rf = 2 * np.pi * harmonic / t_rev
+        ts = np.linspace(
+            0,
+            2 * np.pi / omega_rf,
+            (n_grid - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
+        )
+        # -integral(kick dt) / t_rev for the kick voltage * sin(omega_rf t)
+        potential_well = voltage * np.cos(omega_rf * ts) / (omega_rf * t_rev)
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
+        drift_term = abs(eta) / (
+            beam.reference.beta**2 * beam.reference.total_energy
+        )
+        matcher = SemiEmpiricMatcher(
+            time_limit=(ts.min(), ts.max()),
+            n_macroparticles=1e3,
+            hamilton_to_density_kwargs={},
+            internal_grid_shape=(n_grid, n_grid),
+            verbose=False,
+            correct_to_one_turn_map=True,
+        )
+
+        _, deltaE_scale = matcher._measure_grid_correction(
+            beam=beam,
+            simulation=simulation,
+            ts=ts,
+            potential_well=potential_well,
+            eta=eta,
+            deltaE_max=float(
+                np.sqrt(np.ptp(potential_well) / (0.5 * drift_term))
+            ),
+        )
+
+        drift_times_kick = t_rev * drift_term * voltage * omega_rf
+        mu = np.arccos(1 - drift_times_kick / 2)
+        np.testing.assert_allclose(deltaE_scale, 1 / np.cos(mu / 2), rtol=1e-5)
+
 
 class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
     """Wiring of the frozen-beam ``warmup`` into the matcher iteration."""
@@ -782,14 +833,59 @@ class TestSemiEmpiricMatcherStagnation(BLonDTestCase):
         best_potential_well = copy_to_cpu(
             rematch_spy.call_args.kwargs["avg_potential_well"]
         )
+        # the correction is measured on the oversampled potential well
         (best_correction,) = (
             grid_correction
             for potential_well, grid_correction in measurements
-            if np.allclose(potential_well, best_potential_well, rtol=1e-12)
+            if np.allclose(
+                potential_well[::_POTENTIAL_WELL_OVERSAMPLING],
+                best_potential_well,
+                rtol=1e-12,
+            )
         )
         self.assertNotEqual(best_correction, measurements[-1][1])
         # the rollback populates the beam last
         self.assertEqual(applied_corrections[-1], best_correction)
+
+
+class TestCurvatureAtMinimum(BLonDTestCase):
+    rf_period = 2.5e-9  # [s]
+    n_grid = 128 - 1  # coarse grid of the matcher
+
+    def _cosine_well(self):
+        ts = np.linspace(
+            0,
+            self.rf_period,
+            (self.n_grid - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
+        )
+        omega_rf = 2 * np.pi / self.rf_period
+        return ts, np.cos(omega_rf * ts), omega_rf
+
+    def test_quartic_term_does_not_bias_curvature(self):
+        ts, potential_well, omega_rf = self._cosine_well()
+        coarse_step = self.rf_period / (self.n_grid - 1)
+
+        curvature = _curvature_at_minimum(
+            ts=ts, potential_well=potential_well, half_width=3 * coarse_step
+        )
+
+        # V'' = omega_rf**2 at the minimum, omega_rf * t = pi. A parabola
+        # over the same width is off by 1.6e-3.
+        np.testing.assert_allclose(curvature, omega_rf**2, rtol=1e-5)
+
+    def test_minimum_at_edge_of_window(self):
+        ts, potential_well, omega_rf = self._cosine_well()
+        coarse_step = self.rf_period / (self.n_grid - 1)
+        before_minimum = ts <= 0.5 * self.rf_period
+
+        curvature = _curvature_at_minimum(
+            ts=ts[before_minimum],
+            potential_well=potential_well[before_minimum],
+            half_width=3 * coarse_step,
+        )
+
+        # one-sided fit, still the curvature of the well
+        np.testing.assert_allclose(curvature, omega_rf**2, rtol=1e-3)
 
 
 class TestCallables(BLonDTestCase):

@@ -335,6 +335,43 @@ def get_grid_correction_from_one_turn_map(
     return float(shear_dt_per_dE), float(gamma_twiss * beta_hamiltonian)
 
 
+def _curvature_at_minimum(
+    ts: NumpyArray,
+    potential_well: NumpyArray,
+    half_width: float,
+) -> float:
+    """Second derivative of ``potential_well`` at its minimum, in [eV/s^2].
+
+    Fits a quartic to all points within ``half_width`` of the minimum. A
+    parabola over the same window would absorb the quartic term of the
+    well into the curvature, an error of order
+    :math:`(\\omega_\\mathrm{rf}\\,\\mathrm{half\\_width})^2`. A window of
+    fixed width in time, instead of a fixed number of points, keeps the fit
+    smooth over kinks of a finely sampled well, e.g. from interpolated wake
+    voltages.
+
+    Parameters
+    ----------
+    ts
+        Time coordinates of ``potential_well``, in [s].
+    potential_well
+        Potential well, on the host.
+    half_width
+        Half width of the fit window around the minimum, in [s].
+
+    Returns
+    -------
+    curvature
+        :math:`V''(t)` at the minimum.
+    """
+    i_min = int(np.argmin(potential_well))
+    # normalised, so that the fit stays well-conditioned
+    x = (ts - ts[i_min]) / half_width
+    in_window = np.abs(x) <= 1
+    coefficients = np.polyfit(x[in_window], potential_well[in_window], 4)
+    return float(2 * coefficients[2] / half_width**2)
+
+
 class DebuggingEndpoints:
     """
     Helper to expose variables when debugging `SemiEmpiricMatcher`.
@@ -609,6 +646,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         # For error calculation and plotting during `prepare_beam`
         self._last_potential_well: NumpyArray | CupyArray | None = None
         self._prelast_potential_well: NumpyArray | CupyArray | None = None
+        # The same before down-sampling to ts, for `_measure_grid_correction`
+        self._last_potential_well_oversampled: (
+            NumpyArray | CupyArray | None
+        ) = None
         self.debug_helper: DebuggingEndpoints | None = None
 
         # Can be potentially replaced like `hamilton_to_density_function`,
@@ -1004,30 +1045,32 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         """
         assert simulation.turn_counter.value == 0
-        potential_well, factor, tilt_dt_per_dE = (
+        # Fine grid with dt[::_POTENTIAL_WELL_OVERSAMPLING] == ts (up to
+        # rounding), so the down-sampled potential well below is evaluated
+        # at ts. ts has len(ts) - 1 intervals; splitting each into
+        # _POTENTIAL_WELL_OVERSAMPLING needs
+        # (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1 points.
+        # len(ts) * _POTENTIAL_WELL_OVERSAMPLING points would put the
+        # down-sampled points off ts, shifting the well to later times by up
+        # to one grid step of ts.
+        ts_oversampled = np.linspace(
+            ts.min(),
+            ts.max(),
+            (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
+        )
+        potential_well_oversampled, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
-                # Fine grid with dt[::_POTENTIAL_WELL_OVERSAMPLING] == ts
-                # (up to rounding), so the down-sampled potential well
-                # below is evaluated at ts. ts has len(ts) - 1 intervals;
-                # splitting each into _POTENTIAL_WELL_OVERSAMPLING needs
-                # (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1 points.
-                # len(ts) * _POTENTIAL_WELL_OVERSAMPLING points would put
-                # the down-sampled points off ts, shifting the well to
-                # later times by up to one grid step of ts.
-                dt=np.linspace(
-                    ts.min(),
-                    ts.max(),
-                    (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
-                ),
+                dt=ts_oversampled,
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
                 until_section_index=self.until_section_index,
             )
         )
-        # back on ts, see the construction of dt above
+        # back on ts, see the construction of ts_oversampled above
         potential_well = (
-            potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
+            potential_well_oversampled[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
+        potential_well_oversampled = potential_well_oversampled * factor
 
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
@@ -1046,12 +1089,21 @@ class SemiEmpiricMatcher(MatchingRoutine):
             eta=eta,
             shape=self.internal_grid_shape,
         )
+        # averaged like `avg_pot_well`, to which it down-samples
+        if self._last_potential_well_oversampled is None:
+            avg_pot_well_oversampled = potential_well_oversampled
+        else:
+            avg_pot_well_oversampled = (
+                potential_well_oversampled
+                + self._last_potential_well_oversampled
+            ) / 2
+        self._last_potential_well_oversampled = potential_well_oversampled
         if self.correct_to_one_turn_map:
             self._grid_correction = self._measure_grid_correction(
                 beam=beam,
                 simulation=simulation,
-                ts=ts,
-                potential_well=avg_pot_well,
+                ts=ts_oversampled,
+                potential_well=avg_pot_well_oversampled,
                 eta=eta,
                 deltaE_max=float(deltaE_grid.max()),
             )
@@ -1075,9 +1127,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
         simulation
             `Simulation` context manager.
         ts
-            Time coordinates of ``potential_well``, in [s].
+            Time coordinates of ``potential_well``, in [s], oversampled by
+            ``_POTENTIAL_WELL_OVERSAMPLING`` against the matcher grid.
         potential_well
-            Potential well that the Hamiltonian is built from.
+            Potential well that the Hamiltonian is built from, before
+            down-sampling to the matcher grid.
         eta
             Slippage factor of the analytic drift term.
         deltaE_max
@@ -1095,15 +1149,14 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts_cpu = copy_to_cpu(ts)
         potential_well_cpu = copy_to_cpu(potential_well)
         i_min = int(np.argmin(potential_well_cpu))
-        neighbours = slice(max(i_min - 3, 0), i_min + 4)
-        # V''(t) at the bucket centre, by a parabola through 7 points
-        curvature = (
-            2
-            * np.polyfit(
-                ts_cpu[neighbours] - ts_cpu[i_min],
-                potential_well_cpu[neighbours],
-                2,
-            )[0]
+        # step of the matcher grid
+        grid_step = float(ts_cpu[1] - ts_cpu[0]) * _POTENTIAL_WELL_OVERSAMPLING
+        # V''(t) at the bucket centre, fitted over 3 steps of the matcher
+        # grid on either side
+        curvature = _curvature_at_minimum(
+            ts=ts_cpu,
+            potential_well=potential_well_cpu,
+            half_width=3 * grid_step,
         )
         drift_term = abs(eta) / (
             beam.reference.beta**2 * beam.reference.total_energy
@@ -1129,7 +1182,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             intensity=beam.intensity,
             until_section_index=self.until_section_index,
         )
-        grid_step = float(ts_cpu[1] - ts_cpu[0])
         try:
             if abs(t_fixed - ts_cpu[i_min]) > 10 * grid_step:
                 raise SemiEmpiricMatcherError(
