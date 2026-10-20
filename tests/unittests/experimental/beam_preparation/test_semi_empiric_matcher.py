@@ -1,4 +1,6 @@
+import contextlib
 import doctest
+import io
 import unittest
 from unittest import mock
 
@@ -7,22 +9,36 @@ import numpy as np
 
 from blond import (
     Beam,
+    BeamStatisticsOncePerTurn,
+    ConstantMagneticCycle,
+    DriftSimple,
+    Ring,
     Simulation,
+    SingleHarmonicRFStation,
     WakeField,
     backend,
+    momentum_compaction_factor,
+    proton,
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    _POTENTIAL_WELL_OVERSAMPLING,
     SemiEmpiricMatcher,
+    get_grid_correction_from_one_turn_map,
     get_hamilton_semi_analytic,
+    get_one_turn_map_empiric,
 )
+from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.simulation import (
+    SimulationTwoRFStations,
+    SimulationTwoRFStationsWithWake,
+)
 
 
 class TestSemiEmpiricMatcher(BLonDTestCase):
     def test_roughly_correct_no_intensity_above_transition(self):
         # check if the mean and the 10% and 90% percentiles are correct
-        from blond.testing.simulation import SimulationTwoRFStations
 
         # pinned values
         expected_dt = {
@@ -95,7 +111,6 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
             )
 
     def test_roughly_correct_intensity_above_transition(self):
-        from blond.testing.simulation import SimulationTwoRFStationsWithWake
 
         sim = SimulationTwoRFStationsWithWake()
         wakefield = sim.simulation.ring.elements.get_element(WakeField)
@@ -168,7 +183,6 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
 
     def test_roughly_correct_no_intensity_below_transition(self):
         # check if the mean and the 10% and 90% percentiles are correct
-        from blond.testing.simulation import SimulationTwoRFStations
 
         # pinned values
         expected_dt = {
@@ -242,8 +256,6 @@ class TestSemiEmpiricMatcher(BLonDTestCase):
             )
 
     def test_roughly_correct_intensity_below_transition(self):
-        from blond.testing.simulation import SimulationTwoRFStationsWithWake
-
         sim = SimulationTwoRFStationsWithWake(below_transition_crossing=True)
         self._test_matching(sim, below_transition_crossing=True)
         DEV_PLOT = False
@@ -351,11 +363,6 @@ class TestSemiEmpiricMatcherPotentialWellGrid(BLonDTestCase):
         # down-sampled points must coincide with the matcher grid ``ts``,
         # otherwise the Hamiltonian is shifted in time and the matched
         # bunch performs a dipole oscillation.
-        from blond.experimental.beam_preparation.semi_empiric_matcher import (
-            _POTENTIAL_WELL_OVERSAMPLING,
-        )
-        from blond.testing.simulation import SimulationTwoRFStations
-
         sim = SimulationTwoRFStations()
         t_rev = sim.simulation.magnetic_cycle.get_t_rev_init(
             sim.simulation.ring.circumference,
@@ -398,15 +405,6 @@ class TestSemiEmpiricMatcherPotentialWellGrid(BLonDTestCase):
 
 def _lhc_kick_then_drift(voltage=6e6):
     """LHC at 450 GeV/c, one RF kick per turn followed by the whole drift."""
-    from blond import (
-        ConstantMagneticCycle,
-        DriftSimple,
-        Ring,
-        SingleHarmonicRFStation,
-        momentum_compaction_factor,
-        proton,
-    )
-
     ring = Ring(circumference=26658.883)
     ring.add_elements(
         [
@@ -436,10 +434,6 @@ class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
     kick = 1e14  # slope of the RF kick per turn, [eV/s]
 
     def _assert_correction(self, one_turn_map, expected_shear):
-        from blond.experimental.beam_preparation.semi_empiric_matcher import (
-            get_grid_correction_from_one_turn_map,
-        )
-
         mu = np.arccos(0.5 * np.trace(one_turn_map))
         shear_dt_per_dE, deltaE_scale = get_grid_correction_from_one_turn_map(
             one_turn_map=one_turn_map,
@@ -475,11 +469,6 @@ class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
         self._assert_correction(one_turn_map, 0.0)
 
     def test_get_one_turn_map_empiric_kick_then_drift(self):
-        from blond import momentum_compaction_factor, proton
-        from blond.experimental.beam_preparation.semi_empiric_matcher import (
-            get_one_turn_map_empiric,
-        )
-
         voltage, harmonic = 6e6, 35640
         simulation, _ = _lhc_kick_then_drift(voltage=voltage)
         t_rev = simulation.magnetic_cycle.get_t_rev_init(
@@ -513,10 +502,6 @@ class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
         )
 
     def test_grid_correction_unstable_raises(self):
-        from blond.experimental.beam_preparation.semi_empiric_matcher import (
-            get_grid_correction_from_one_turn_map,
-        )
-
         with self.assertRaises(ValueError):
             get_grid_correction_from_one_turn_map(
                 one_turn_map=np.array([[1.0, self.drift], [self.kick, 1.0]]),
@@ -524,8 +509,6 @@ class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
             )
 
     def _bunch_length_oscillation(self, correct_to_one_turn_map):
-        from blond import BeamStatisticsOncePerTurn
-
         simulation, beam = _lhc_kick_then_drift()
         simulation.prepare_beam(
             beam=beam,
@@ -559,19 +542,97 @@ class TestSemiEmpiricMatcherOneTurnMap(BLonDTestCase):
         self.assertGreater(self._bunch_length_oscillation(False), 0.01)
         self.assertLess(self._bunch_length_oscillation(True), 0.005)
 
+    def _match_small_beam(
+        self,
+        time_limit_in_rf_periods,
+        correct_to_one_turn_map,
+        voltage=6e6,
+    ):
+        simulation, beam = _lhc_kick_then_drift(voltage=voltage)
+        rf_period = (
+            simulation.magnetic_cycle.get_t_rev_init(
+                simulation.ring.circumference, particle_type=proton
+            )
+            / 35640
+        )
+        simulation.prepare_beam(
+            beam=beam,
+            preparation_routine=SemiEmpiricMatcher(
+                time_limit=(
+                    time_limit_in_rf_periods[0] * rf_period,
+                    time_limit_in_rf_periods[1] * rf_period,
+                ),
+                n_macroparticles=1e3,
+                hamilton_to_density_function=lambda hamilton_2D, **_: np.exp(
+                    -hamilton_2D / 1.7
+                ),
+                hamilton_to_density_kwargs={},
+                internal_grid_shape=(128 - 1, 128 - 1),
+                verbose=False,
+                correct_to_one_turn_map=correct_to_one_turn_map,
+            ),
+        )
+        return (
+            copy_to_cpu(beam.read_partial_dt()),
+            copy_to_cpu(beam.read_partial_dE()),
+        )
+
+    def _assert_falls_back_to_uncorrected_beam(
+        self, warning_regex, time_limit_in_rf_periods, voltage=6e6
+    ):
+        with self.assertWarnsRegex(UserWarning, warning_regex):
+            dt, dE = self._match_small_beam(
+                time_limit_in_rf_periods, True, voltage=voltage
+            )
+        dt_uncorrected, dE_uncorrected = self._match_small_beam(
+            time_limit_in_rf_periods, False, voltage=voltage
+        )
+        np.testing.assert_array_equal(dt, dt_uncorrected)
+        np.testing.assert_array_equal(dE, dE_uncorrected)
+
+    def test_correction_skipped_if_time_limit_misses_bucket_centre(self):
+        # Above transition, t = 0 is the unstable fixed point and the bucket
+        # centre is half an RF period later. Around t = 0, the potential
+        # well curves downwards and is lowest at the edges of `time_limit`.
+        self._assert_falls_back_to_uncorrected_beam(
+            "does not curve upwards at its minimum", (-0.2, 0.2)
+        )
+
+    def test_correction_skipped_if_time_limit_clips_bucket_centre(self):
+        # The potential well is lowest at the end of `time_limit`, but the
+        # fixed point of the one-turn map is half an RF period after t = 0.
+        self._assert_falls_back_to_uncorrected_beam(
+            "no fixed point near the potential minimum", (0, 0.4)
+        )
+
+    def test_correction_skipped_if_one_turn_map_unstable(self):
+        # At 30 GV, drift * kick > 4: the bucket centre is still a fixed
+        # point, but the kick-drift map is linearly unstable there.
+        self._assert_falls_back_to_uncorrected_beam(
+            "not linearly stable", (0, 1), voltage=30e9
+        )
+
 
 class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
     """Wiring of the frozen-beam ``warmup`` into the matcher iteration."""
 
     def _run_matching(self, **matcher_kwargs):
-        from blond.testing.simulation import SimulationTwoRFStationsWithWake
-
         sim = SimulationTwoRFStationsWithWake()
         t_rev = sim.simulation.magnetic_cycle.get_t_rev_init(
             sim.simulation.ring.circumference,
             particle_type=sim.beam1.particle_type,
         )
         ts = np.linspace(0, t_rev) / 36540
+        matcher_kwargs = {
+            # Exactly two intensity iterations: the convergence error is
+            # only computed for `i_intensity > 1`, so with maxiter=2 the
+            # loop can never break early.
+            "maxiter_intensity_effects": 2,
+            "increment_intensity_effects_until_iteration_i": 0,
+            "tolerance_potential_well": 1e-6,
+            "verbose": False,
+            **matcher_kwargs,
+        }
         matcher = SemiEmpiricMatcher(
             time_limit=(ts.min(), ts.max()),
             hamilton_to_density_kwargs=dict(
@@ -580,13 +641,6 @@ class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
             ),
             n_macroparticles=1e4,
             internal_grid_shape=(128 - 1, 128 - 1),
-            # Exactly two intensity iterations: the convergence error is
-            # only computed for `i_intensity > 1`, so with maxiter=2 the
-            # loop can never break early.
-            maxiter_intensity_effects=2,
-            increment_intensity_effects_until_iteration_i=0,
-            tolerance_potential_well=1e-6,
-            verbose=False,
             **matcher_kwargs,
         )
         sim.simulation.prepare_beam(
@@ -603,8 +657,6 @@ class TestSemiEmpiricMatcherWarmup(BLonDTestCase):
         warmup_spy.assert_not_called()
 
     def test_warmup_called_once_per_intensity_iteration(self):
-        from blond.experimental.simulation.warmup import warmup
-
         with mock.patch(
             "blond.experimental.beam_preparation.semi_empiric_matcher.warmup",
             wraps=warmup,
@@ -627,8 +679,75 @@ class TestSemiEmpiricMatcherAnimation(BLonDTestCase):
         for call in pause.call_args_list:
             self.assertEqual(call, mock.call(0.0))
 
+    def test_plot_before_first_potential_well_shows_only_histogram(self):
+        from blond.core.beam.beams import ProbeBeam
 
-class TestCallables:
+        ts = np.linspace(0, 1e-9, 16 - 1)
+        matcher = SemiEmpiricMatcher(
+            time_limit=(ts.min(), ts.max()),
+            n_macroparticles=1e3,
+            hamilton_to_density_kwargs={},
+            internal_grid_shape=(16 - 1, 16 - 1),
+            verbose=False,
+        )
+        beam = ProbeBeam(dt=np.linspace(0, 1e-9, 10), particle_type=proton)
+
+        matcher._plot_current_state(beam=beam, i=0, scalar=0.0, ts=ts)
+
+        histogram_axes, potential_well_axes = plt.figure(
+            "SemiEmpiricMatcher"
+        ).axes
+        self.assertGreater(len(histogram_axes.patches), 0)
+        self.assertEqual(len(potential_well_axes.lines), 0)
+
+
+class TestSemiEmpiricMatcherStagnation(BLonDTestCase):
+    def test_stall_rolls_back_silently_if_not_verbose(self):
+        rematch = SemiEmpiricMatcher._rematch_beam_to_potential_well
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(
+                SemiEmpiricMatcher,
+                "_rematch_beam_to_potential_well",
+                autospec=True,
+                side_effect=rematch,
+            ) as rematch_spy,
+            contextlib.redirect_stdout(stdout),
+        ):
+            TestSemiEmpiricMatcherWarmup._run_matching(
+                self,
+                # The first error is computed in the third iteration. It
+                # never reaches the tolerance, and without patience the
+                # iteration stops at once.
+                maxiter_intensity_effects=5,
+                tolerance_potential_well=1e-15,
+                stagnation_patience=0,
+                verbose=False,
+            )
+        rematch_spy.assert_called_once()
+        self.assertEqual(stdout.getvalue(), "")
+
+
+class TestCallables(BLonDTestCase):
+    def test_get_hamiltonian_semi_analytic_energy_range(self):
+        ts = np.linspace(0, 1, 100)
+        energy_range = (-2.0, 3.0)  # not the symmetric automatic range
+
+        deltaE_grid, _, _ = get_hamilton_semi_analytic(
+            ts=ts,
+            potential_well=0.5 * ts**2,
+            reference_total_energy=1.0,
+            eta=0.1,
+            beta=1,
+            shape=(100, 50),
+            energy_range=energy_range,
+        )
+
+        for deltaE_row in deltaE_grid:
+            np.testing.assert_allclose(
+                deltaE_row, np.linspace(*energy_range, 50), rtol=1e-15
+            )
+
     def test_get_hamiltonian_semi_analytic(self):
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")

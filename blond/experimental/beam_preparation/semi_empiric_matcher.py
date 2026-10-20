@@ -1083,7 +1083,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ``(shear_dt_per_dE, deltaE_scale)``, see
             :func:`get_grid_correction_from_one_turn_map`, or ``None`` with a
             warning if the bucket centre has no linear motion to match to,
-            e.g. a flat potential well.
+            e.g. a flat potential well or a ``time_limit`` that misses the
+            bucket centre.
         """
         ts_cpu = copy_to_cpu(ts)
         potential_well_cpu = copy_to_cpu(potential_well)
@@ -1093,7 +1094,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         curvature = (
             2
             * np.polyfit(
-                ts_cpu[neighbours] - ts_cpu[i_min], potential_well_cpu[neighbours], 2
+                ts_cpu[neighbours] - ts_cpu[i_min],
+                potential_well_cpu[neighbours],
+                2,
             )[0]
         )
         drift_term = abs(eta) / (
@@ -1101,8 +1104,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         )
         if not curvature > 0:
             warnings.warn(
-                "SemiEmpiricMatcher: the potential well is flat at its"
-                " minimum, so the beam is not corrected to the one-turn map.",
+                "SemiEmpiricMatcher: the potential well does not curve"
+                " upwards at its minimum (it is flat, or `time_limit` misses"
+                " the bucket centre), so the beam is not corrected to the"
+                " one-turn map.",
                 stacklevel=2,
             )
             return None
