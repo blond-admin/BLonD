@@ -318,7 +318,7 @@ def get_grid_correction_from_one_turn_map(
 
     Raises
     ------
-    ValueError
+    SemiEmpiricMatcherError
         If ``one_turn_map`` is not linearly stable,
         :math:`|\mathrm{tr}(M)| \geq 2`.
     """
