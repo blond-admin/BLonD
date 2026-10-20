@@ -30,7 +30,10 @@ from blond.physics.impedances.sources import (
     TravelingWaveCavity,
     fit_poles,
 )
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 
 
 class TestImpedanceTable(BLonDTestCase):
@@ -250,25 +253,22 @@ class TestImpedanceTableTime(BLonDTestCase):
             [w for w in caught if "outside boundaries" in str(w.message)], []
         )
 
-    def test_get_wake_per_bin_is_causal_below_table_start(self):
-        """A tabulated causal wake must bin-average to zero before it starts.
+    def test_get_wake_per_bin_is_exact_across_the_causal_onset(self):
+        """A tabulated wake must bin-average exactly across its own step.
 
         ``TimeDomain.get_impedance_from_wake`` samples the bin-averaged wake
-        from ``time - dt`` to pick up the kernel's one non-causal tap. For a
-        table that starts at ``t = 0`` -- the normal case for a causal wake
-        -- the interpolation must return zero below the table, not the
-        clamped boundary value ``wake_y[0]``: clamping fabricates a spurious
-        term of order ``W(0)`` in *every* bin. Tabulating an analytic
-        resonator wake and comparing against ``Resonators.get_wake_per_bin``
-        on the same grid pins that down.
-
-        The tolerances only pin down causality and are deliberately loose:
-        the generic stencil integrates the piecewise-linear interpolant
-        through the query samples, which models the causal onset as a
-        one-bin ramp instead of a step. The two samples straddling the
-        onset are therefore off by about ``(76 / 384) * W(0)`` -- some 8 %
-        of the peak -- and that residual does not shrink when the table is
-        refined. They are excluded from the tight check below.
+        from ``time - dt`` to pick up the kernel's one non-causal tap, so
+        the wake must be zero below the table, not the clamped first
+        sample. The generic stencil B-spline-averages the piecewise-linear
+        interpolant through the *query* samples, which models the causal
+        onset as a one-bin ramp instead of a step; that leaves about
+        ``(76 / 384) * W(0)`` -- some 8 % of the peak -- at the samples
+        straddling the onset, an error that does not shrink when the table
+        is refined. ``ImpedanceTableTime`` integrates the model the table
+        really represents instead, so every sample, including the two
+        straddling the onset, matches the closed form of
+        ``Resonators.get_wake_per_bin`` to the accuracy of the
+        piecewise-linear representation alone.
         """
         resonator = Resonators(
             shunt_impedances=np.array([1.0e4]),
@@ -289,13 +289,10 @@ class TestImpedanceTableTime(BLonDTestCase):
         analytic = copy_to_cpu(resonator.get_wake_per_bin(shifted_time))
         peak = np.max(np.abs(analytic))
 
-        # lag -dt: only the tail of the stencil reaches over the onset
-        self.assertLess(abs(tabulated[0] - analytic[0]), 0.2 * peak)
-        # lag 0
-        self.assertLess(abs(tabulated[1] - analytic[1]), 0.02 * peak)
-        # away from the onset the piecewise-linear table is faithful
+        # The last two samples are excluded: there the analytic wake keeps
+        # going while the table has run out and clamps.
         np.testing.assert_allclose(
-            tabulated[4:], analytic[4:], atol=1e-2 * peak
+            tabulated[:-2], analytic[:-2], atol=4e-4 * peak
         )
 
     def test_get_wake_per_bin_away_from_the_onset_is_untouched(self):
@@ -304,15 +301,8 @@ class TestImpedanceTableTime(BLonDTestCase):
         The stencil has the kernel's support, so a query axis that starts
         well above the table's first time never sees the onset -- the
         result must track the analytic closed form to the accuracy of the
-        piecewise-linear representation alone.
-
-        The first and last query bins are excluded: ``_bspline_stencil``
-        repeats the boundary sample there instead of sampling the table
-        beyond the query axis, which is off by ~2e-3 of the peak at the
-        first bin here (the table does continue below the axis). For the
-        causal tables ``get_impedance_from_wake`` feeds it -- axis starting
-        one bin before the wake -- the repeated sample is the zero below
-        the table and the rule is exact.
+        piecewise-linear representation alone, including the first and
+        last query bins, where the stencil reaches beyond the query axis.
         """
         resonator = Resonators(
             shunt_impedances=np.array([1.0e4]),
@@ -336,9 +326,320 @@ class TestImpedanceTableTime(BLonDTestCase):
                 )
             )
         )
-        np.testing.assert_allclose(
-            tabulated[1:-1], analytic[1:-1], atol=1e-3 * peak
+        np.testing.assert_allclose(tabulated, analytic, atol=1e-3 * peak)
+
+    def test_get_wake_per_bin_defaults_to_the_half_jump_convention(self):
+        """The default first-sample convention is the pre-existing one.
+
+        ``wake_y[0]`` of a BLonD-sampled table is half the causal jump
+        (``Resonators.heaviside_eps_at_0`` returns ``sign(t) + 1``, i.e. 1
+        at ``t = 0`` and 2 above it), so the bin average must integrate a
+        jump of ``2 * wake_y[0]``. That was the hard-wired assumption before
+        the convention became selectable, and it must stay the default: the
+        values below are pinned from the previous behaviour.
+        """
+        wake_x = backend.array(np.arange(5) * 1e-11)
+        wake_y = backend.array(np.array([7.0, 6.0, 5.0, 4.0, 3.0]))
+        default_table = ImpedanceTableTime(wake_x=wake_x, wake_y=wake_y)
+        half_jump_table = ImpedanceTableTime(
+            wake_x=wake_x, wake_y=wake_y, first_sample_is_half_jump=True
         )
+        query = backend.array(np.arange(-1, 5) * 1e-11)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            default = copy_to_cpu(default_table.get_wake_per_bin(query))
+            half_jump = copy_to_cpu(half_jump_table.get_wake_per_bin(query))
+
+        np.testing.assert_array_equal(default, half_jump)
+        np.testing.assert_allclose(
+            default,
+            np.array(
+                [
+                    0.2708333333333335,
+                    5.393229166666667,
+                    7.109375,
+                    5.018229166666667,
+                    4.002604166666667,
+                    3.203125,
+                ]
+            ),
+            rtol=1e-12,
+        )
+
+    def test_get_wake_per_bin_literal_first_sample_undoubles_the_onset(self):
+        """An external wake table stores the right limit, not half of it.
+
+        A table from a wake solver (CST, ABCI, a measurement) records
+        ``W(t_0^+)`` itself, so doubling it would overstate the onset by a
+        factor of two. Selecting ``first_sample_is_half_jump=False`` must
+        integrate a jump of ``wake_y[0]`` -- which is exactly what feeding
+        half that first sample to the half-jump convention describes.
+        """
+        wake_x = backend.array(np.arange(5) * 1e-11)
+        wake_values = np.array([7.0, 6.0, 5.0, 4.0, 3.0])
+        literal_table = ImpedanceTableTime(
+            wake_x=wake_x,
+            wake_y=backend.array(wake_values),
+            first_sample_is_half_jump=False,
+        )
+        halved_values = wake_values.copy()
+        halved_values[0] *= 0.5
+        halved_table = ImpedanceTableTime(
+            wake_x=wake_x, wake_y=backend.array(halved_values)
+        )
+        default_table = ImpedanceTableTime(
+            wake_x=wake_x, wake_y=backend.array(wake_values)
+        )
+        query = backend.array(np.arange(-1, 5) * 1e-11)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            literal = copy_to_cpu(literal_table.get_wake_per_bin(query))
+            halved = copy_to_cpu(halved_table.get_wake_per_bin(query))
+            default = copy_to_cpu(default_table.get_wake_per_bin(query))
+
+        np.testing.assert_allclose(literal, halved, rtol=1e-12)
+        # the onset is genuinely halved where the kernel reaches over it ...
+        self.assertFalse(np.allclose(literal[:3], default[:3]))
+        # ... and untouched beyond the kernel's support
+        np.testing.assert_allclose(literal[4:], default[4:], rtol=1e-12)
+
+    def test_get_wake_per_bin_conventions_agree_for_a_zero_first_sample(self):
+        """With no jump to interpret, the convention cannot matter.
+
+        A table whose first sample is zero -- what an external solver
+        starting at or below ``t = 0`` normally gives -- carries no causal
+        jump at all, so both readings of ``wake_y[0]`` describe the same
+        function and must agree exactly.
+        """
+        bin_step = 1e-11
+        wake_x = backend.array(np.arange(64) * bin_step)
+        wake_values = np.concatenate(
+            (np.linspace(0.0, 5.0, 32), np.linspace(5.0, 1.0, 32))
+        )
+        default_table = ImpedanceTableTime(
+            wake_x=wake_x, wake_y=backend.array(wake_values)
+        )
+        literal_table = ImpedanceTableTime(
+            wake_x=wake_x,
+            wake_y=backend.array(wake_values),
+            first_sample_is_half_jump=False,
+        )
+        query = backend.array(np.arange(-1, 63) * bin_step)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            default = copy_to_cpu(default_table.get_wake_per_bin(query))
+            literal = copy_to_cpu(literal_table.get_wake_per_bin(query))
+
+        np.testing.assert_array_equal(default, literal)
+
+    def test_from_file_passes_on_the_first_sample_convention(self):
+        """``from_file`` must be able to select the convention too.
+
+        External tables are exactly the ones loaded from disk, so the
+        loader has to expose the same choice as the constructor.
+        """
+        filepath = callers_relative_path(
+            "resources/example_impedance_table.csv", stacklevel=1
+        )
+        loaded = ImpedanceTableTime.from_file(
+            filepath=filepath,
+            reader=CsvReader(delimiter=","),
+            first_sample_is_half_jump=False,
+        )
+        constructed = ImpedanceTableTime(
+            wake_x=backend.array(np.arange(1.0, 6.0)),
+            wake_y=backend.array(10 * np.arange(1.0, 6.0)),
+            first_sample_is_half_jump=False,
+        )
+        query = backend.array(np.linspace(0.5, 5.0, 24))
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            np.testing.assert_allclose(
+                copy_to_cpu(loaded.get_wake_per_bin(query)),
+                copy_to_cpu(constructed.get_wake_per_bin(query)),
+                rtol=1e-12,
+            )
+
+    def test_get_wake_per_bin_without_a_step_is_the_plain_stencil(self):
+        """No step at the table start means no correction to the stencil.
+
+        A table whose first sample is zero, laid out on the query grid, is
+        exactly the piecewise-linear interpolant the generic stencil already
+        integrates, so the override must reproduce it bit for bit. Same for a
+        table that only starts long after the query axis does, where the wake
+        has already decayed away.
+        """
+        bin_step = 1e-11
+        t = np.arange(64) * bin_step
+        # genuinely piecewise linear, zero at the table start
+        w = np.concatenate(
+            (np.linspace(0.0, 5.0, 32), np.linspace(5.0, 1.0, 32))
+        )
+        table = ImpedanceTableTime(
+            wake_x=backend.array(t), wake_y=backend.array(w)
+        )
+        binned = copy_to_cpu(table.get_wake_per_bin(backend.array(t)))
+        stencil = (
+            np.roll(w, 2)
+            + 76 * np.roll(w, 1)
+            + 230 * w
+            + 76 * np.roll(w, -1)
+            + np.roll(w, -2)
+        ) / 384
+        np.testing.assert_allclose(binned[2:-2], stencil[2:-2], rtol=1e-12)
+
+    def test_get_wake_per_bin_is_exact_for_an_off_grid_onset(self):
+        """The onset need not land on a query point.
+
+        The correction integrates the part of the cell that lies above the
+        onset, so it must stay exact -- and free of any cliff -- for every
+        sub-bin position of the onset, including the two degenerate ends
+        where the onset all but coincides with a grid point.
+        """
+        resonator = Resonators(
+            shunt_impedances=np.array([1.0e4]),
+            center_frequencies=np.array([1.0e9]),
+            quality_factors=np.array([5.0]),
+        )
+        bin_step = 1e-11
+        table_time = backend.array(np.arange(600) * bin_step)
+        table = ImpedanceTableTime(
+            wake_x=table_time,
+            wake_y=resonator.get_wake(table_time),
+        )
+
+        for onset_offset in (0.0, 0.13, 0.5, 0.87, 0.999):
+            with self.subTest(onset_offset=onset_offset):
+                query = backend.array(
+                    (np.arange(-2, 500) + onset_offset) * bin_step
+                )
+                tabulated = copy_to_cpu(table.get_wake_per_bin(query))
+                analytic = copy_to_cpu(resonator.get_wake_per_bin(query))
+                peak = np.max(np.abs(analytic))
+                np.testing.assert_allclose(
+                    tabulated, analytic, atol=1e-3 * peak
+                )
+
+    def test_get_wake_default_is_plain_interpolation(self):
+        """The default convention must keep the point sample verbatim.
+
+        Under ``first_sample_is_half_jump=True`` the tabulated first sample
+        already *is* the midpoint of the causal jump, so the point wake is
+        the bare causal interpolant. Pinned bit-exactly, because the flag
+        must not perturb the default path at all.
+        """
+        bin_step = 1e-11
+        wake_x = backend.array(np.arange(5) * bin_step)
+        wake_y = backend.array(np.array([7.0, 6.0, 5.0, 4.0, 3.0]))
+        table = ImpedanceTableTime(wake_x=wake_x, wake_y=wake_y)
+        query = backend.array(
+            np.array([-1.5e-11, 0.0, 0.4e-11, 1e-11, 3.9e-11])
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wake = copy_to_cpu(table.get_wake(query))
+
+        expected = copy_to_cpu(backend.interp(query, wake_x, wake_y, left=0.0))
+        np.testing.assert_array_equal(wake, expected)
+
+    def test_get_wake_literal_onset_is_halved(self):
+        """A literal first sample must be halved at the onset itself.
+
+        With ``first_sample_is_half_jump=False`` the table stores the right
+        limit ``W(x0+)``, so a particle sitting exactly on the onset sees
+        half of it -- the same beam-loading statement
+        :meth:`Resonators.heaviside_eps_at_0` makes by returning 1 (not 2)
+        at ``t = 0``.
+        """
+        bin_step = 1e-11
+        wake_x = backend.array(np.arange(5) * bin_step)
+        wake_y = backend.array(np.array([7.0, 6.0, 5.0, 4.0, 3.0]))
+        literal_table = ImpedanceTableTime(
+            wake_x=wake_x,
+            wake_y=wake_y,
+            first_sample_is_half_jump=False,
+        )
+        default_table = ImpedanceTableTime(wake_x=wake_x, wake_y=wake_y)
+        query = backend.array(np.array([0.0]))
+
+        literal = copy_to_cpu(literal_table.get_wake(query))
+        default = copy_to_cpu(default_table.get_wake(query))
+
+        np.testing.assert_allclose(literal, np.array([3.5]))
+        np.testing.assert_allclose(default, np.array([7.0]))
+
+    def test_get_wake_literal_onset_only_at_the_onset(self):
+        """Only the onset sample itself changes under the literal reading.
+
+        Strictly below the onset the wake stays zero (causality) and
+        strictly above it stays the interpolant -- the halving is the
+        value *at* the discontinuity, not a rescaling of the table.
+        """
+        bin_step = 1e-11
+        wake_x = backend.array(np.arange(5) * bin_step)
+        wake_y = backend.array(np.array([7.0, 6.0, 5.0, 4.0, 3.0]))
+        literal_table = ImpedanceTableTime(
+            wake_x=wake_x,
+            wake_y=wake_y,
+            first_sample_is_half_jump=False,
+        )
+        query = backend.array(
+            np.array([-2e-11, -0.5e-11, 0.5e-11, 1e-11, 2e-11])
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wake = copy_to_cpu(literal_table.get_wake(query))
+
+        np.testing.assert_allclose(wake, np.array([0.0, 0.0, 6.5, 6.0, 5.0]))
+
+    def test_get_wake_conventions_agree_without_a_jump(self):
+        """No jump to interpret means no difference between conventions."""
+        bin_step = 1e-11
+        wake_x = backend.array(np.arange(5) * bin_step)
+        wake_y = backend.array(np.array([0.0, 6.0, 5.0, 4.0, 3.0]))
+        default_table = ImpedanceTableTime(wake_x=wake_x, wake_y=wake_y)
+        literal_table = ImpedanceTableTime(
+            wake_x=wake_x,
+            wake_y=wake_y,
+            first_sample_is_half_jump=False,
+        )
+        query = backend.array(np.array([-1e-11, 0.0, 0.5e-11, 2e-11]))
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            default = copy_to_cpu(default_table.get_wake(query))
+            literal = copy_to_cpu(literal_table.get_wake(query))
+
+        np.testing.assert_array_equal(default, literal)
+
+    def test_get_wake_accepts_a_single_time_sample(self):
+        """A one-element query must work; there is no bin step to read.
+
+        The onset tolerance therefore cannot come from the query axis --
+        it is taken from the table's own first spacing, which also survives
+        a non-uniformly sampled table.
+        """
+        wake_x = backend.array(np.array([0.0, 1e-11, 5e-11, 20e-11]))
+        wake_y = backend.array(np.array([7.0, 6.0, 5.0, 4.0]))
+        literal_table = ImpedanceTableTime(
+            wake_x=wake_x,
+            wake_y=wake_y,
+            first_sample_is_half_jump=False,
+        )
+        default_table = ImpedanceTableTime(wake_x=wake_x, wake_y=wake_y)
+        query = backend.array(np.array([0.0]))
+
+        literal = copy_to_cpu(literal_table.get_wake(query))
+        default = copy_to_cpu(default_table.get_wake(query))
+
+        np.testing.assert_allclose(literal, np.array([3.5]))
+        np.testing.assert_allclose(default, np.array([7.0]))
 
 
 class TestInductiveImpedance(BLonDTestCase):
@@ -570,7 +871,7 @@ class TestResonators(BLonDTestCase):
         )
 
     def test___init__neg_freq(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([-400e6]),
@@ -578,15 +879,41 @@ class TestResonators(BLonDTestCase):
             )
 
     def test___init__small_Q(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([400e6]),
                 quality_factors=np.array([0.49]),
             )
 
+    def test___init__Q_equal_0_5(self):
+        # Q = 0.5 makes omega_bar = 0, so the wake divides by zero.
+        with self.assertRaises(ValueError):
+            self.resonators = Resonators(
+                shunt_impedances=np.array([1]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.5]),
+            )
+
+    def test___init__small_Q_raises_before_computing_nan(self):
+        import warnings
+
+        with (
+            warnings.catch_warnings(record=True) as caught,
+            self.assertRaises(ValueError),
+        ):
+            warnings.simplefilter("always")
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.49]),
+            )
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
+
     def test___init__float_values(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
                 center_frequencies=400e6,
@@ -596,7 +923,7 @@ class TestResonators(BLonDTestCase):
     def test___init___quality_factor_exactly_one_half_raises(self):
         """Q = 0.5 is critically damped: omega_bar = 0 and the closed-form
         bin average divides by it, so the input is rejected up front."""
-        with self.assertRaisesRegex(RuntimeError, "greater than 0.5"):
+        with self.assertRaisesRegex(ValueError, "greater than 0.5"):
             Resonators(
                 shunt_impedances=1e6,
                 center_frequencies=1e9,
@@ -805,7 +1132,7 @@ class TestResonators(BLonDTestCase):
             plt.show()
         assert np.allclose(
             self.resonators._center_frequencies,
-            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y))[0]]),
+            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y).real)[0]]),
             atol=(max_freq - min_freq) / num / 2,
         )  # closeness of peaks to centre frequency
         for freq_ind in range(
@@ -831,7 +1158,7 @@ class TestResonators(BLonDTestCase):
             assert np.allclose(
                 copy_to_cpu(self.resonators._shunt_impedances[freq_ind]),
                 copy_to_cpu(
-                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y))[0]])
+                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y).real)[0]])
                 ),
             )
             assert np.isclose(
@@ -1197,6 +1524,22 @@ class TestResonators(BLonDTestCase):
             **allclose_tolerances(imp.imag),
         )
 
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_get_vectorfit_returns_host_arrays(self):
+        # A vector fit is a model description; `VectorFit` holds NumPy
+        # arrays, whichever backend the resonators were built on.
+        resonators = Resonators(
+            shunt_impedances=np.array([1e6, 2e5]),
+            center_frequencies=np.array([1e9, 1.5e9]),
+            quality_factors=np.array([500.0, 20.0]),
+            shunt_impedances_counter_rotating=np.array([1e6, -2e5]),
+        )
+        fit = resonators.get_vectorfit()
+        for array in (fit.poles, fit.residues, fit.counterrotation_signs):
+            self.assertIsInstance(array, np.ndarray)
+        np.testing.assert_array_equal(fit.counterrotation_signs, [1.0, -1.0])
+
     def test_impedance_from_wake_matches_analytic_impedance(self):
         """
         ``fft(get_wake)`` must reproduce the analytic ``get_impedance``.
@@ -1386,6 +1729,26 @@ class TestTravelingWaveCavity(BLonDTestCase):
         a_factor = [1, 2, 3]
         self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
         self.twc_floats = TravelingWaveCavity(3.0, 3.0, 3.0)
+
+    def test_get_impedance_at_resonance_is_finite_without_warning(self):
+        import warnings
+
+        # Grid hits +f_R and -f_R, where (x - sin x) / x**2 is 0/0.
+        freq_x = backend.array([-3.0, -1.0, 0.5, 1.0, 2.0, 3.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            impedance = copy_to_cpu(
+                self.twc.get_impedance(
+                    freq_x=freq_x,
+                    simulation=Mock(Simulation),
+                    beam=Mock(BeamBaseClass),
+                )
+            )
+
+        self.assertTrue(np.all(np.isfinite(impedance)))
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp

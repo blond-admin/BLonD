@@ -263,10 +263,14 @@ class TestBothBlonds(BLonDTestCase):
 
         for blond2_ind_volt in self.blond3.blond2.induced_voltage:
             try:
-                assert self.close_in_norm(
-                    blond2_ind_volt, self.blond3.induced_voltage
+                self.assertTrue(
+                    self.close_in_norm(
+                        blond2_ind_volt, self.blond3.induced_voltage
+                    )
                 )
             except AssertionError:
+                # BLonD 3 bin-averages the wake, BLonD 2 samples it at the
+                # bin centres: max 31 V apart (point-sampled: 20 V).
                 np.testing.assert_allclose(
                     blond2_ind_volt,
                     self.blond3.induced_voltage,
@@ -322,8 +326,11 @@ class TestBothBlonds(BLonDTestCase):
 
                     for blond2_ind_volt in self.blond3.blond2.induced_voltage:
                         try:
-                            assert self.close_in_norm(
-                                blond2_ind_volt, self.blond3.induced_voltage
+                            self.assertTrue(
+                                self.close_in_norm(
+                                    blond2_ind_volt,
+                                    self.blond3.induced_voltage,
+                                )
                             )
                         except AssertionError:
                             np.testing.assert_allclose(

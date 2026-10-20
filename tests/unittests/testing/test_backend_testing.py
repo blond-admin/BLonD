@@ -13,7 +13,11 @@ from blond.testing.backend_testing import BLonDTestCase
 try:
     import cupy
 
-    cupy_available = True
+    # CuPy can import while the CUDA backend cannot (e.g. no cuBLAS);
+    # skip the CUDA cases then, unless all backends are forced.
+    cupy_available = (
+        bend_test.FORCE_ALL_BACKENDS or bend_test.cuda_backend_usable()
+    )
 except (ModuleNotFoundError, ImportError):
     cupy_available = False
 
@@ -64,9 +68,11 @@ class TestBackendTesting(BLonDTestCase):
     def test_backend_selection(self):
         bend_test.FORCE_ALL_BACKENDS = False
 
-        available_list = bend_test._backend_selection(
-            *backend.ALL_BACKENDS.keys()
-        )
+        # `InvalidBackend` is registered but unavailable, which warns.
+        with self.assertWarns(UserWarning):
+            available_list = bend_test._backend_selection(
+                *backend.ALL_BACKENDS.keys()
+            )
 
         bend_test.FORCE_ALL_BACKENDS = True
         all_list = bend_test._backend_selection(*backend.ALL_BACKENDS.keys())
@@ -83,9 +89,10 @@ class TestBackendTesting(BLonDTestCase):
     @unittest.skipIf(not cupy_available, "Cupy not found")
     def test_backend_validity(self):
         bend_test.FORCE_ALL_BACKENDS = False
-        available_list = bend_test._backend_selection(
-            *backend.ALL_BACKENDS.keys()
-        )
+        with self.assertWarns(UserWarning):
+            available_list = bend_test._backend_selection(
+                *backend.ALL_BACKENDS.keys()
+            )
 
         for b_end in available_list:
             b_end()
@@ -469,3 +476,52 @@ class TestBackendAwareTestCase(BLonDTestCase):
             "[specials at start: python, at failure: numba]",
             traceback_text,
         )
+
+
+class TestCudaBackendUsable(BLonDTestCase):
+    def setUp(self):
+        bend_test.cuda_backend_usable.cache_clear()
+        self.addCleanup(bend_test.cuda_backend_usable.cache_clear)
+
+    def test_unimportable_backend_is_unusable(self):
+        # CuPy imports, but the CUDA backend does not (e.g. no cuBLAS).
+        broken_import = {"blond.core.backends.cuda.callables": None}
+        with (
+            mock.patch.object(bend_test, "cupy_available", True),
+            mock.patch.dict(sys.modules, broken_import),
+            self.assertWarns(UserWarning),
+        ):
+            self.assertFalse(bend_test.cuda_backend_usable())
+
+    def test_missing_cupy_is_unusable(self):
+        with mock.patch.object(bend_test, "cupy_available", False):
+            self.assertFalse(bend_test.cuda_backend_usable())
+
+    def test_unusable_backend_is_skipped(self):
+        with (
+            mock.patch.object(bend_test, "cupy_available", True),
+            mock.patch.object(bend_test, "FORCE_ALL_BACKENDS", False),
+            mock.patch.object(
+                bend_test, "cuda_backend_usable", return_value=False
+            ),
+            self.assertRaises(unittest.SkipTest),
+        ):
+            bend_test.skip_if_cuda_unusable(self)
+
+    def test_unusable_backend_is_not_skipped_when_forced(self):
+        with (
+            mock.patch.object(bend_test, "cupy_available", True),
+            mock.patch.object(bend_test, "FORCE_ALL_BACKENDS", True),
+            mock.patch.object(
+                bend_test, "cuda_backend_usable", return_value=False
+            ),
+        ):
+            bend_test.skip_if_cuda_unusable(self)
+
+    def test_missing_cupy_is_skipped_even_when_forced(self):
+        with (
+            mock.patch.object(bend_test, "cupy_available", False),
+            mock.patch.object(bend_test, "FORCE_ALL_BACKENDS", True),
+            self.assertRaises(unittest.SkipTest),
+        ):
+            bend_test.skip_if_cuda_unusable(self)

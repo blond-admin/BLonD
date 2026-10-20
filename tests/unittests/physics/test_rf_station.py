@@ -339,7 +339,8 @@ class TestRFStationBaseClass(BLonDTestCase):
         )
 
         mhc._turn_counter = 1
-        mhc._ring = Mock(Ring)
+        ring = Mock(Ring)
+        mhc._ring = ring
         mhc._ring.circumference = 456
 
         simulation = Mock(Simulation)
@@ -395,7 +396,8 @@ class TestRFStationBaseClass(BLonDTestCase):
         )
 
         mhc._turn_counter = 1
-        mhc._ring = Mock(Ring)
+        ring = Mock(Ring)
+        mhc._ring = ring
         mhc._ring.circumference = 456
 
         simulation = Mock(Simulation)
@@ -541,7 +543,8 @@ class TestRFStationBaseClass(BLonDTestCase):
             main_harmonic_idx=0,
             phi_rf=np.array([0, 2]),
         )
-        mhc._ring = Mock(spec=Ring)
+        ring = Mock(spec=Ring)
+        mhc._ring = ring
         mhc._ring.calc_average_eta_0.return_value = 1
 
         def phi_s(beam):
@@ -577,7 +580,8 @@ class TestRFStationBaseClass(BLonDTestCase):
             main_harmonic_idx=0,
             phi_rf=np.array([0, 2]),
         )
-        mhc._ring = Mock(spec=Ring)
+        ring = Mock(spec=Ring)
+        mhc._ring = ring
         mhc._ring.calc_average_eta_0.return_value = 1
 
         def phi_s(beam):
@@ -600,7 +604,8 @@ class TestRFStationBaseClass(BLonDTestCase):
         alpha = 1 / 55.759505**2
         gamma = 450e9 / proton.mass
         eta = alpha - (1 / (gamma**2))
-        mhc._ring = Mock(spec=Ring)
+        ring = Mock(spec=Ring)
+        mhc._ring = ring
         mhc._ring.calc_average_eta_0.return_value = eta
 
         def phi_s(beam):

@@ -39,6 +39,7 @@ from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     MultiPoleSparseSolve,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 # LHC-like machine
 CIRCUMFERENCE = 26658.883
@@ -104,6 +105,76 @@ class TestMultiPoleSparseSolveFullTurnProfile(unittest.TestCase):
         induced_voltage = copy_to_cpu(wakefield.induced_voltage)
         self.assertEqual(len(induced_voltage), n_bins)
         self.assertTrue(np.all(np.isfinite(induced_voltage)))
+
+
+class TestMultiPoleSparseSolveLateReferenceTime(BLonDTestCase):
+    """A full-turn profile must keep running late in the cycle.
+
+    ``reference.time`` grows by one revolution period per turn, so the time
+    between two calls carries a rounding error of about one ulp of
+    ``reference.time``. Hours into a cycle that exceeds a millionth of a
+    bin and must still count as seamless.
+    """
+
+    def test_full_turn_profile_runs_hours_into_the_cycle(self):
+        """Seamless calls stay seamless at large reference times."""
+        for reference_time in (1e4, 3.6e4):  # [s]
+            with self.subTest(reference_time=reference_time):
+                simulation, wakefield, _, _, _ = _make_simulation(
+                    solver=MultiPoleSparseSolve(),
+                    sources=(Resonators(1e5, 1e9, 5.0),),
+                    n_bins=512,
+                )
+                beam = Beam(intensity=1e11, particle_type=proton)
+                simulation.prepare_beam(
+                    preparation_routine=BiGaussian(
+                        sigma_dt=SIGMA_DT,
+                        n_macroparticles=2000,
+                        seed=SEED,
+                    ),
+                    beam=beam,
+                )
+                beam.reference.time = reference_time
+                simulation.run_simulation(beams=beam, n_turns=20)
+
+                induced_voltage = copy_to_cpu(wakefield.induced_voltage)
+                self.assertTrue(np.all(np.isfinite(induced_voltage)))
+
+
+class TestMultiPoleSparseSolveTwoBeamsAtOneTime(BLonDTestCase):
+    """Two beams calling one solver at the same reference time.
+
+    The solver keeps one cavity state on one time line, so calls must come
+    at strictly increasing reference times. Two beams tracked together
+    share the reference time, which must fail with a message that says so
+    rather than one about the profile length.
+    """
+
+    def test_same_reference_time_raises_clear_error(self):
+        """A call at the previous call's time names the cause."""
+        simulation, _, _, _, _ = _make_simulation(
+            solver=MultiPoleSparseSolve(),
+            sources=(
+                Resonators(
+                    1e5, 1e9, 5.0, shunt_impedances_counter_rotating=[-1e5]
+                ),
+            ),
+            n_bins=512,
+        )
+        beams = []
+        for is_counter_rotating in (False, True):
+            beam = Beam(intensity=1e11, particle_type=proton)
+            simulation.prepare_beam(
+                preparation_routine=BiGaussian(
+                    sigma_dt=SIGMA_DT, n_macroparticles=2000, seed=SEED
+                ),
+                beam=beam,
+            )
+            beam._is_counter_rotating = is_counter_rotating
+            beams.append(beam)
+
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            simulation.run_simulation(beams=tuple(beams), n_turns=2)
 
 
 class TestMultiPoleSparseSolveTurnBoundaryWake(unittest.TestCase):

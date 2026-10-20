@@ -26,10 +26,12 @@ from blond import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.offenders import hold_strongly
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
+from blond.physics.impedances.bin_average import triple_box_average_pole
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedance,
@@ -66,7 +68,10 @@ class TestTimeDomainFftSolver(BLonDTestCase):
             endpoint=True,
         )
 
-        self.time_domain_fft_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.time_domain_fft_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.time_domain_fft_solver, "_parent_wakefield")
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -292,6 +297,10 @@ class TestInductiveImpedanceSolver(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.inductive_impedance_solver, "_parent_wakefield", "_simulation"
+        )
         _parent_wakefield.profile.gradient_hist_y = backend.linspace(1, 3)
 
     def test___init__(self):
@@ -385,7 +394,10 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         )
         self.periodic_freq_solver = PeriodicFreqSolver(t_periodicity=10)
 
-        self.periodic_freq_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.periodic_freq_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.periodic_freq_solver, "_parent_wakefield")
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -687,8 +699,13 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e3)
 
-        self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
-            WakeField
+        self.parent_wakefield = Mock(WakeField)
+        self.single_turn_resonator_convolution_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.single_turn_resonator_convolution_solver, "_parent_wakefield"
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
@@ -749,7 +766,8 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         initial_voltage = analy_solver.calc_induced_voltage(beam=self.beam)
 
         td_fft_solver = TimeDomainFftSolver()
-        td_fft_solver._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        td_fft_solver._parent_wakefield = parent_wakefield
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
@@ -1060,7 +1078,8 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        analy._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        analy._parent_wakefield = parent_wakefield
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -1178,7 +1197,12 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             backend.arange(-1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float),
         )
 
-        self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.multi_pass_resonator_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.multi_pass_resonator_solver, "_parent_wakefield")
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
@@ -2093,7 +2117,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        local_res._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        local_res._parent_wakefield = parent_wakefield
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
@@ -2198,7 +2223,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
                 decay_fraction_threshold=0.999
             )
 
-            local_res._parent_wakefield = Mock(WakeField)
+            parent_wakefield = Mock(WakeField)
+            local_res._parent_wakefield = parent_wakefield
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
@@ -2221,7 +2247,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             )
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
-            local_res_analy._parent_wakefield = Mock(WakeField)
+            parent_wakefield_analy = Mock(WakeField)
+            local_res_analy._parent_wakefield = parent_wakefield_analy
             local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
@@ -3418,8 +3445,10 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 return backend.zeros_like(time)
 
         solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-        solver._parent_wakefield = Mock(WakeField)
-        solver._parent_wakefield.sources = (BinOnlyResonators(),)
+        # Kept in a local: the solver holds its parent wakefield weakly.
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.sources = (BinOnlyResonators(),)
+        solver._parent_wakefield = parent_wakefield
         solver._check_source_ducktypes()  # must not raise
 
     def test_calc_induced_voltage_assert_profile_length_correct(self):
@@ -3664,3 +3693,89 @@ class TestPeriodicFreqSolverBranches(BLonDTestCase):
 
         perf_warnings = [x for x in w if "Because" in str(x.message)]
         self.assertEqual(len(perf_warnings), 0)
+
+
+class TestIsFarFieldPole(BLonDTestCase):
+    """The far-field selection evaluates all poles' near taps at once."""
+
+    def setUp(self) -> None:
+        from blond.physics.impedances import solvers
+
+        self.solvers = solvers
+        bin_dt = 1e-10
+        rng = np.random.default_rng(5)
+        n_poles = 40
+        is_real = np.arange(n_poles) % 4 == 1
+        # damping from a fraction of a bin to thousands of bins, so the
+        # selection keeps some poles and drops others
+        poles = -np.logspace(6, 11, n_poles) + 1j * np.where(
+            is_real, 0.0, rng.uniform(1e8, 9e9, n_poles)
+        )
+        residues = rng.normal(size=n_poles) + 1j * np.where(
+            is_real, 0.0, rng.normal(size=n_poles)
+        )
+        poles = backend.array(poles, dtype=backend.complex)
+        residues = backend.array(residues, dtype=backend.complex)
+        pole_dt = poles * bin_dt
+        self.model = solvers._PoleModel(
+            poles=poles,
+            residues=residues,
+            counterrotating_pole_signs=backend.ones(n_poles),
+            pair_factors=2.0 - (poles.imag == 0),
+            tail_residues=(
+                residues
+                * (backend.expm1(pole_dt) / pole_dt) ** 3
+                * backend.exp(pole_dt / 2.0)
+            ),
+            taps=backend.zeros(3),
+            adjacent=backend.zeros(0, dtype=bool),
+            bin_dt=bin_dt,
+            span_dt=1e-6,
+        )
+        self.tolerance = 1e-3
+
+    def _per_pole_reference(self) -> np.ndarray:
+        model = self.model
+        lags = backend.array(
+            [model.bin_dt, 0.0, -model.bin_dt], dtype=backend.float
+        )
+        near_field_peaks = np.empty(len(model.poles))
+        for pole_i in range(len(model.poles)):
+            pole = model.poles[pole_i : pole_i + 1]
+            residue = model.residues[pole_i : pole_i + 1]
+            in_phase = triple_box_average_pole(
+                lags, pole, residue, model.bin_dt
+            )
+            quadrature = triple_box_average_pole(
+                lags, pole, -1j * residue, model.bin_dt
+            )
+            near_field_peaks[pole_i] = np.max(
+                np.hypot(copy_to_cpu(in_phase), copy_to_cpu(quadrature))
+            )
+        decay_per_bin = copy_to_cpu(
+            backend.exp(model.poles.real * model.bin_dt)
+        )
+        tail_at_two_bins = copy_to_cpu(
+            model.pair_factors * backend.abs(model.tail_residues)
+        )
+        return tail_at_two_bins >= (
+            self.tolerance * near_field_peaks * (1.0 - decay_per_bin)
+        )
+
+    def test_matches_per_pole_selection(self) -> None:
+        expected = self._per_pole_reference()
+        # the case is only meaningful if it keeps some poles and drops some
+        self.assertTrue(expected.any())
+        self.assertFalse(expected.all())
+        result = self.solvers._is_far_field_pole(self.model, self.tolerance)
+        np.testing.assert_array_equal(result, expected)
+
+    def test_near_taps_of_all_poles_in_two_calls(self) -> None:
+        with patch.object(
+            self.solvers,
+            "triple_box_average_pole",
+            wraps=self.solvers.triple_box_average_pole,
+        ) as single_pole:
+            self.solvers._is_far_field_pole(self.model, self.tolerance)
+        # in phase and in quadrature, each for every pole at once
+        self.assertEqual(single_pole.call_count, 2)

@@ -20,11 +20,56 @@ from blond.core.backends.mpi_distributed.helpers import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
+
     from blond.core.backends.mpi_distributed.distributed_array import (
         DistributedArray,
     )
 
 from blond.core.backends.backend import backend
+from blond.core.backends.flags import BeamFlags
+
+
+def _global_sum(local_value: float) -> float:
+    """
+    Sum a per-rank value over all MPI ranks.
+
+    Parameters
+    ----------
+    local_value
+        The value on this rank.
+
+    Returns
+    -------
+    global_value
+        The sum over all ranks, or `local_value` without MPI.
+    """
+    if mpi_is_distributed():
+        return MPI.COMM_WORLD.allreduce(local_value, op=MPI.SUM)
+    return local_value
+
+
+def _global_dot(
+    array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray
+) -> float:
+    """
+    Dot product of two rank-local arrays, summed over all MPI ranks.
+
+    Parameters
+    ----------
+    array_1
+        Rank-local input array 1.
+    array_2
+        Rank-local input array 2.
+
+    Returns
+    -------
+    global_dot
+        The dot product over the global arrays.
+    """
+    local_dot = backend.specials.dot_product_1d_array(array_1, array_2)
+    return _global_sum(float(local_dot))
 
 
 def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
@@ -43,41 +88,48 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     rms_emittance
         The Root-Mean-Square emittance in [s eV] of the beam.
     """
-    local_dt_sum = float(backend.specials.sum_1d_array(dt.array_local))
-    local_dE_sum = float(backend.specials.sum_1d_array(dE.array_local))
+    n = _global_sum(dt.local_size)
+    dt_mean = (
+        _global_sum(float(backend.specials.sum_1d_array(dt.array_local))) / n
+    )
+    dE_mean = (
+        _global_sum(float(backend.specials.sum_1d_array(dE.array_local))) / n
+    )
+
+    # Centre on the global mean before taking second moments. The
+    # one-pass form sum(x**2)/n - mean**2 cancels catastrophically when
+    # the spread is small compared to the mean (e.g. a bunch far from
+    # dt = 0) and can even turn negative.
+    dt_centred = dt.array_local - dt_mean
+    dE_centred = dE.array_local - dE_mean
 
     # use dot(x,x) for faster calculation of sum(x**2)
-    local_dt_dt_sum = float(
-        backend.specials.dot_product_1d_array(dt.array_local, dt.array_local)
-    )
-    local_dE_dE_sum = float(
-        backend.specials.dot_product_1d_array(dE.array_local, dE.array_local)
-    )
-    local_dt_dE_sum = float(
-        backend.specials.dot_product_1d_array(dt.array_local, dE.array_local)
-    )
-    local_count = dt.local_size
+    sigma_dt_squared = _global_dot(dt_centred, dt_centred) / n
+    sigma_dE_squared = _global_dot(dE_centred, dE_centred) / n
+    sigma_dE_dt = _global_dot(dt_centred, dE_centred) / n
 
-    if mpi_is_distributed():
-        comm = MPI.COMM_WORLD
-        dt_dt_sum = comm.allreduce(local_dt_dt_sum, op=MPI.SUM)
-        dE_dE_sum = comm.allreduce(local_dE_dE_sum, op=MPI.SUM)
-        dt_dE_sum = comm.allreduce(local_dt_dE_sum, op=MPI.SUM)
-        dt_sum = comm.allreduce(local_dt_sum, op=MPI.SUM)
-        dE_sum = comm.allreduce(local_dE_sum, op=MPI.SUM)
-        n = comm.allreduce(local_count, op=MPI.SUM)
-    else:
-        dt_dt_sum = local_dt_dt_sum
-        dE_dE_sum = local_dE_dE_sum
-        dt_dE_sum = local_dt_dE_sum
-        dt_sum = local_dt_sum
-        dE_sum = local_dE_sum
-        n = local_count
+    # The determinant is >= 0 in exact arithmetic (Cauchy-Schwarz), but
+    # rounding can push it slightly negative for a zero-emittance beam.
+    determinant = sigma_dt_squared * sigma_dE_squared - sigma_dE_dt**2
+    return float(np.sqrt(max(determinant, 0.0)))
 
-    over_n = 1 / n
-    sigma_dt_squared = dt_dt_sum * over_n - (dt_sum * over_n) ** 2
-    sigma_dE_squared = dE_dE_sum * over_n - (dE_sum * over_n) ** 2
-    sigma_dE_dt = dt_dE_sum * over_n - dt_sum * dE_sum * over_n**2
 
-    rms = np.sqrt(sigma_dt_squared * sigma_dE_squared - sigma_dE_dt**2)
-    return float(rms)
+def count_active_macroparticles(flags: DistributedArray) -> int:
+    """
+    Count the macro-particles flagged as active across all processes.
+
+    Parameters
+    ----------
+    flags
+        The beam macro-particle flags.
+
+    Returns
+    -------
+    n_active_macroparticles
+        Number of macro-particles with the flag
+        ``BeamFlags.ACTIVE``.
+    """
+    local_count = int(backend.sum(flags.array_local == BeamFlags.ACTIVE.value))
+    if mpi_is_distributed():  # pragma: no cover
+        return int(MPI.COMM_WORLD.allreduce(local_count, op=MPI.SUM))
+    return local_count

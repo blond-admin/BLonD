@@ -94,6 +94,12 @@ class Specials(ABC):
     for not producing non-finite coordinates in the first place.
     """
 
+    #: Kernels outside the parity contract, which a backend may offer where
+    #: they beat its parity kernels (e.g. `CudaNoParitySpecials`); None on
+    #: a backend without any. Callers check for None and fall back to the
+    #: parity kernels.
+    no_parity: Any = None
+
     @staticmethod
     @abstractmethod  # pragma: no cover
     def get_max_threads() -> int:
@@ -1032,11 +1038,15 @@ class BackendBaseClass(ABC):
         self, arr: NumpyArray | CupyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         if arr.dtype != dtype:
-            warnings.warn(
-                f"Automatically casting dtype from {arr.dtype} to {dtype}",
-                stacklevel=3,
-                category=PrecisionWarning,
-            )
+            # Only warn when values can change, e.g. complex -> float or
+            # float64 -> float32; int -> float is exact for usual inputs.
+            # stacklevel 4: the caller of `cast_arr_*_if_needed`.
+            if not np.can_cast(arr.dtype, dtype, casting="safe"):
+                warnings.warn(
+                    f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                    stacklevel=4,
+                    category=PrecisionWarning,
+                )
             try:
                 # Casting numpy complex array -> float is smooth and
                 # includes an automatic ComplexWarning.  Trying to cast

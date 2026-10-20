@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from scipy.constants import e
 from scipy.special import erf
 
@@ -43,7 +44,10 @@ from blond.physics.impedances.base import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import (
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 
 CIRCUMFERENCE = 6911.56  # m
 TRANSITION_GAMMA = 22.8
@@ -177,6 +181,29 @@ class TestVectorFit(unittest.TestCase):
         self.assertEqual(fit.direct_term, 0.0)
         self.assertEqual(fit.inductive_term, 0.0)
 
+    @pytest.mark.cupy
+    def test_rejects_device_arrays(self):
+        # A vector fit holds host arrays; a source handing over CuPy
+        # arrays must fail at construction, not deep in a solver.
+        try:
+            import cupy as cp  # type: ignore
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        host = np.array([-1e6 + 2e9j])
+        for field in ("poles", "residues", "counterrotation_signs"):
+            arrays = dict(
+                poles=host, residues=host, counterrotation_signs=np.ones(1)
+            )
+            arrays[field] = cp.asarray(arrays[field])
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(AssertionError, field):
+                    VectorFit(**arrays)
+        fit = VectorFit(
+            poles=host, residues=host, counterrotation_signs=np.ones(1)
+        )
+        with self.assertRaisesRegex(AssertionError, "residues"):
+            fit._replace(residues=cp.asarray(host))
+
 
 class TestMultiPoleSparseSolveMatchesFreqDomain(BLonDTestCase):
     """The terms against `PeriodicFreqSolver`, which applies them exactly."""
@@ -235,6 +262,25 @@ class TestMultiPoleSparseSolveMatchesFreqDomain(BLonDTestCase):
             )
         )
         self._assert_matches(combined, separate)
+
+    def test_terms_are_folded_into_the_near_taps(self):
+        """Both act on a bin and its neighbours, as the taps do: one pass."""
+        solver = MultiPoleSparseSolve()
+        _run_one_turn(
+            (
+                _VectorFittedSource(
+                    direct_term=DIRECT_TERM, inductive_term=INDUCTIVE_TERM
+                ),
+            ),
+            solver,
+        )
+        bin_dt = solver._model.bin_dt
+        inductive = 0.5 * INDUCTIVE_TERM / bin_dt**2
+        np.testing.assert_allclose(
+            copy_to_cpu(solver._model.taps),
+            [-inductive, DIRECT_TERM / bin_dt, inductive],
+            rtol=1e-12,
+        )
 
     def test_terms_of_several_sources_add(self):
         voltage = _run_one_turn(
@@ -300,6 +346,25 @@ class TestMultiPoleSparseSolveOnHandMadeAxes(BLonDTestCase):
             voltage_dense[gapped_x],
             rtol=1e-12,
             atol=1e-12 * np.max(np.abs(voltage_dense)),
+        )
+
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_resonators_run_on_every_backend(self):
+        # `Resonators` keeps its parameters as backend arrays; the
+        # solver must still get its vector fit, on the GPU too.
+        resonators = Resonators(1e5, 1.2e9, 5.0)
+        fit = resonators.get_vectorfit()
+        hist_x = list(range(8))
+        hist_y = [0.0, 1.0, 3.0, 2.0, 5.0, 4.0, 1.0, 0.0]
+        np.testing.assert_allclose(
+            self._voltage((resonators,), hist_x, hist_y),
+            self._voltage(
+                (_VectorFittedSource(fit.poles, fit.residues),),
+                hist_x,
+                hist_y,
+            ),
+            rtol=1e-12,
         )
 
     def test_plain_three_tuple_is_still_accepted(self):
