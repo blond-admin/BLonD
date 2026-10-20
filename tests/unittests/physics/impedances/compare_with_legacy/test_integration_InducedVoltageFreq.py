@@ -356,22 +356,15 @@ class TestBothBlonds(BLonDTestCase):
 
     @pytest.mark.backend_mutation
     def test___init__(self):
-        np.testing.assert_allclose(
-            self.blond3.blond2.induced_voltage,
-            self.blond3.induced_voltage,
-            rtol=1e-6,
-        )
+        # BLonD 2 stores one induced voltage per turn, shape (n_turns, n_bins)
+        for ind_ind in range(len(self.blond3.blond2.induced_voltage)):
+            np.testing.assert_allclose(
+                self.blond3.blond2.induced_voltage[ind_ind],
+                self.blond3.induced_voltage,
+            )
         if DEV_PLOT:
             for fig_num in plt.get_fignums():
                 fig = plt.figure(fig_num)
                 for ax in fig.axes:
                     ax.legend()
             plt.show()
-
-    @pytest.mark.backend_mutation
-    def test___init__(self):
-        for ind_ind in range(len(self.blond3.blond2.induced_voltage)):
-            np.testing.assert_allclose(
-                self.blond3.blond2.induced_voltage[ind_ind],
-                self.blond3.induced_voltage,
-            )

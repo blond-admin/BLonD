@@ -374,7 +374,7 @@ class TestNumpyBackend(BLonDTestCase):
             self.skipTest("cpp not available!")
 
     @pytest.mark.backend_mutation
-    def test_set_specials_cpp(self) -> None:
+    def test_set_specials_cpp_single_core(self) -> None:
         try:
             self.numpy_backend.set_specials(mode="cpp_single_core")
         except FileNotFoundError:
@@ -3472,7 +3472,7 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue(self) -> None:
+    def test_wake_from_pole_residue_states_over_two_calls(self) -> None:
         """All backends must match python, incl. states over two calls."""
         self._assert_wake_matches_python(
             update_on_bin_np=np.array([0], dtype=np.int32),
