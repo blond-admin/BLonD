@@ -45,7 +45,6 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -668,7 +667,7 @@ class TestCallables(BLonDTestCase):
             )  # Should  raise
 
     @pytest.mark.cupy
-    def test_invalid_purely_real_or_imaginary_array(self):
+    def test_invalid_purely_real_or_imaginary_array_cupy(self):
         try:
             import cupy as cp  # type: ignore
         except ImportError as exc:
