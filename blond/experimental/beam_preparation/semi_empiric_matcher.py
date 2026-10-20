@@ -29,6 +29,7 @@ from blond.experimental.beam_preparation.bucket_filler_functions import (
 )
 from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
+from blond.generals.exceptions_ import SemiEmpiricMatcherError
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -323,7 +324,7 @@ def get_grid_correction_from_one_turn_map(
     """
     cos_mu = 0.5 * float(np.trace(one_turn_map))
     if not abs(cos_mu) < 1:
-        raise ValueError(
+        raise SemiEmpiricMatcherError(
             f"The one-turn map is not linearly stable, {2 * cos_mu=}."
         )
     sin_mu = np.sign(one_turn_map[0, 1]) * np.sqrt(1 - cos_mu**2)
@@ -794,6 +795,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
                             self._last_potential_well
                             + self._prelast_potential_well
                         ) / 2
+                        if self.correct_to_one_turn_map:
+                            # measured on `best_avg_potential_well`
+                            best_grid_correction = self._grid_correction
                     else:
                         stall_count += 1
                     if (stall_count >= self.stagnation_patience) and past_ramp:
@@ -808,6 +812,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                         # regenerated deterministically (same `self.seed`)
                         # from the small stored potential well, instead of
                         # keeping the state left by this stalled iteration.
+                        if self.correct_to_one_turn_map:
+                            self._grid_correction = best_grid_correction
                         self._rematch_beam_to_potential_well(
                             beam=beam,
                             simulation=sim_tmp,
@@ -1126,14 +1132,14 @@ class SemiEmpiricMatcher(MatchingRoutine):
         grid_step = float(ts_cpu[1] - ts_cpu[0])
         try:
             if abs(t_fixed - ts_cpu[i_min]) > 10 * grid_step:
-                raise ValueError(
+                raise SemiEmpiricMatcherError(
                     f"no fixed point near the potential minimum, {t_fixed=}"
                 )
             return get_grid_correction_from_one_turn_map(
                 one_turn_map=one_turn_map,
                 beta_hamiltonian=beta_hamiltonian,
             )
-        except ValueError as exc:
+        except SemiEmpiricMatcherError as exc:
             warnings.warn(
                 "SemiEmpiricMatcher: the beam is not corrected to the"
                 f" one-turn map: {exc}",

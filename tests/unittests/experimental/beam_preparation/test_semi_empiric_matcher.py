@@ -727,6 +727,70 @@ class TestSemiEmpiricMatcherStagnation(BLonDTestCase):
         rematch_spy.assert_called_once()
         self.assertEqual(stdout.getvalue(), "")
 
+    def test_stall_rolls_back_to_correction_of_best_iteration(self):
+        # Each measurement returns its own, negligibly small correction, so
+        # the correction applied in the rollback tells which potential well
+        # it was measured on.
+        measurements = []  # (potential_well, grid_correction)
+
+        def measure(matcher, **kwargs):
+            grid_correction = (0.0, 1.0 + 1e-12 * len(measurements))
+            measurements.append(
+                (copy_to_cpu(kwargs["potential_well"]), grid_correction)
+            )
+            return grid_correction
+
+        applied_corrections = []
+        populate = SemiEmpiricMatcher._populate_beam_from_hamiltonian
+
+        def populate_and_record(matcher, **kwargs):
+            applied_corrections.append(matcher._grid_correction)
+            return populate(matcher, **kwargs)
+
+        rematch = SemiEmpiricMatcher._rematch_beam_to_potential_well
+        with (
+            mock.patch.object(
+                SemiEmpiricMatcher,
+                "_measure_grid_correction",
+                autospec=True,
+                side_effect=measure,
+            ),
+            mock.patch.object(
+                SemiEmpiricMatcher,
+                "_populate_beam_from_hamiltonian",
+                autospec=True,
+                side_effect=populate_and_record,
+            ),
+            mock.patch.object(
+                SemiEmpiricMatcher,
+                "_rematch_beam_to_potential_well",
+                autospec=True,
+                side_effect=rematch,
+            ) as rematch_spy,
+        ):
+            TestSemiEmpiricMatcherWarmup._run_matching(
+                self,
+                # With a patience of one, the stall is detected one
+                # iteration after the best one, so best and last differ.
+                maxiter_intensity_effects=20,
+                tolerance_potential_well=1e-15,
+                stagnation_patience=1,
+                correct_to_one_turn_map=True,
+            )
+
+        rematch_spy.assert_called_once()
+        best_potential_well = copy_to_cpu(
+            rematch_spy.call_args.kwargs["avg_potential_well"]
+        )
+        (best_correction,) = (
+            grid_correction
+            for potential_well, grid_correction in measurements
+            if np.allclose(potential_well, best_potential_well, rtol=1e-12)
+        )
+        self.assertNotEqual(best_correction, measurements[-1][1])
+        # the rollback populates the beam last
+        self.assertEqual(applied_corrections[-1], best_correction)
+
 
 class TestCallables(BLonDTestCase):
     def test_get_hamiltonian_semi_analytic_energy_range(self):
