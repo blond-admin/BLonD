@@ -1,6 +1,7 @@
 recursive-include blond *.cpp
 recursive-include blond *.h
 recursive-include blond *.cu
+recursive-include blond *.cuh
 recursive-include blond *.f90
 recursive-include blond *.dll
 recursive-include blond *.so

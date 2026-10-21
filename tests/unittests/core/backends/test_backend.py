@@ -3574,15 +3574,15 @@ class TestSpecials(BLonDTestCase):
         plan is built in production; both limits are lifted here, so every
         kernel test checks the GEMM too.
         """
-        from blond.core.backends.cuda import callables as cuda_callables
+        from blond.core.backends.cuda.multipole import pole_gemm
 
         offsets = np.rint(
             (np.asarray(profile_time) - profile_time[0]) / bin_dt
         ).astype(np.int64)
         with (
-            mock.patch.object(cuda_callables, "_MIN_GEMM_POLES", 0),
+            mock.patch.object(pole_gemm, "_MIN_GEMM_POLES", 0),
             mock.patch.object(
-                cuda_callables,
+                pole_gemm,
                 "_GEMM_TILE_LENGTHS",
                 (128, 64, 32, 16, 8, 4, 2, 1),
             ),
