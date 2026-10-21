@@ -137,7 +137,7 @@ class TimeDomainWakePerBin:
         induced voltage of a histogram is the wake integrated over the bin,
         and averaging with ``box * box * box`` keeps a resonance above the
         profile's Nyquist frequency from aliasing onto the bunch spectrum
-        (see :mod:`blond.physics.impedances.bin_average`). The kernel is
+        (see :mod:`blond.physics.impedances.wake_per_bin.bin_average`). The kernel is
         non-zero from ``-1.5 * dt``, so callers sample from one bin before
         the profile. The default treats :meth:`get_wake` as piecewise
         linear between its samples; sources with a closed form override it.

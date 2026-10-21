@@ -461,7 +461,7 @@ class TestMultiPoleSparseInitialise(BLonDTestCase):
     def test_single_bin_profile(self):
         """One bin sees only its own tap, at lag zero."""
         from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-        from blond.physics.impedances.bin_average import (
+        from blond.physics.impedances.wake_per_bin.bin_average import (
             triple_box_average_poles,
         )
 

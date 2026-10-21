@@ -21,7 +21,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.physics.impedances.bin_average import (
+from blond.physics.impedances.wake_per_bin.bin_average import (
     bspline_window_moments,
     triple_box_average_poles,
 )
@@ -398,7 +398,7 @@ class ImpedanceTableTimeWakePerBin:
         :math:`w` bins before :math:`t_m` and :math:`D_w = \mathrm{box}_w
         - U_w` its descending mirror. Since :math:`D_w` and :math:`U_w`
         integrate against the B-spline in closed form (see
-        :func:`~blond.physics.impedances.bin_average.bspline_window_moments`),
+        :func:`~blond.physics.impedances.wake_per_bin.bin_average.bspline_window_moments`),
         the correction to the stencil at the
         grid point :math:`t_m + v \Delta t` is exactly
 

@@ -22,7 +22,6 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.multipole.checks import (
     _check_decaying_poles,
     _check_whole_bin_gaps,
@@ -32,6 +31,9 @@ from blond.physics.impedances.multipole.model import (
     _FarField,
     _is_far_field_pole,
     _PoleModel,
+)
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    triple_box_average_poles,
 )
 from blond.physics.profiles import StaticProfile
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -66,7 +68,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3\, e^{p\Delta t / 2}`
     and read two bins behind the bin -- and a **near field**, the three
     taps at lags of minus one, zero and one bin, evaluated in closed form by
-    :func:`~blond.physics.impedances.bin_average.triple_box_average_poles`.
+    :func:`~blond.physics.impedances.wake_per_bin.bin_average.triple_box_average_poles`.
     The split is an identity, not an approximation, for a profile whose
     bins lie a whole number of bins apart (checked at the first call); see
     Steps 61-71 of ``docs/models_new/pole-residue/

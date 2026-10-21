@@ -7,7 +7,7 @@
 # Project website: http://blond.web.cern.ch/
 
 """
-Tests for :mod:`blond.physics.impedances.bin_average`.
+Tests for :mod:`blond.physics.impedances.wake_per_bin.bin_average`.
 
 Notes
 -----
@@ -25,8 +25,8 @@ import pytest
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.impedances import bin_average
-from blond.physics.impedances.bin_average import (
+from blond.physics.impedances.wake_per_bin import bin_average
+from blond.physics.impedances.wake_per_bin.bin_average import (
     triple_box_average_pole,
     triple_box_average_poles,
 )

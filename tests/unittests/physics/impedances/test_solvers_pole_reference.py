@@ -39,8 +39,10 @@ from blond.physics.impedances.base import (
     SupportsVectorFittedModel,
     WakeFieldSource,
 )
-from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    triple_box_average_poles,
+)
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing.backend_testing import BLonDTestCase
 

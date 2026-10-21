@@ -31,7 +31,6 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.bin_average import triple_box_average_pole
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedance,
@@ -42,6 +41,9 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import ImpedanceTableFreq, Resonators
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    triple_box_average_pole,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
