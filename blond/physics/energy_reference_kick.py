@@ -43,13 +43,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, AltersReference):
     **kwargs
         Additional keyword arguments for compatibility.
 
-    Attributes
-    ----------
-    _turn_counter
-        Current simulation turn number (initialized during simulation).
-    _magnetic_cycle
-        Reference to the simulation's magnetic cycle.
-
     Examples
     --------
     >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")

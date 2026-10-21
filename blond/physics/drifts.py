@@ -178,6 +178,12 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         Additional keyword arguments for method
         resolution order of inheriting elements.
 
+    Attributes
+    ----------
+    momentum_compaction_factor
+        Momentum compaction factor of this drift section. Can be
+        scheduled.
+
     See Also
     --------
     DriftExact : Full slip and exact delta (most complete, slowest).

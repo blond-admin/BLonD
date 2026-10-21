@@ -426,6 +426,17 @@ class InducedVoltageObservationCR(
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Attributes
+    ----------
+    turn_counter
+        Turn counter of the `Simulation`, taken when the run starts.
+        Compared with ``last_turn`` to tell the two passes of a turn
+        apart.
+    beam_state
+        Whether the beam seen at the previous record was counter-rotating.
+    last_turn
+        Turn of the previous record.
     """
 
     _induced_voltage: InitialisedInternally[DenseArrayRecorder] = (

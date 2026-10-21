@@ -51,6 +51,17 @@ class BarrierRF(RFManipulationBaseClass):
     section_index
         The section the barrier should be applied to.
 
+    Attributes
+    ----------
+    t_center
+        The center time of the barrier, in [s]. Can be scheduled.
+    t_width
+        The width of the barrier, in [s]. Can be scheduled.
+    peak_voltage
+        The peak amplitude of the barrier, in [V]. Can be scheduled.
+    n_bins
+        Number of bins that define the waveform before interpolation.
+
     References
     ----------
     [1] M. Vadai, et al, "Beam Manipulations With Barrier Buckets in the

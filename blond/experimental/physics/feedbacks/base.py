@@ -78,6 +78,16 @@ RFFeedback = LocalFeedback  # just an alias name
 
 
 class GlobalFeedback(FeedbackBaseClass):
+    """
+    Baseclass for implementation of global feedback elements.
+
+    Attributes
+    ----------
+    cavities
+        All RF stations of the ring the feedback acts on, collected
+        when the `Simulation` is initialised.
+    """
+
     cavities: InitialisedInternally[list[RFStationBaseClass]] = (
         InitialisedInternally(SetBy.SIMULATION)
     )

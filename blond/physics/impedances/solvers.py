@@ -1308,6 +1308,12 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     """
     Solver that uses a vector-fitted pole-residue model to calculate the induced voltage.
 
+    Attributes
+    ----------
+    last_reference_time
+        Reference time of the beam at the previous call, in [s]. The pole
+        states are advanced by the time passed since then.
+
     See Also
     --------
     blond.physics.impedances.base.SupportsVectorFittedModel : Interface for wakefield sources that can provide the poles and residues this solver consumes.

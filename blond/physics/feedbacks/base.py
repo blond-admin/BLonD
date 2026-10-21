@@ -180,6 +180,12 @@ class GlobalFeedback(FeedbackBaseClass):
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
+
+    Attributes
+    ----------
+    cavities
+        All RF stations of the ring the feedback acts on, collected
+        when the `Simulation` is initialised.
     """
 
     cavities: InitialisedInternally[list[RFStationBaseClass]] = (
