@@ -374,7 +374,7 @@ class TestNumpyBackend(BLonDTestCase):
             self.skipTest("cpp not available!")
 
     @pytest.mark.backend_mutation
-    def test_set_specials_cpp(self) -> None:
+    def test_set_specials_cpp_single_core(self) -> None:
         try:
             self.numpy_backend.set_specials(mode="cpp_single_core")
         except FileNotFoundError:

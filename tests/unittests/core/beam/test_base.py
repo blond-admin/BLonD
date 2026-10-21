@@ -142,7 +142,7 @@ class TestBeamBaseClass(BLonDTestCase):
         pass  # is abstract
 
     @unittest.skip("Abstract method")
-    def test_dE_min(self):
+    def test_dE_max(self):
         pass  # is abstract
 
     @unittest.skip("Abstract method")
