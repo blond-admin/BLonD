@@ -12,11 +12,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from blond.core.offenders import WeakBackReference
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation
+    from blond.core.simulation.simulation import Simulation
 
 
 class IntensityEffectManager:
@@ -28,6 +29,9 @@ class IntensityEffectManager:
     simulation
         `Simulation` context manager.
     """
+
+    # The simulation owns this manager; a strong reference forms a cycle
+    _parent_simulation = WeakBackReference()
 
     def __init__(self, simulation: Simulation) -> None:
         self._parent_simulation = simulation

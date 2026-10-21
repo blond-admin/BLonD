@@ -4,9 +4,10 @@ from blond import backend, electron
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import *
 from blond.core.beam.particle_types import ParticleType
 from blond.generals.exceptions_ import UnevenArraySizes
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
+class TestSynchrotronRadiationMaths_float_inputs(BLonDTestCase):
     def setUp(self):
         # FCC-ee high-energy booster at injection energy
         self.particle_type = electron
@@ -155,7 +156,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         )
 
 
-class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
+class TestSynchrotronRadiationMaths_array_inputs(BLonDTestCase):
     def setUp(self):
         # Example of the FCC-ee high-energy booster at injection
         self.particle_type = ParticleType(mass=1, charge=-1)

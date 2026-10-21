@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
-from blond.generals.distributed import distributed_array
+from blond.core.backends.mpi_distributed import distributed_array
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 

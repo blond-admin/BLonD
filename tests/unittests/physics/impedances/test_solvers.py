@@ -26,6 +26,7 @@ from blond import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.offenders import hold_strongly
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
@@ -45,11 +46,11 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 from blond.testing.helpers import enforce_64_bit_backend
 
 
-class TestTimeDomainFftSolver(unittest.TestCase):
+class TestTimeDomainFftSolver(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -66,7 +67,10 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             endpoint=True,
         )
 
-        self.time_domain_fft_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.time_domain_fft_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.time_domain_fft_solver, "_parent_wakefield")
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -271,7 +275,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             plt.show()
 
 
-class TestInductiveImpedanceSolver(unittest.TestCase):
+class TestInductiveImpedanceSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
         beam = Mock(BeamBaseClass)
@@ -292,6 +296,10 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.inductive_impedance_solver, "_parent_wakefield", "_simulation"
+        )
         _parent_wakefield.profile.gradient_hist_y = backend.linspace(1, 3)
 
     def test___init__(self):
@@ -373,7 +381,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         )
 
 
-class TestPeriodicFreqSolver(unittest.TestCase):
+class TestPeriodicFreqSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
             Z_over_n=34.6669349520904 / 10e9 * 11e3
@@ -385,7 +393,10 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         )
         self.periodic_freq_solver = PeriodicFreqSolver(t_periodicity=10)
 
-        self.periodic_freq_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.periodic_freq_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.periodic_freq_solver, "_parent_wakefield")
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -509,7 +520,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         hist_y = np.zeros(n_bins)
         hist_y[5:10] = [1, 2, 3, 2, 1]
         profile = StaticProfile(cut_left=-0.5, cut_right=0.5, n_bins=n_bins)
-        profile._hist_y = backend.array(hist_y, dtype=backend.float)
+        profile.hist_y[:] = backend.array(hist_y, dtype=backend.float)
         profile.hist_y_to_density_factor = 1.0
 
         parent_wakefield = Mock(WakeField)
@@ -662,7 +673,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             plt.show()
 
 
-class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
+class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -687,8 +698,13 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e3)
 
-        self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
-            WakeField
+        self.parent_wakefield = Mock(WakeField)
+        self.single_turn_resonator_convolution_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.single_turn_resonator_convolution_solver, "_parent_wakefield"
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
@@ -749,7 +765,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         initial_voltage = analy_solver.calc_induced_voltage(beam=self.beam)
 
         td_fft_solver = TimeDomainFftSolver()
-        td_fft_solver._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        td_fft_solver._parent_wakefield = parent_wakefield
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
@@ -1056,7 +1073,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        analy._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        analy._parent_wakefield = parent_wakefield
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -1158,7 +1176,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
 
 @pytest.mark.backend_mutation
-class TestMultiPassResonatorSolver(unittest.TestCase):
+class TestMultiPassResonatorSolver(BLonDTestCase):
     def setUp(self):
         enforce_64_bit_backend()
         # the histogram step is to tiny and would result in hist_step = 0
@@ -1174,7 +1192,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             backend.arange(-1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float),
         )
 
-        self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.multi_pass_resonator_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.multi_pass_resonator_solver, "_parent_wakefield")
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
@@ -2089,7 +2112,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        local_res._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        local_res._parent_wakefield = parent_wakefield
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
@@ -2194,7 +2218,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 decay_fraction_threshold=0.999
             )
 
-            local_res._parent_wakefield = Mock(WakeField)
+            parent_wakefield = Mock(WakeField)
+            local_res._parent_wakefield = parent_wakefield
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
@@ -2217,7 +2242,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             )
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
-            local_res_analy._parent_wakefield = Mock(WakeField)
+            parent_wakefield_analy = Mock(WakeField)
+            local_res_analy._parent_wakefield = parent_wakefield_analy
             local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
@@ -3279,7 +3305,7 @@ beam_profile = np.array(
 )
 
 
-class TestHeadlessSolvers(unittest.TestCase):
+class TestHeadlessSolvers(BLonDTestCase):
     def test_comp(self):
         t_rf = 7.706144104735e-10
         prof_ = StaticProfile.from_rad(
@@ -3356,14 +3382,14 @@ class TestHeadlessSolvers(unittest.TestCase):
         )
 
 
-class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
+class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
     def test_update_wake_kernel_fails(self):
         from blond.testing.mocks import beam_mock
 
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3405,7 +3431,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3434,12 +3460,10 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         from blond.testing.mocks import beam_mock
 
         prof = DynamicProfileConstNBins(n_bins=128)
-        prof.cut_left = -1e-9
-        prof.cut_right = 1e-9
-        prof._hist_x = backend.linspace(prof.cut_left, prof.cut_right, 128)
+        prof._set_window(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3467,7 +3491,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof.hist_y_to_density_factor = 0.3
-        prof._hist_y = backend.array(
+        prof.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3543,7 +3567,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
 
         prof_single.hist_y_to_density_factor = 0.3
-        prof_single._hist_y = backend.array(
+        prof_single.hist_y[:] = backend.array(
             np.exp(-((np.arange(128) - 64) ** 2) / 1e2), dtype=backend.float
         )
 
@@ -3552,7 +3576,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         )
 
         prof_two_turns.hist_y_to_density_factor = 0.3
-        prof_two_turns._hist_y = np.concatenate(
+        prof_two_turns.hist_y[:] = np.concatenate(
             (prof_single.hist_y, 0.5 * prof_single.hist_y)
         )
 
@@ -3578,7 +3602,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         wf_single.calc_induced_voltage(beam=beam_mock)
 
         wf_mutli.calc_induced_voltage(beam=beam_mock)
-        prof_single._hist_y *= 0.5
+        prof_single.hist_y[:] *= 0.5
         wf_mutli.calc_induced_voltage(beam=beam_mock)  # second turn
 
         DEV_DEBUG = False
@@ -3616,7 +3640,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         )
 
 
-class TestPeriodicFreqSolverBranches(unittest.TestCase):
+class TestPeriodicFreqSolverBranches(BLonDTestCase):
     def test_on_wakefield_init_simulation_no_warn_expect_already_true(self):
         solver = PeriodicFreqSolver(t_periodicity=1e-6)
         solver.expect_profile_change = True

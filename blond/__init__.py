@@ -70,9 +70,27 @@ __all__ = [
     "Music",
     "DynamicProfileConstNBinsObservation",
     "SymbolicSeparatrixHelper",
+    "Coasting",
+    "ContinuousMultiTurnTimeDomainSolver",
+    "DriftExact",
+    "DynamicProfileConstCutoff",
+    "FilamentationMatcher",
+    "ImpedanceTableTime",
+    "MultiPassResonatorSolver",
+    "ParticleType",
+    "ScheduledArray",
+    "ScheduledFunctional",
+    "ScheduledInterpolation",
+    "SingleTurnResonatorConvolutionSolver",
+    "StaticMultiProfileObservation",
+    "SynchrotronRadiationMaster",
+    "TravelingWaveCavity",
+    "VariNoise",
 ]
 from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
+from blond.beam_preparation.coasting import Coasting
+from blond.beam_preparation.filamentation_matcher import FilamentationMatcher
 from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.core.backends.backend import (
     Cupy64Bit,
@@ -83,6 +101,7 @@ from blond.core.backends.helpers import setup_backend
 from blond.core.base import UserDefinedElement
 from blond.core.beam.beams import Beam, EmptyBeam
 from blond.core.beam.particle_types import (
+    ParticleType,
     electron,
     mu_minus,
     mu_plus,
@@ -91,6 +110,11 @@ from blond.core.beam.particle_types import (
     uranium_29,
 )
 from blond.core.ring.ring import Ring
+from blond.core.scheduling import (
+    ScheduledArray,
+    ScheduledFunctional,
+    ScheduledInterpolation,
+)
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
@@ -98,6 +122,7 @@ from blond.cycles.magnetic_cycle import (
     MagneticCyclePerTurn,
     MagneticCyclePerTurnAllRFStations,
 )
+from blond.cycles.noise_generators.vari_noise import VariNoise
 from blond.generals import typing_ as typing
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
 from blond.generals.interpolators import DerivativeInterpolator
@@ -109,6 +134,7 @@ from blond.handle_results.observables import (
     DynamicProfileConstNBinsObservation,
     RFStationPhaseObservation,
     SimulationObservation,
+    StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
 )
@@ -116,31 +142,40 @@ from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
 from blond.physics.barrier_bucket import BarrierRF
-from blond.physics.cavities import (
-    MultiHarmonicRFStation,
-    SingleHarmonicRFStation,
-)
-from blond.physics.drifts import DriftSimple
+from blond.physics.drifts import DriftExact, DriftSimple
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
 from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.solvers import (
+    ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedanceSolver,
+    MultiPassResonatorSolver,
     MultiPoleSparseSolve,
     PeriodicFreqSolver,
+    SingleTurnResonatorConvolutionSolver,
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import (
     ImpedanceTableFreq,
+    ImpedanceTableTime,
     InductiveImpedance,
     Resonators,
+    TravelingWaveCavity,
 )
 from blond.physics.losses import BoxLosses
 from blond.physics.profiles import (
+    DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    SynchrotronRadiationMaster,
+)
 from blond.utilities.separatrix.symbolic_separatrix import (
     SymbolicSeparatrixHelper,
 )

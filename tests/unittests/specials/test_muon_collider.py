@@ -9,9 +9,10 @@ from blond.specifics.muon_collider.beam_preparation import (
     load_beam_coordinates_counterrot_from_file,
     load_beam_coordinates_from_file,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestBeamPreparationMuCol(unittest.TestCase):
+class TestBeamPreparationMuCol(BLonDTestCase):
     def test_load_beam_coordinates_counterrot_from_file(self):
         beam = Beam(
             intensity=1, particle_type=proton, is_counter_rotating=True

@@ -44,7 +44,7 @@ class _FakeProfile(StaticProfile):
         super().__init__(
             cut_left=cut_left, cut_right=cut_right, n_bins=len(profile_y)
         )
-        self._hist_y = backend.array(profile_y, dtype=backend.float)
+        self.hist_y[:] = backend.array(profile_y, dtype=backend.float)
         self.hist_y_to_density_factor = 1.0
 
 
@@ -64,7 +64,8 @@ def _calc_induced_voltage(solver, profile_y) -> np.ndarray:
     )
     ring = Ring(circumference=circumference)
     ring.add_elements([profile, wakefield])
-    Simulation(
+    # kept alive: elements hold their simulation only weakly
+    simulation = Simulation(  # noqa: F841
         ring=ring,
         magnetic_cycle=ConstantMagneticCycle(
             reference_particle=beam.particle_type,

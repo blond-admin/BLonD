@@ -6,9 +6,10 @@ from blond import positron
 from blond.specifics.fccee.generate_rings import (
     generate_fccee_booster_basic_simulation,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFCCColliderBasicSimulation(unittest.TestCase):
+class TestFCCColliderBasicSimulation(BLonDTestCase):
     def setUp(self):
         self.simZ = generate_fccee_booster_basic_simulation()
         self.simW = generate_fccee_booster_basic_simulation(

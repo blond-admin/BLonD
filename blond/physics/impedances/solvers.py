@@ -33,8 +33,7 @@ from scipy.fft import next_fast_len
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.ring.helpers import requires
-from blond.core.simulation.simulation import Simulation
+from blond.core.ordering import requires
 from blond.generals.warnings_ import PerformanceWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -54,6 +53,8 @@ from blond.physics.profiles_sparse import EquidistantMultiProfile
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.core.simulation.simulation import Simulation
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
@@ -171,7 +172,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._t_periodicity = t_periodicity
         self._parent_wakefield: WakeField | None = None
         self._n_time: int | None = None
-        self._n_freq: int | None = None
         self._freq_x: NumpyArray | None = None
         self._freq_y: NumpyArray | None = None
 
@@ -245,14 +245,15 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 break
 
     @property
-    def t_periodicity(self) -> float:
+    def t_periodicity(self) -> float | None:
         """
         Periodicity that is assumed for fast fourier transform in  [s].
 
         Returns
         -------
         t_periodicity
-            Periodicity for FFT, in [s].
+            Periodicity for FFT, in [s]. ``None`` if it was not given on
+            construction and the solver is not initialized yet.
         """
         return self._t_periodicity
 
@@ -300,7 +301,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_x = backend.fft.rfftfreq(
             self._n_time, d=self._parent_wakefield.profile.hist_step
         ).astype(backend.float)
-        self._n_freq = len(self._freq_x)
 
         self._freq_y_needs_update = True
 
@@ -1265,7 +1265,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     ) -> None:
         self._poles: NumpyArray | CupyArray | None = None
         self._residues: NumpyArray | CupyArray | None = None
-        self._profile: EquidistantMultiProfile | None = None
+        self._profile: EquidistantMultiProfile | StaticProfile | None = None
         self._parent_wakefield: WakeField | None = None
         self._voltage: NumpyArray | CupyArray | None = None
         self.last_reference_time: float | None = None
@@ -1287,10 +1287,21 @@ class MultiPoleSparseSolve(WakeFieldSolver):
             `Simulation` context manager.
         parent_wakefield
             `WakeField` that this solver affiliated to.
-        """
-        self._parent_wakefield = parent_wakefield
 
-        self._profile: EquidistantMultiProfile = parent_wakefield.profile  # type: ignore
+        Raises
+        ------
+        TypeError
+            If the profile is neither an `EquidistantMultiProfile` nor a
+            `StaticProfile`.
+        """
+        profile = parent_wakefield.profile
+        if not isinstance(profile, (EquidistantMultiProfile, StaticProfile)):
+            raise TypeError(
+                "Expected `EquidistantMultiProfile` or `StaticProfile`,"
+                f" but got {type(profile)=}."
+            )
+        self._parent_wakefield = parent_wakefield
+        self._profile = profile
 
     def _finalize_solver(self, beam):
         poles = []

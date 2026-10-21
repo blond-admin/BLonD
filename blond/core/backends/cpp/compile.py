@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import ctypes
 import os
-import platform
 import subprocess
 import sys
 
@@ -83,6 +82,7 @@ cpp_files = [
     "synchrotron_radiation_and_quantum_excitation.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
+    "index_abi.cpp",  # reports the compiled index_t ABI back to Python
 ]
 cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 
@@ -123,7 +123,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     compiler: str = "g++",
     libs: str = "",
     flags: str = "",
-    optimize: bool = True,
+    optimize_for_local_cpu: bool = True,
     libname: str | None = None,
     limit_cachesize: bool = False,
 ) -> None:
@@ -150,9 +150,12 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         Additional libraries required for compilation, provided as a space-separated string.
     flags : str
         Additional compiler flags as a space-separated string (e.g., "-O2 -Wall").
-    optimize : bool
-        If True (default), add `-march=native`, `-ffast-math` and
-        CPU-specific vectorization flags (AVX/SSE/FMA).
+    optimize_for_local_cpu : bool
+        If True (default), tune the binary to the build machine by adding
+        `-march=native`, `-ffast-math` and CPU-specific vectorization flags
+        (AVX/SSE/FMA). The resulting library may not run on other CPUs.
+        This is independent of the compiler optimization level (`-O3`),
+        which is always used.
     libname : str
         Path and name of the output library (without file extension).
     limit_cachesize : bool
@@ -174,7 +177,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
 
     build_options = {
         "compiler": compiler,
-        "optimize": optimize,
+        "optimize_for_local_cpu": optimize_for_local_cpu,
         "flags": flags,
         "libs": libs,
         "with_fftw": with_fftw,
@@ -196,8 +199,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         "-funroll-loops",  # Aggressive loop unrolling
         "-ftree-vectorize",
     ]
-    if optimize:
-        # CPU-specific; --no-optimize keeps the binary portable
+    if optimize_for_local_cpu:
+        # CPU-specific; --no-optimize-for-local-cpu keeps the binary portable
         source_cflags += ["-march=native"]
     # Some additional warning reporting related flags
     source_cflags += [
@@ -255,7 +258,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             cflags=loop_flags[style],
             compiler=compiler,
             libname=libname,
-            optimize=optimize,
+            optimize_for_local_cpu=optimize_for_local_cpu,
             parallel=parallel,
         )
 
@@ -358,7 +361,7 @@ def _prepare_cflags(
     cflags: list[str],
     compiler: str,
     libname: str,
-    optimize: bool,
+    optimize_for_local_cpu: bool,
     parallel: bool,
 ) -> tuple[list[str], str]:
     """
@@ -372,8 +375,8 @@ def _prepare_cflags(
         The C++ compiler to use.
     libname
         Base name of the output library.
-    optimize
-        If True, enable optimization flags.
+    optimize_for_local_cpu
+        If True, add `-ffast-math` and CPU-specific vectorization flags.
     parallel
         Whether or not to use parallel compiler.
 
@@ -387,13 +390,8 @@ def _prepare_cflags(
     parallel_suffix = "" if parallel else "_noOMP"
     if "posix" in os.name:
         cflags += ["-fPIC"]
-        if optimize:
-            if "-ffast-math" not in cflags:
-                cflags += ["-ffast-math"]
-            cflags = _add_avx_flags(
-                cflags=cflags,
-                compiler=compiler,
-            )
+        if optimize_for_local_cpu and "-ffast-math" not in cflags:
+            cflags += ["-ffast-math"]
 
         root, ext = os.path.splitext(libname)
         if not ext:
@@ -403,14 +401,9 @@ def _prepare_cflags(
         )
 
     elif "win" in sys.platform:
-        # Add optimization flags for Windows (same as POSIX)
-        if optimize:
-            if "-ffast-math" not in cflags:
-                cflags += ["-ffast-math"]
-            cflags = _add_avx_flags(
-                cflags=cflags,
-                compiler=compiler,
-            )
+        # Add optimize-for-local-cpu flags for Windows (same as POSIX)
+        if optimize_for_local_cpu and "-ffast-math" not in cflags:
+            cflags += ["-ffast-math"]
 
         root, ext = os.path.splitext(libname)
         if not ext:
@@ -477,64 +470,6 @@ def _prepare_fftw(
                 fftw_cflags += ["-DFFTW3PARALLEL"]
                 fftw_libs += ["-lfftw3_threads", "-lfftw3f_threads"]
     return fftw_cflags, fftw_libs
-
-
-def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
-    """
-    Add AVX/SSE flags to compiler flags.
-
-    Parameters
-    ----------
-    cflags
-        List of compiler flags.
-    compiler
-        The C++ compiler to use.
-
-    Returns
-    -------
-    cflags
-        Updated compiler flags with AVX/SSE optimization.
-    """
-    # Check compiler defined directives
-    # This is compatible with python3.6 - python 3.9
-    # The universal_newlines argument transforms output to text (from binary)
-    proc = subprocess.run(
-        [
-            compiler,
-            "-march=native",
-            "-dM",
-            "-E",
-            "-",
-        ],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
-    # If we have an error
-    if proc.returncode != 0:
-        print(
-            "Compiler auto-optimization did not work. Error: ",
-            proc.stdout,
-        )
-    # Following options exist only on x86 processors
-    elif "arm" not in platform.machine():
-        # Add the appropriate vectorization flag (not use avx512)
-        if "AVX2" in proc.stdout:
-            cflags += ["-mavx2"]
-        elif "AVX" in proc.stdout:
-            cflags += ["-mavx"]
-        elif "SSE4_2" in proc.stdout or "SSE4_1" in proc.stdout:
-            cflags += ["-msse4"]
-        elif "SSE3" in proc.stdout:
-            cflags += ["-msse3"]
-        else:
-            cflags += ["-msse"]
-
-        # Add FMA if supported
-        if "FMA" in proc.stdout:
-            cflags += ["-mfma"]
-    return cflags
 
 
 def main_cli() -> None:
@@ -616,12 +551,13 @@ def main_cli() -> None:
     )
 
     parser.add_argument(
-        "-optimize",
-        "--optimize",
+        "-optimize-for-local-cpu",
+        "--optimize-for-local-cpu",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Auto optimize the compiled library"
-        " (disable with --no-optimize).",
+        help="Tune the compiled library to this machine's CPU"
+        " (-march=native, -ffast-math, AVX/SSE/FMA flags; disable with"
+        " --no-optimize-for-local-cpu for a portable build).",
     )
 
     parser.add_argument(
@@ -644,7 +580,7 @@ def main_cli() -> None:
         compiler=args["compiler"],
         libs=args["libs"],
         flags=args["flags"],
-        optimize=args["optimize"],
+        optimize_for_local_cpu=args["optimize_for_local_cpu"],
         libname=args["libname"],
         limit_cachesize=args["limit_cachesize"],
     )

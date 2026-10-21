@@ -5,10 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Beam, BoxLosses, Simulation, proton, uranium_29
+from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.losses import LossesBaseClass
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import beam_mock, simulation_mock
 
 
@@ -26,7 +28,7 @@ class LossesBaseClassHelper(LossesBaseClass):
         pass
 
 
-class TestLossesBaseClass(unittest.TestCase):
+class TestLossesBaseClass(BLonDTestCase):
     def test_init(self):
         LossesBaseClassHelper(purge_flagged_macroparticles=True)
 
@@ -46,7 +48,7 @@ class TestLossesBaseClass(unittest.TestCase):
         np.testing.assert_equal(beam.intensity, 0.5)
 
 
-class TestLossesBaseClassPurge(unittest.TestCase):
+class TestLossesBaseClassPurge(BLonDTestCase):
     def test_purge_particles_not_called_when_inactive(self):
         helper = LossesBaseClassHelper(purge_flagged_macroparticles=False)
         beam = Mock()
@@ -54,7 +56,7 @@ class TestLossesBaseClassPurge(unittest.TestCase):
         beam.purge_flagged_entries.assert_not_called()
 
 
-class TestBoxLosses(unittest.TestCase):
+class TestBoxLosses(BLonDTestCase):
     def setUp(self):
         self.box_losses = BoxLosses(
             purge_flagged_macroparticles=True,
@@ -68,9 +70,24 @@ class TestBoxLosses(unittest.TestCase):
         pass  # calls setUp()
 
     def test_on_init_simulation(self):
-        self.box_losses.on_init_simulation(
-            simulation=simulation_mock,
+        simulation = Mock()
+        simulation.turn_counter = DynamicParameter(value_init=0)
+        self.box_losses.on_init_simulation(simulation=simulation)
+        self.assertIs(self.box_losses._turn_counter, simulation.turn_counter)
+
+    def test_schedule_e_max_per_turn(self):
+        turn_counter = DynamicParameter(value_init=0)
+        self.box_losses.configure(turn_counter=turn_counter)
+        self.box_losses.schedule("e_max", np.array([20.0, 5.0]))
+        turn_counter.value = 1
+        beam = Beam(intensity=1e12, particle_type=proton)
+        beam.setup_beam(
+            dt=np.linspace(-10, 10, 201),
+            dE=np.linspace(-100, 100, 201),
         )
+        self.box_losses.track(beam=beam)
+        self.assertEqual(self.box_losses.e_max, 5.0)
+        np.testing.assert_equal(copy_to_cpu(beam.read_partial_dE()) <= 5, True)
 
     def test_on_run_simulation(self):
         self.box_losses.on_run_simulation(

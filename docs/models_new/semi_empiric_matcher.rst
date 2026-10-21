@@ -108,13 +108,17 @@ The matching routine proceeds as follows:
 
    Users can supply a custom function in place of :func:`hamilton_to_density_by_max`
    by providing it to ``hamilton_to_density_function``. The custom function must
-   accept the same arguments:
+   accept the keyword arguments
 
-   - ``hamilton_2D`` (:class:`numpy.ndarray` or :class:`cupy.ndarray`): the 2D Hamiltonian array
-   - ``density_modifier`` (float): exponent controlling density contrast
-   - ``hamilton_max`` (float): maximum Hamiltonian for normalization
+   - ``time_grid`` (:class:`numpy.ndarray`): 2D grid of time coordinates [s]
+   - ``deltaE_grid`` (:class:`numpy.ndarray`): 2D grid of energy offsets [eV]
+   - ``hamilton_2D`` (:class:`numpy.ndarray`): the 2D Hamiltonian [eV]
 
-   and return a 2D array of the same shape representing the density distribution.
+   plus every key of ``hamilton_to_density_kwargs`` (``density_modifier`` and
+   ``hamilton_max`` are only the parameters of the default function), and
+   return a non-negative 2D array of the same shape representing the density
+   distribution. A complete, runnable example is in the ``Examples`` section
+   of :class:`SemiEmpiricMatcher` below.
 
 
 4. **Particle population**
@@ -122,6 +126,35 @@ The matching routine proceeds as follows:
    The beam’s macro-particles are populated in :math:`(t, \Delta E)` coordinates
    according to the computed density map via
    :func:`~blond.experimental.beam_preparation.semi_empiric_matcher.populate_beam`.
+
+   **Correction to the one-turn map** (``correct_to_one_turn_map=True``,
+   opt-in; the default ``False`` keeps the results of existing scripts). The contours of :math:`H` are upright ellipses near the bucket
+   centre, but the tracked particles keep the invariant ellipse of the
+   *discrete* one-turn map: it is tilted, because kicks and drifts happen one
+   after the other, and its energy spread differs by
+   :math:`\mathcal{O}(\mu^2)`, :math:`\mu` being the synchrotron phase advance
+   per turn. Without correction, the bunch length oscillates by a fraction of
+   :math:`\mu` unless the RF kicks sit in the middle of the drifts.
+
+   Five probe particles around the bucket centre are tracked for one turn by
+   :func:`get_one_turn_map_empiric`,
+   which returns the fixed point and the Jacobian :math:`M` of the one-turn
+   map. Any drift formula, multi-harmonic RF and several RF stations per turn
+   are therefore included. The grid on which the density is sampled is then
+   mapped by :func:`get_grid_correction_from_one_turn_map`,
+
+   .. math::
+
+      \Delta E \to s_E\,\Delta E, \qquad t \to t + s_t\,\Delta E,
+      \qquad s_t = \frac{M_{11} - M_{22}}{2 M_{21}},
+      \qquad s_E = \gamma\,\beta_H,
+
+   with the Courant-Snyder :math:`\gamma = -M_{21} / \sin\mu` and the aspect
+   ratio :math:`\beta_H = \sqrt{a / V''}` of the contours of
+   :math:`H = a \Delta E^2 / 2 + V(t)`. Both keep the bunch length at
+   :math:`\Delta E = 0`, which comes from the empirical potential, and are the
+   same for every bucket. The correction is linear: large-amplitude contours
+   keep a residual mismatch.
 
 5. **Iterative matching with intensity effects**
 
@@ -186,6 +219,10 @@ API Reference
 
 .. autofunction:: get_hamilton_semi_analytic
 
+.. autofunction:: get_one_turn_map_empiric
+
+.. autofunction:: get_grid_correction_from_one_turn_map
+
 .. autoclass:: SemiEmpiricMatcher
    :members:
    :undoc-members:
@@ -200,71 +237,90 @@ Example
 
 .. code-block:: python
 
-   from blond.core.simulation.simulation import Simulation
-   from blond.experimental.beam_preparation.semi_empiric_matcher import SemiEmpiricMatcher
-   from blond.core.particles import ParticleType
+   import numpy as np
+
+   from blond import Beam, Simulation, proton
+   from blond.experimental.beam_preparation.semi_empiric_matcher import (
+       SemiEmpiricMatcher,
+   )
+   from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 
    # Assume you have already initialized a simulation with RF systems,
    # impedances, and a ring definition
    sim = Simulation(...)
-   beam = sim.beams[0]
+   beam = Beam(intensity=1e11, particle_type=proton)
 
-   # Define matching routine with typical parameters
-   matcher = SemiEmpiricMatcher(
-       time_limit=(-2e-9, 2e-9),              # Time window around bunch [s]
-       n_macroparticles=100_000,              # Number of macro-particles
-       hamilton_to_density_kwargs=dict(
-           density_modifier=2.0,              # Controls density profile sharpness
-           hamilton_max=1.0                   # Hamiltonian cutoff [eV]
+   time_limit = (0, 2.5e-9)  # Time window spanning one RF bucket [s]
+
+   # The Hamiltonian is zero at the bottom of the potential well and, when
+   # ``time_limit`` spans one bucket, equals the well depth at the
+   # separatrix. ``hamilton_max`` is an absolute value in eV, so derive it
+   # from the potential well instead of guessing it.
+   potential_well, factor, _ = sim.get_potential_well_empiric(
+       dt=np.linspace(*time_limit, 1000),
+       particle_type=beam.particle_type,
+   )
+   hamilton_separatrix = float(potential_well.max()) * factor  # [eV]
+
+   sim.prepare_beam(
+       beam=beam,
+       preparation_routine=SemiEmpiricMatcher(
+           time_limit=time_limit,
+           n_macroparticles=100_000,          # Number of macro-particles
+           hamilton_to_density_kwargs=dict(
+               density_modifier=2.0,          # Controls density profile sharpness
+               hamilton_max=0.9 * hamilton_separatrix,  # Hamiltonian cutoff [eV]
+           ),
+           internal_grid_shape=(1023, 1023),  # Resolution of phase space grid
+           tolerance_potential_well=1e-6,     # Convergence threshold
+           maxiter_intensity_effects=100,     # Max iterations with wakefields
+           increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
+           seed=42,                           # For reproducibility
+           verbose=True,                      # Print convergence info
+           animate=False,                     # Set True for live plotting
        ),
-       internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
-       tolerance=1e-6,                        # Convergence threshold
-       maxiter_intensity_effects=100,         # Max iterations with wakefields
-       increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
-       seed=42,                               # For reproducibility
-       verbose=True,                          # Print convergence info
-       animate=False,                         # Set True for live plotting
    )
 
-   # Perform beam matching
-   matcher.prepare_beam(sim, beam)
-
-   # After convergence, beam.dt and beam.dE are distributed
+   # After convergence, the beam's dt and dE are distributed
    # according to the self-consistent potential well
-   print(f"Matching complete.")
-   print(f"Beam intensity: {beam.intensity:.2e}")
-   print(f"Bunch length (RMS): {beam.dt.std():.3e} s")
-   print(f"Energy spread (RMS): {beam.dE.std():.3e} eV")
+   dt = copy_to_cpu(beam.read_partial_dt())
+   dE = copy_to_cpu(beam.read_partial_dE())
+   print(f"Bunch length (RMS): {dt.std():.3e} s")
+   print(f"Energy spread (RMS): {dE.std():.3e} eV")
+
+``hamilton_separatrix`` is computed without intensity effects. Strong
+intensity effects deform the potential well during the iterations, so leave
+some margin to the separatrix.
 
 
 **Advanced Usage with Custom Density Function**
 
 .. code-block:: python
 
-   import numpy as np
+   def custom_density_function(
+       time_grid, deltaE_grid, hamilton_2D,  # required arguments
+       decay, hamilton_max,  # custom arguments
+   ):
+       """Density decaying exponentially in H, zero beyond ``hamilton_max``."""
+       density = np.exp(-hamilton_2D / (decay * hamilton_max))
+       density[hamilton_2D > hamilton_max] = 0.0
+       return density
 
-   def custom_density_function(time_grid, deltaE_grid, hamilton_2D, # required arguments
-       custom_param, hamilton_max): # custom arguments
-       """Example custom density mapping with exponential falloff."""
-       normalized_H = hamilton_2D / hamilton_max
-       normalized_H[normalized_H > 1] = 1
-       density = np.exp(-custom_param * normalized_H)
-       return density / density.max()  # Normalize to [0, 1]
-
-   matcher = SemiEmpiricMatcher(
-       time_limit=(-2e-9, 2e-9),
-       n_macroparticles=100_000,
-       hamilton_to_density_function=custom_density_function,
-       hamilton_to_density_kwargs=dict(
-           custom_param=5.0,
-           hamilton_max=1.0
+   sim.prepare_beam(
+       beam=beam,
+       preparation_routine=SemiEmpiricMatcher(
+           time_limit=time_limit,
+           n_macroparticles=100_000,
+           hamilton_to_density_function=custom_density_function,
+           hamilton_to_density_kwargs=dict(
+               decay=0.2,
+               hamilton_max=0.9 * hamilton_separatrix,
+           ),
+           internal_grid_shape=(1023, 1023),
+           tolerance_potential_well=1e-6,
+           verbose=True,
        ),
-       internal_grid_shape=(1023, 1023),
-       tolerance=1e-6,
-       verbose=True,
    )
-
-   matcher.prepare_beam(sim, beam)
 
 ---
 

@@ -44,7 +44,7 @@ DEFAULT_KEEP_N = int(os.environ.get("BLOND_COMPILED_CACHE_KEEP_N", "100"))
 
 
 def _now() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+    return datetime.datetime.now(datetime.UTC).isoformat()
 
 
 def mark_used(directory: str) -> None:

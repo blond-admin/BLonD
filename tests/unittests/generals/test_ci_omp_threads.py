@@ -14,6 +14,8 @@ import os
 import tempfile
 import unittest
 
+from blond.testing.backend_testing import BLonDTestCase
+
 # Load the standalone dev_tools script by path (it is intentionally not part
 # of the importable package, so it can run with a bare python3 in CI).
 _SCRIPT = os.path.join(
@@ -46,7 +48,7 @@ def _write(path, text):
         file.write(text)
 
 
-class TestCgroupCpuQuota(unittest.TestCase):
+class TestCgroupCpuQuota(BLonDTestCase):
     """``cgroup_cpu_quota`` reads the container's CPU entitlement."""
 
     def test_cgroup_v2_quota(self):
@@ -86,7 +88,7 @@ class TestCgroupCpuQuota(unittest.TestCase):
             self.assertIsNone(ci_omp_threads.cgroup_cpu_quota(root))
 
 
-class TestOmpNumThreads(unittest.TestCase):
+class TestOmpNumThreads(BLonDTestCase):
     """``omp_num_threads`` combines quota, affinity and the cap."""
 
     def test_quota_limits_below_visible_cpus(self):
@@ -154,7 +156,7 @@ class TestOmpNumThreads(unittest.TestCase):
         self.assertLessEqual(threads, ci_omp_threads.DEFAULT_MAX_THREADS)
 
 
-class TestDivide(unittest.TestCase):
+class TestDivide(BLonDTestCase):
     """``--divide`` shares the entitlement between concurrent processes."""
 
     def test_divides_between_ranks(self):

@@ -19,9 +19,10 @@ from blond.core.backends.openmp_env import (
     OMP_WAIT_POLICY,
     set_default_openmp_wait_policy,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestSetDefaultOpenmpWaitPolicy(unittest.TestCase):
+class TestSetDefaultOpenmpWaitPolicy(BLonDTestCase):
     """`set_default_openmp_wait_policy` sets a default without overriding."""
 
     def setUp(self) -> None:
@@ -51,7 +52,7 @@ class TestSetDefaultOpenmpWaitPolicy(unittest.TestCase):
         self.assertEqual(os.environ[OMP_WAIT_POLICY], "")
 
 
-class TestImportingBlondSetsWaitPolicy(unittest.TestCase):
+class TestImportingBlondSetsWaitPolicy(BLonDTestCase):
     """Importing `blond` applies the wait-policy default."""
 
     @staticmethod

@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 DEFAULT_BACKEND = "python"
 DEFAULT_BITS = "64"
 
+#: Integer dtype of macroparticle counts, particle loop counters and particle
+#: ids, so a single process can hold more than 2**31 - 1 macroparticles.
+#: Must match `index_t` in `cpp/blond_common.h` and `cuda/kernels.cu`.
+INDEX_DTYPE = np.int64
+
 ALL_BACKENDS: dict[str, type[BackendBaseClass]] = {}
 # `AVAILABLE_BACKENDS` is provided lazily via the module-level
 # `__getattr__` below; see `_probe_available_backends`.
@@ -70,7 +75,24 @@ def backend_class_for_mode(
 
 
 class Specials(ABC):
-    """Abstract listing of functions that need implementation for a new backend."""
+    """
+    Abstract listing of functions to implement for a new backend.
+
+    Notes
+    -----
+    All kernels assume **finite** coordinates: the beam coordinates ``dt``
+    and ``dE``, and the profile coordinates (bin centres, cut edges), must
+    contain neither ``NaN`` nor ``+/-Inf``. No kernel checks for it, and
+    the check would not be free in a per-particle loop.
+
+    This is a real precondition, not just a convention. The range guards
+    that protect the conversion of a bin index to an integer are written
+    as ``index < lo or index >= hi``; a ``NaN`` index compares ``False``
+    against both bounds, so it passes the guard and reaches the
+    conversion, where an out-of-range or non-finite value is undefined
+    (in C/CUDA literally undefined behaviour). Callers are responsible
+    for not producing non-finite coordinates in the first place.
+    """
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -198,6 +220,20 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def drift_like_line_segment(  # NOQA: D102
+        dt: NumpyArray,
+        dE: NumpyArray,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
+    ) -> None:
+        raise NotImplementedError(
+            "Abstract method `drift_like_line_segment` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
@@ -231,9 +267,9 @@ class Specials(ABC):
         Interpolated kick method.
 
         With the sparse-metadata arguments omitted, `bin_centers` must be
-        uniformly spaced; implementations raise `ValueError` otherwise
-        (e.g. when handed a gapped, multi-island array such as
-        `EquidistantMultiProfile.hist_x` without its metadata). With the
+        uniformly spaced; this is not checked, and a gapped, multi-island
+        array such as `EquidistantMultiProfile.hist_x` without its metadata
+        silently gives wrong kicks. With the
         sparse-metadata arguments given (all six together, typically via
         `EquidistantMultiProfile.sparse_kick_metadata`), particles are
         resolved to their own bucket before interpolation, matching
@@ -314,7 +350,7 @@ class Specials(ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
-    ) -> None:
+    ) -> int:
         """
         Reorder entries where ``flags == flag`` to the array end.
 
@@ -332,6 +368,12 @@ class Specials(ABC):
             Macro-particle ids.
             This allows to identify single particles,
             even if the array indexing is changed.
+
+        Returns
+        -------
+        n_new
+            Number of particles that are not flagged, as a host ``int``
+            on every backend.
         """
         raise NotImplementedError(
             "The backend for `move_flagged_elements_to_end` is missing."
@@ -885,11 +927,15 @@ class BackendBaseClass(ABC):
         self, arr: NumpyArray | CupyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         if arr.dtype != dtype:
-            warnings.warn(
-                f"Automatically casting dtype from {arr.dtype} to {dtype}",
-                stacklevel=3,
-                category=PrecisionWarning,
-            )
+            # Only warn when values can change, e.g. complex -> float or
+            # float64 -> float32; int -> float is exact for usual inputs.
+            # stacklevel 4: the caller of `cast_arr_*_if_needed`.
+            if not np.can_cast(arr.dtype, dtype, casting="safe"):
+                warnings.warn(
+                    f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                    stacklevel=4,
+                    category=PrecisionWarning,
+                )
             try:
                 # Casting numpy complex array -> float is smooth and
                 # includes an automatic ComplexWarning.  Trying to cast

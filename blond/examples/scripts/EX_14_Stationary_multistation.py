@@ -62,6 +62,7 @@ def main(n_turns: int = 2000):
     )
     profile = DynamicProfileConstNBins(
         n_bins=100,
+        section_index=1,  # placed after the second station
     )
     one_turn_execution_order = (
         DriftSimple(

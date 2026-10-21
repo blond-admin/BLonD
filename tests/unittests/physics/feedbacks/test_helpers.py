@@ -23,9 +23,10 @@ from blond.experimental.physics.feedbacks.helpers import (
     polar_to_cartesian,
     rf_beam_current,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestLowPass(unittest.TestCase):
+class TestLowPass(BLonDTestCase):
     def test_1(self):
         # Example based on SciPy.org filtfilt
         t = np.linspace(0, 1.0, 2001)
@@ -46,7 +47,7 @@ class TestLowPass(unittest.TestCase):
         )
 
 
-class TestRFBeamCurrent(unittest.TestCase):
+class TestRFBeamCurrent(BLonDTestCase):
     @unittest.skip("feedbacks not working")
     def setUp(self):
         backend.change_backend(Numpy64Bit)
@@ -120,7 +121,7 @@ class TestRFBeamCurrent(unittest.TestCase):
     @pytest.mark.backend_mutation
     def test_1(self):
         t = self.profile.hist_x
-        self.profile._hist_y = 2600 * np.exp(
+        self.profile.hist_y[:] = 2600 * np.exp(
             -((t - 2.5e-9) ** 2) / (2 * 0.5e-9) ** 2
         )
 
@@ -749,7 +750,7 @@ class TestRFBeamCurrent(unittest.TestCase):
         self.assertAlmostEqual(peak_rf_current, 2.9284593979, 7)
 
 
-class TestIQ(unittest.TestCase):
+class TestIQ(BLonDTestCase):
     # Run before every test
     def setUp(self, f_rf=200.1e6, T_s=5e-10, n=1000):
         self.f_rf = f_rf  # initial frequency in Hz

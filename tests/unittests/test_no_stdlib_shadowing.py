@@ -11,11 +11,12 @@ import unittest
 from pathlib import Path
 
 import blond
+from blond.testing.backend_testing import BLonDTestCase
 
 BLOND_PACKAGE_DIR = Path(blond.__file__).parent
 
 
-class TestNoStdlibShadowing(unittest.TestCase):
+class TestNoStdlibShadowing(BLonDTestCase):
     """If ``blond/`` itself ends up on ``sys.path`` (e.g. an IDE or a
     script adds the package directory instead of its parent), any
     top-level module inside it that shares a name with a Python

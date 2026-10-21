@@ -18,6 +18,7 @@ import unittest
 from unittest import mock
 
 from blond.core.backends.cpp import compiled_dir_handler as lc
+from blond.testing.backend_testing import BLonDTestCase
 
 EXPECTED_KEYS = sorted(
     set(inspect.signature(lc.cpp_compiled_dir).parameters) - {"folder"}
@@ -29,7 +30,7 @@ _HAS_GPP = shutil.which("g++") is not None
 def _default_options(**overrides):
     options = {
         "compiler": "g++",
-        "optimize": True,
+        "optimize_for_local_cpu": True,
         "flags": "",
         "libs": "",
         "with_fftw": False,
@@ -43,7 +44,7 @@ def _default_options(**overrides):
     return options
 
 
-class TestSaveAndLoadBuildOptions(unittest.TestCase):
+class TestSaveAndLoadBuildOptions(BLonDTestCase):
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.folder = self.tmp_dir.name
@@ -99,7 +100,7 @@ class TestSaveAndLoadBuildOptions(unittest.TestCase):
         self.assertIsNone(lc.load_build_options(self.folder))
 
 
-class TestCheckHelpers(unittest.TestCase):
+class TestCheckHelpers(BLonDTestCase):
     def test_check_build_keys(self):
         self.assertTrue(lc._check_build_keys({"a": 1, "b": 2}, ["a", "b"]))
         self.assertFalse(lc._check_build_keys({"a": 1}, ["a", "b"]))
@@ -153,7 +154,7 @@ class TestCheckHelpers(unittest.TestCase):
             self.skipTest("needs g++")
 
 
-class TestBuildOptionsValid(unittest.TestCase):
+class TestBuildOptionsValid(BLonDTestCase):
     def test_default_options(self):
         if not _HAS_GPP:
             self.skipTest("needs g++")
@@ -185,10 +186,10 @@ class TestBuildOptionsValid(unittest.TestCase):
         options = _default_options(flags="-this-is-not-a-real-flag")
         self.assertFalse(lc.build_options_valid(options, EXPECTED_KEYS))
 
-    def test_optimize_false(self):
+    def test_optimize_for_local_cpu_false(self):
         if not _HAS_GPP:
             self.skipTest("needs g++")
-        options = _default_options(optimize=False)
+        options = _default_options(optimize_for_local_cpu=False)
         self.assertTrue(lc.build_options_valid(options, EXPECTED_KEYS))
 
     def test_dry_run_flags(self):
@@ -197,22 +198,26 @@ class TestBuildOptionsValid(unittest.TestCase):
             lc, "_check_dry_run_compile", return_value=True
         ) as mocked_dry_run:
             lc.build_options_valid(
-                _default_options(optimize=True, flags="-Wall"),
+                _default_options(optimize_for_local_cpu=True, flags="-Wall"),
                 EXPECTED_KEYS,
             )
-            flags_with_optimize = mocked_dry_run.call_args.args[1]
+            flags_with_optimize_for_local_cpu = mocked_dry_run.call_args.args[
+                1
+            ]
 
             lc.build_options_valid(
-                _default_options(optimize=False, flags="-Wall"),
+                _default_options(optimize_for_local_cpu=False, flags="-Wall"),
                 EXPECTED_KEYS,
             )
-            flags_without_optimize = mocked_dry_run.call_args.args[1]
+            flags_without_optimize_for_local_cpu = (
+                mocked_dry_run.call_args.args[1]
+            )
 
-        self.assertIn("-march=native", flags_with_optimize)
-        self.assertIn("-ffast-math", flags_with_optimize)
-        self.assertNotIn("-march=native", flags_without_optimize)
-        self.assertNotIn("-ffast-math", flags_without_optimize)
-        self.assertEqual(flags_without_optimize, ["-Wall"])
+        self.assertIn("-march=native", flags_with_optimize_for_local_cpu)
+        self.assertIn("-ffast-math", flags_with_optimize_for_local_cpu)
+        self.assertNotIn("-march=native", flags_without_optimize_for_local_cpu)
+        self.assertNotIn("-ffast-math", flags_without_optimize_for_local_cpu)
+        self.assertEqual(flags_without_optimize_for_local_cpu, ["-Wall"])
 
 
 if __name__ == "__main__":

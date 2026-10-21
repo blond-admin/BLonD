@@ -9,9 +9,10 @@ import pytest
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.core.backends.cpp import compile as cpp_compile
 from blond.core.backends.cpp.compile import add_dll_directory_once
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestDllDirectoryIsAddedOnce(unittest.TestCase):
+class TestDllDirectoryIsAddedOnce(BLonDTestCase):
     """
     The Windows DLL search path must not grow on repeated backend loads.
 

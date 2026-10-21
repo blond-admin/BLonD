@@ -7,9 +7,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_21_Acceleration_revolution_time(unittest.TestCase):
+class TestEX_21_Acceleration_revolution_time(BLonDTestCase):
     @pytest.mark.backend_mutation
     @pytest.mark.mpi
     def test_executable_numba64(self):

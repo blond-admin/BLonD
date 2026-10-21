@@ -6,4 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Helper module to work with CPU/GPU arrays distributed via MPI."""
+"""Shared defaults for BLonD's plotting functions."""
+
+DEFAULT_CMAP = "turbo"
+"""Colormap used by BLonD's 2D plots when the caller does not pass one."""

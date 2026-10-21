@@ -7,10 +7,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
-from blond.testing.backend_testing import skip_if_no_cupy
+from blond.testing.backend_testing import BLonDTestCase, skip_if_no_cupy
 
 
-class TestEX_15_Barrier_Bucket(unittest.TestCase):
+class TestEX_15_Barrier_Bucket(BLonDTestCase):
     @classmethod
     def setUpClass(cls):
         cls.init_backend = type(backend)

@@ -1,7 +1,9 @@
 import unittest
 
+from blond.testing.backend_testing import BLonDTestCase
 
-class TestBeamPreparationRoutine(unittest.TestCase):
+
+class TestBeamPreparationRoutine(BLonDTestCase):
     @unittest.skip("Abstract class")
     def test_prepare_beam(self):
         # TODO: implement test for `prepare_beam`

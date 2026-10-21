@@ -7,6 +7,7 @@ import pytest
 from matplotlib import pyplot as plt
 
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, is_cupy_array
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class _FakeCupyArray:
@@ -51,7 +52,7 @@ class _FakeCupyArray:
         )
 
 
-class TestAllowPlottingWithoutCupy(unittest.TestCase):
+class TestAllowPlottingWithoutCupy(BLonDTestCase):
     # Regression tests for the EX_06 cuda64 CI failure: matplotlib
     # converts line data via np.asanyarray (cbook._to_unmasked_float_array),
     # which AllowPlotting must cover in addition to np.asarray/np.array.
@@ -97,7 +98,7 @@ class TestAllowPlottingWithoutCupy(unittest.TestCase):
             np.asarray(self.fake)
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     @pytest.mark.cupy
     @pytest.mark.backend_mutation
     def test_allow_plotting(self) -> None:
