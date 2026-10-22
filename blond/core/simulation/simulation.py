@@ -122,8 +122,8 @@ class Simulation(Preparable):
     _magnetic_cycle
         The energy evolution program (read-only property).
     execution_model
-        Strategy driving the per-turn main loop.  Selected from the
-        beams passed to `run_simulation`; assign one to override
+        Strategy driving the per-turn main loop. Selected from the beams
+        passed to `run_simulation`; assign one to override
         that choice.
 
     See Also

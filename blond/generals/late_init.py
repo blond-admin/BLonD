@@ -28,7 +28,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, overload
 
-from .exceptions_ import NotInitialisedError
+from blond.generals.exceptions_ import NotInitialisedError
 
 _T = TypeVar("_T")
 
@@ -304,7 +304,7 @@ def check_filled(obj: object, *names: str) -> None:
     Raises
     ------
     NotInitialisedError
-        If any attribute is not filled yet.  One unfilled attribute
+        If any attribute is not filled yet. One unfilled attribute
         raises the descriptor's own error; several are combined into a
         single error naming each attribute and what fills it.
     """
