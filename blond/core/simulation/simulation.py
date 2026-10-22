@@ -636,6 +636,7 @@ class Simulation(Preparable):
             else probe_bunch.read_partial_dE().get(),
             initial=0,
         ) / (len(dt) - 1)
+        # -1: number of edges being different from number of bins
 
         if self.ring.is_below_transition(beam=probe_bunch):
             # peaks and troughs are flipped when below transition
