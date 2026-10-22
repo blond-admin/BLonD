@@ -526,10 +526,10 @@ class Specials(ABC):
             "is not implemented."
         )
 
-    # The MuSiC kernel is intentionally *not* abstract: BLonD2 only shipped
-    # it for the ``python`` and ``cpp`` backends, so those two override the
-    # method below while ``numba`` and ``cuda`` raise by default.
+    # BLonD2 only shipped MuSiC for the ``python`` and ``cpp`` backends;
+    # ``numba`` and ``cuda`` override it to raise NotImplementedError.
     @staticmethod
+    @abstractmethod  # pragma: no cover
     def music_track(
         beam_dt: NumpyArray | CupyArray,
         beam_dE: NumpyArray | CupyArray,

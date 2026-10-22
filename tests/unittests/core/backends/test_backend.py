@@ -390,6 +390,39 @@ class TestNumpyBackend(BLonDTestCase):
             self.numpy_backend.set_specials("doesnt exist")
 
 
+class TestMusicTrackOverrides(BLonDTestCase):
+    def test_music_track_is_abstract(self):
+        """Every backend must decide whether it supports MuSiC."""
+        from blond.core.backends.backend import Specials
+
+        self.assertIn("music_track", Specials.__abstractmethods__)
+
+    def test_cuda_music_track_is_a_method_of_cuda_specials(self):
+        """Parsed from the source, so it runs without CuPy.
+
+        It was once indented into the body of `wake_from_pole_residue`,
+        where it was dead code instead of an override.
+        """
+        import ast
+
+        import blond.core.backends.cuda as cuda_package
+
+        path = os.path.join(cuda_package.__path__[0], "callables.py")
+        with open(path, encoding="utf-8") as file:
+            tree = ast.parse(file.read())
+        (cuda_specials,) = (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "CudaSpecials"
+        )
+        methods = {
+            node.name
+            for node in cuda_specials.body
+            if isinstance(node, ast.FunctionDef)
+        }
+        self.assertIn("music_track", methods)
+
+
 class TestSpecials(BLonDTestCase):
     def setUp(self) -> None:
         self.n_voltages = 3
