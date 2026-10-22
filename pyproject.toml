@@ -68,6 +68,8 @@ doc = [
   "ipython>5",                   # interactive Python shell
   "notebook>=7",                 # for jupyter-notebooks in the examples
   "sphinx-copybutton",           # for the copy button of code on the website
+  "marimo",                      # marimo notebooks exported for the docs
+  "nbformat",                    # needed by `marimo export ipynb`
 ]
 mpi = [
   # Distributed computing. Optional: the wheel needs an MPI runtime

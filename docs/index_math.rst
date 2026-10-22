@@ -17,3 +17,4 @@ Contents
     models_new/potential_well_empiric
     models_new/semi_empiric_matcher
     models_new/synchrotron_radiation
+    models_new/pole-residue/bin_averaged_wake_derivation
