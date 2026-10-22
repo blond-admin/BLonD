@@ -36,6 +36,15 @@ repos:
       - id: ruff-format  # This runs `ruff format`
       - id: ruff-check  # This runs `ruff check`
         args: ["--fix"] # otherwise not compatible with Ruff
+      # ruff's config excludes `tests/`, so a test method redefined under
+      # the same name silently replaces the first one, which then never
+      # runs. `--isolated` ignores that exclude and checks only F811.
+      - id: ruff-check
+        alias: ruff-check-redefined-tests
+        name: ruff check for redefined (shadowed) tests
+        args: ["--isolated", "--select", "F811"]
+        files: ^tests/
+        types: [python]
 
   # Formats the C/C++ and CUDA backends (style in .clang-format).
   # clang-format comes from a pinned PyPI wheel inside pre-commit's own
