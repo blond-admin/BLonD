@@ -17,10 +17,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-from blond import (  # NOQA
+from blond import (
     Beam,
     DriftSimple,
     MagneticCyclePerTurn,
+    PeriodicFreqSolver,
+    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
@@ -40,8 +42,6 @@ from blond.experimental.beam_preparation.metric_functions import rms_emittance
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
-from blond.physics.impedances.solvers import PeriodicFreqSolver
-from blond.physics.impedances.sources import Resonators
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover

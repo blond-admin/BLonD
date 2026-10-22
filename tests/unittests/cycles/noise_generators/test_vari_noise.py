@@ -155,8 +155,6 @@ class TestVariNoiseLibrary(BLonDTestCase):
         side_effect=ImportError("forced failure"),
     )
     def test_delayed_crash(self, mock_rf_noise):
-        import importlib
-
         import numpy as np
         import pytest
 

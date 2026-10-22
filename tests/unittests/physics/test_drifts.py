@@ -149,8 +149,6 @@ class TestDriftSimple(BLonDTestCase):
         self.drift_simple.track(beam=beam)
 
     def test_error_throwing_on_unscheduled(self):
-        from types import SimpleNamespace
-
         simulation = Mock(Simulation)
         simulation.turn_counter = SimpleNamespace(value=0)
         self.drift_simple = DriftSimple(
@@ -185,8 +183,6 @@ class TestDriftSimple(BLonDTestCase):
         )
 
     def test_on_init_simulation(self):
-        from types import SimpleNamespace
-
         from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)

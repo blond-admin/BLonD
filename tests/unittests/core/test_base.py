@@ -1,4 +1,6 @@
+import gc
 import unittest
+import weakref
 from functools import cached_property
 
 import numpy as np
@@ -322,18 +324,20 @@ class TestSchedulable(unittest.TestCase):
     def test_schedule(self):
         schedulable = Schedulable()
         schedulable.voltage = None
-        with self.assertRaises(TypeError):
-            schedulable.schedule("voltage", 1)
-        schedulable.schedule("voltage", np.ones(10))
-        schedulable.schedule(
-            "voltage",
-            ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
-        )
-        schedulable.schedule(
-            "voltage",
-            ScheduledArray(np.ones(10)),
-        )
-        schedulable.schedule("voltage", np.ones(10))
+        # `voltage` is not in `intended_for_scheduling`, so each call warns.
+        with self.assertWarns(UserWarning):
+            with self.assertRaises(TypeError):
+                schedulable.schedule("voltage", 1)
+            schedulable.schedule("voltage", np.ones(10))
+            schedulable.schedule(
+                "voltage",
+                ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
+            )
+            schedulable.schedule(
+                "voltage",
+                ScheduledArray(np.ones(10)),
+            )
+            schedulable.schedule("voltage", np.ones(10))
 
 
 class TestUnsafeUserElement(BLonDTestCase):
@@ -366,13 +370,34 @@ class TestUnsafeUserElement(BLonDTestCase):
                 called_with.append(beam)
 
         element = Element()
-        wrapper = UnsafeUserElement(element)
+        with self.assertWarns(UserWarning):
+            wrapper = UnsafeUserElement(element)
 
         call_args = [1, 2, 3]
         for arg in call_args:
             wrapper.track(arg)
 
         self.assertListEqual(called_with, call_args)
+
+
+class TestPreparableHoldsSimulationWeakly(BLonDTestCase):
+    def setUp(self):
+        gc.disable()
+        self.addCleanup(gc.enable)
+
+    def test_preparable_holds_simulation_weakly(self):
+        class Element(Preparable):
+            pass
+
+        class FakeSimulation:
+            pass
+
+        simulation = FakeSimulation()
+        simulation.element = Element()
+        simulation.element._simulation = simulation
+        simulation_ref = weakref.ref(simulation)
+        del simulation
+        self.assertIsNone(simulation_ref())
 
 
 if __name__ == "__main__":

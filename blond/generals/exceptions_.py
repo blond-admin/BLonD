@@ -65,3 +65,9 @@ class NotInitialisedError(BLonDException, AttributeError):
     Subclasses `AttributeError`, so ``hasattr`` reports `False` for an
     attribute that is not filled yet.
     """
+
+
+class SemiEmpiricMatcherError(BLonDException, ValueError):
+    """Exception raised when a semi-empiric matcher fails."""
+
+    pass

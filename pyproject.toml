@@ -52,6 +52,7 @@ dev = [
   "mpmath>=1",           # part of the testing against blond2
   "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
   "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
+  "pytest-xdist>=3",     # parallel test workers (`-n N`)
   "nbconvert>=6",        # notebook execution in tests
 ]
 doc = [
@@ -149,11 +150,27 @@ minversion = "8.4"
 addopts = "--import-mode=importlib"
 strict_markers = true
 testpaths = ["tests/unittests", "tests/integration"]
+filterwarnings = [
+  # Examples call `plt.show()`; under the headless test backend that only
+  # means the figure is not displayed.
+  "ignore:FigureCanvasAgg is non-interactive, and thus cannot be shown:UserWarning",
+]
 markers = [
   "mpi: Tests that require MPI.",
   "backend_mutation: Tests that alter the backend as a side effect.",
   "cupy: Test that require CuPy.",
   "integration: Full end-to-end simulation tests.",
+]
+
+# Every BLOND_* environment variable read in blond/, enforced by the
+# check-env-vars pre-commit hook (dev_tools/precommit_check_env_vars.py).
+[tool.blond]
+env-vars = [
+  "BLOND_BACKEND_MODE: Backend set when blond is imported: python (default), cpp, cpp_single_core, numba or cuda. Any later setup_backend(...), e.g. setup_backend('auto') in the examples, set_specials() or change_backend() overrides it.",
+  "BLOND_BACKEND_BITS: Leftover; only 64 is accepted (the default), anything else raises ValueError.",
+  "BLOND_FORCE_TEST_ALL_BACKENDS: True makes backend-aware tests run on every registered backend, not only the available ones.",
+  "BLOND_COMPILED_CACHE_KEEP_N: Number of compiled-backend builds to keep in the cache (default 100).",
+  "BLOND_LOAD_MPI: True or False overrides whether blond initialises MPI on import; unset (default), MPI is loaded only when an MPI launcher such as mpirun is detected.",
 ]
 
 [tool.numpydoc_validation]

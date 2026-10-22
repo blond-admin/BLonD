@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
+from blond.core.offenders import WeakBackReference
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
 from blond.generals.formatting_ import pretty_string
 from blond.generals.late_init import ToBeDefined, unfilled
@@ -54,6 +55,9 @@ class Preparable(ABC):
         Additional keyword arguments for method
         resolution order of inheriting elements.
     """
+
+    # The simulation owns its elements; a strong reference would form a cycle
+    _simulation = WeakBackReference()
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)

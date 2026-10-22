@@ -162,12 +162,11 @@ class TestSynchrotronRadiationBaseClass(BLonDTestCase):
             disable_quantum_excitation=True,
         )
         # To test the tracking methods
-        self.SRB._simulation = Mock(SimulationElementBase)
-        self.SRB._simulation.turn_counter = 0
-        self.SRD._simulation = Mock(SimulationElementBase)
-        self.SRD._simulation.turn_counter = 0
-        self.SRS._simulation = Mock(SimulationElementBase)
-        self.SRS._simulation.turn_counter = 0
+        self.tracking_simulation = Mock(SimulationElementBase)
+        self.tracking_simulation.turn_counter = 0
+        self.SRB._simulation = self.tracking_simulation
+        self.SRD._simulation = self.tracking_simulation
+        self.SRS._simulation = self.tracking_simulation
 
         self.beam = BeamBaseClassTester(
             intensity=1e12,
@@ -390,8 +389,6 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
 
         # To test the tracking methods
         self.simulation = Mock(Simulation)
-        self.simulation.turn_i = Mock(DynamicParameter)
-        self.simulation.turn_i.value = 0
         self.simulation.turn_counter = DynamicParameter(0)
 
         self.beam = BeamBaseClassTester(
