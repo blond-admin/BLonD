@@ -1,7 +1,7 @@
 import unittest
 import warnings
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -350,6 +350,108 @@ class TestImpedanceTableTime(BLonDTestCase):
         np.testing.assert_allclose(
             tabulated[:-2], analytic[:-2], atol=4e-4 * peak
         )
+
+    def test_get_wake_per_bin_only_visits_knots_near_the_query(self):
+        """A long table must cost what the queried window holds, not more.
+
+        Knots more than 1.5 bins outside the query cannot contribute to
+        any bin average, so the kernels must only be evaluated on those
+        near the query. Evaluating the whole table cost 12.6 GB and 28 s
+        per call for an 81-million-point table queried over 1000 bins.
+        """
+        from blond.physics.impedances.wake_per_bin import sources
+
+        knots = np.arange(200_000) * 1e-12
+        table = ImpedanceTableTime(
+            wake_x=backend.array(knots),
+            wake_y=backend.array(np.cos(2 * np.pi * 1e9 * knots)),
+        )
+        query = backend.array(50e-9 + np.arange(20) * 1e-10)
+        sizes = []
+        original = sources.bspline_kink_kernel
+
+        def recording_kernel(distance):
+            sizes.append(distance.size)
+            return original(distance)
+
+        with patch.object(sources, "bspline_kink_kernel", recording_kernel):
+            table.get_wake_per_bin(query)
+
+        # 20 bins + 2 * 1.5 bins of margin, at 100 knots per bin
+        self.assertTrue(sizes)
+        self.assertLessEqual(max(sizes), 2400)
+
+    def test_get_wake_per_bin_inside_a_long_table_keeps_a_repeated_onset(self):
+        """An onset spelled as two samples at one time, before the window.
+
+        ``wake_x = [0, 0, ...]`` jumps straight to ``wake_y[1]``, whatever
+        ``wake_y[0]`` and the onset convention say.
+        """
+        bin_step = 1e-10
+        wake_x = np.concatenate(([0.0], np.arange(0, 400) * 2.5e-11))
+        wake_y = np.concatenate(([7.0], np.cos(2 * np.pi * 3e9 * wake_x[1:])))
+        query = 3e-9 + np.arange(30) * bin_step
+        expected = _gauss_legendre_bspline_average(
+            lambda t: np.interp(t, wake_x[1:], wake_y[1:], left=0.0),
+            query,
+            bin_step,
+            wake_x,
+            nodes=4,
+        )
+        for half_jump in (False, True):
+            with self.subTest(half_jump=half_jump):
+                table = ImpedanceTableTime(
+                    wake_x=backend.array(wake_x),
+                    wake_y=backend.array(wake_y),
+                    first_sample_is_half_jump=half_jump,
+                )
+                np.testing.assert_allclose(
+                    copy_to_cpu(table.get_wake_per_bin(backend.array(query))),
+                    expected,
+                    rtol=0,
+                    atol=1e-12,
+                )
+
+    def test_get_wake_per_bin_inside_a_long_table_keeps_earlier_jumps(self):
+        """Restricting to the query window must keep the jumps before it.
+
+        The onset jump and an explicit jump spelled as a repeated time both
+        lie before the queried window; the bin average there must still
+        include them, exactly as the full piecewise-linear model does.
+        """
+        bin_step = 1e-10
+        wake_x = np.concatenate(
+            (np.arange(0, 41) * 2.5e-11, np.arange(40, 400) * 2.5e-11)
+        )
+        wake_y = np.cos(2 * np.pi * 3e9 * wake_x) + 2.0
+        wake_y[41:] += 5.0  # explicit jump at the repeated time 1 ns
+        for half_jump in (False, True):
+            with self.subTest(half_jump=half_jump):
+                table = ImpedanceTableTime(
+                    wake_x=backend.array(wake_x),
+                    wake_y=backend.array(wake_y),
+                    first_sample_is_half_jump=half_jump,
+                )
+                model_y = wake_y.copy()
+                if half_jump:
+                    model_y[0] *= 2
+
+                def model(t, model_y=model_y):
+                    # right-continuous at the repeated time
+                    below = np.interp(t, wake_x[:41], model_y[:41], left=0.0)
+                    above = np.interp(t, wake_x[41:], model_y[41:])
+                    return np.where(t >= wake_x[41], above, below)
+
+                query = 3e-9 + np.arange(30) * bin_step
+                expected = _gauss_legendre_bspline_average(
+                    model, query, bin_step, wake_x, nodes=4
+                )
+                np.testing.assert_allclose(
+                    copy_to_cpu(table.get_wake_per_bin(backend.array(query))),
+                    expected,
+                    rtol=0,
+                    atol=1e-12,
+                )
 
     def test_get_wake_per_bin_averages_at_table_resolution(self):
         """A table finer than the bins must not be resampled at the bins.

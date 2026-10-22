@@ -360,13 +360,16 @@ class ImpedanceTableTimeWakePerBin:
         """
         self._warn_if_outside_table(time)
         bin_step = float(time[1] - time[0])
-        knots = self._wake_x
-        values = backend.concatenate(
-            (
-                backend.array([self._onset_jump], dtype=backend.float),
-                self._wake_y[1:],
+        first, stop = self._knot_window(time, bin_step)
+        knots = self._wake_x[first:stop]
+        values = self._wake_y[first:stop]
+        if first == 0:
+            values = backend.concatenate(
+                (
+                    backend.array([self._onset_jump], dtype=backend.float),
+                    values[1:],
+                )
             )
-        )
         knot_spacing = knots[1:] - knots[:-1]
         value_change = values[1:] - values[:-1]
         has_length = knot_spacing > 0.0
@@ -376,13 +379,20 @@ class ImpedanceTableTimeWakePerBin:
             0.0,
         )
         zero = backend.zeros(1, dtype=backend.float)
+        # Past either end of a window inside the table the slope is not
+        # known, and taken as zero: those knots are out of reach anyway.
         slope_change = backend.concatenate((slope, zero)) - (
             backend.concatenate((zero, slope))
         )
         jump = backend.concatenate(
-            (values[:1], backend.where(has_length, 0.0, value_change))
+            (
+                values[:1] if first == 0 else zero,
+                backend.where(has_length, 0.0, value_change),
+            )
         )
-        cumulative_jump = backend.cumulative_sum(jump)
+        cumulative_jump = self._jumps_up_to(first) + backend.cumulative_sum(
+            jump
+        )
         continuous_part = backend.interp(
             time, knots, values - cumulative_jump, left=0.0
         )
@@ -401,6 +411,75 @@ class ImpedanceTableTimeWakePerBin:
                 time, bin_step, knots, jump, slope_change
             )
         )
+
+    def _knot_window(
+        self, time: NumpyArray | CupyArray, bin_step: float
+    ) -> tuple[int, int]:
+        """
+        Range of table samples that can reach a bin of ``time``.
+
+        The step and kink kernels vanish more than 1.5 bins away, so only
+        the knots within 1.5 bins of the query matter, plus two on either
+        side: one to bracket the query for the interpolation and one more
+        so that the first and last knot within reach see their real
+        neighbouring segments.
+
+        Parameters
+        ----------
+        time
+            Bin centres, uniformly spaced, in [s].
+        bin_step
+            Bin width, in [s].
+
+        Returns
+        -------
+        window
+            ``(first, stop)``, a slice of ``wake_x``.
+        """
+        reach = 1.5 * bin_step
+        first = int(
+            backend.searchsorted(
+                self._wake_x, float(time[0]) - reach, side="left"
+            )
+        )
+        stop = int(
+            backend.searchsorted(
+                self._wake_x, float(time[-1]) + reach, side="right"
+            )
+        )
+        return max(first - 2, 0), min(stop + 2, len(self._wake_x))
+
+    def _jumps_up_to(self, last: int) -> float:
+        """
+        Sum of the jumps at ``wake_x[0]`` to ``wake_x[last]``, in [V].
+
+        The causal onset (if ``last`` > 0; a window starting at the table
+        start carries it itself) and every jump spelled as a repeated time.
+        Repeated times are rare, so they are found with a boolean scan, not
+        a full-length float temporary.
+
+        Parameters
+        ----------
+        last
+            Index of the last knot whose jump is summed.
+
+        Returns
+        -------
+        jumps
+            Sum of those jumps, in [V].
+        """
+        if last == 0:
+            return 0.0
+        repeated = (
+            self._wake_x[1 : last + 1] == self._wake_x[:last]
+        ).nonzero()[0] + 1
+        jumps = backend.sum(
+            self._wake_y[repeated] - self._wake_y[repeated - 1]
+        )
+        # The jump at index 1 starts from the onset, not from `wake_y[0]`.
+        if bool(self._wake_x[1] == self._wake_x[0]):
+            jumps += float(self._wake_y[0]) - self._onset_jump
+        return self._onset_jump + float(jumps)
 
     @staticmethod
     def _local_corrections(
