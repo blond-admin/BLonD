@@ -6,6 +6,7 @@ import sys
 import unittest
 import weakref
 from copy import deepcopy
+from importlib.machinery import ExtensionFileLoader
 
 import blond
 from blond.core.offenders import (
@@ -164,10 +165,16 @@ def _import_walked_modules(path, prefix):
     # Not `pkgutil.walk_packages`: it imports every package to recurse into
     # it, including the ones not walked
     for module_info in pkgutil.iter_modules(path, prefix):
-        if _is_walked(module_info.name):
-            module = importlib.import_module(module_info.name)
-            if module_info.ispkg:
-                _import_walked_modules(module.__path__, f"{module.__name__}.")
+        if not _is_walked(module_info.name):
+            continue
+        spec = module_info.module_finder.find_spec(module_info.name)
+        # Libraries compiled next to the sources for `ctypes` (e.g.
+        # rf_noise_wrapper_linux_x86_64.so) look like extension modules
+        if isinstance(spec.loader, ExtensionFileLoader):
+            continue
+        module = importlib.import_module(module_info.name)
+        if module_info.ispkg:
+            _import_walked_modules(module.__path__, f"{module.__name__}.")
 
 
 def _walked_classes():
