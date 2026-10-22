@@ -376,7 +376,9 @@ tests/last_*
 last_*.json
 last_*.npy
 
+# coverage.py data file
+/.coverage
+
 # marimo notebooks: cache and the .ipynb exported by docs/conf.py
 __marimo__/
 /docs/models_new/pole-residue/*.ipynb
-/.coverage
