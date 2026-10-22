@@ -27,6 +27,9 @@ from blond.core.backends.backend import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.wake_per_bin import bin_average
 from blond.physics.impedances.wake_per_bin.bin_average import (
+    bspline_kink_kernel,
+    bspline_step_kernel,
+    triple_box_average_linear_pole,
     triple_box_average_pole,
     triple_box_average_poles,
 )
@@ -114,6 +117,147 @@ def reference_triple_box_average(
             )
             out[index] += np.trapezoid(wake * weight, lag)
     return out
+
+
+def gauss_legendre_bspline_average(wake, time, dt, breakpoints, nodes=48):
+    """
+    Exact B-spline average of a wake that is smooth between breakpoints.
+
+    The integral is split at the B-spline's knots and at every breakpoint
+    of the wake, so Gauss-Legendre quadrature converges to round-off on
+    each piece.
+
+    Parameters
+    ----------
+    wake
+        Vectorised wake ``W(t)``.
+    time
+        Times at which to evaluate the average, in [s].
+    dt
+        Bin width, in [s].
+    breakpoints
+        Times where ``W`` or one of its derivatives jumps, in [s].
+    nodes
+        Gauss-Legendre nodes per piece.
+
+    Returns
+    -------
+    wake_per_bin
+        ``W * B_2`` at ``time``.
+    """
+    abscissae, weights = np.polynomial.legendre.leggauss(nodes)
+    out = np.zeros(len(time))
+    for index, time_entry in enumerate(time):
+        cuts = {-1.5, -0.5, 0.5, 1.5}
+        cuts |= {
+            (point - time_entry) / dt
+            for point in breakpoints
+            if -1.5 < (point - time_entry) / dt < 1.5
+        }
+        cuts = sorted(cuts)
+        for lower, upper in zip(cuts[:-1], cuts[1:], strict=False):
+            offset = 0.5 * (upper - lower) * abscissae + 0.5 * (upper + lower)
+            weight = np.array([quadratic_bspline(x) for x in offset])
+            out[index] += (
+                0.5
+                * (upper - lower)
+                * np.sum(weights * weight * wake(time_entry + offset * dt))
+            )
+    return out
+
+
+class TestBsplineStepAndKinkKernels(BLonDTestCase):
+    """The B-spline averages of a unit step and a unit kink, minus each."""
+
+    def setUp(self):
+        # Includes the knots, the step itself and both ends of the support.
+        self.u = np.array(
+            [-2.0, -1.5, -1.2, -0.5, -0.3, -1e-9, 0.0, 0.2, 0.5, 0.9, 1.5, 3.0]
+        )
+
+    @staticmethod
+    def _average(function, u):
+        """``int function(u + x) B_2(x) dx`` by split Gauss-Legendre."""
+        nodes, weights = np.polynomial.legendre.leggauss(16)
+        cuts = sorted(
+            {-1.5, -0.5, 0.5, 1.5} | ({-u} if abs(u) < 1.5 else set())
+        )
+        total = 0.0
+        for lower, upper in zip(cuts[:-1], cuts[1:], strict=False):
+            x = 0.5 * (upper - lower) * nodes + 0.5 * (upper + lower)
+            weight = np.array(
+                [bin_average.quadratic_bspline(entry) for entry in x]
+            )
+            total += (
+                0.5
+                * (upper - lower)
+                * np.sum(weights * weight * function(u + x))
+            )
+        return total
+
+    def test_step_kernel(self):
+        expected = [
+            self._average(lambda v: (v >= 0).astype(float), entry)
+            - float(entry >= 0)
+            for entry in self.u
+        ]
+        np.testing.assert_allclose(
+            copy_to_cpu(bspline_step_kernel(backend.array(self.u))),
+            expected,
+            rtol=0,
+            atol=1e-14,
+        )
+
+    def test_kink_kernel(self):
+        expected = [
+            self._average(lambda v: np.maximum(v, 0.0), entry)
+            - max(entry, 0.0)
+            for entry in self.u
+        ]
+        np.testing.assert_allclose(
+            copy_to_cpu(bspline_kink_kernel(backend.array(self.u))),
+            expected,
+            rtol=0,
+            atol=1e-14,
+        )
+
+
+class TestTripleBoxAverageLinearPole(BLonDTestCase):
+    """``(c0 + c1 t) exp(p t)`` from ``t = 0`` on, against quadrature."""
+
+    def _check(self, pole, constant, slope, dt):
+        time = np.arange(-4, 40) * 0.37 * dt
+
+        def wake(t):
+            return np.where(
+                t > 0, ((constant + slope * t) * np.exp(pole * t)).real, 0.0
+            )
+
+        expected = gauss_legendre_bspline_average(wake, time, dt, (0.0,))
+        result = copy_to_cpu(
+            triple_box_average_linear_pole(
+                backend.array(time), pole, constant, slope, dt
+            )
+        )
+        scale = np.max(np.abs(expected))
+        np.testing.assert_allclose(
+            result, expected, rtol=0, atol=1e-11 * scale
+        )
+
+    def test_undamped_pole_well_resolved(self):
+        self._check(2j * np.pi * 2e8, 3.0 + 1.0j, -2e9, 1e-10)
+
+    def test_undamped_pole_beyond_the_bin_nyquist(self):
+        self._check(2j * np.pi * 8e9, 3.0, -2e9 + 1e9j, 1e-10)
+
+    def test_damped_pole(self):
+        self._check(-3e9 + 2j * np.pi * 1e9, 1.0 - 2.0j, 5e8, 1e-10)
+
+    def test_real_pole_is_not_doubled(self):
+        self._check(-2e9 + 0j, 1.5, 4e8, 1e-10)
+
+    def test_zero_pole_is_a_polynomial(self):
+        self._check(0j, 2.0, -1e10, 1e-10)
 
 
 class TestTripleBoxAveragePole(BLonDTestCase):

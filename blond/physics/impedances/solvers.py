@@ -44,6 +44,9 @@ from blond.physics.impedances.multipole.solver import (  # noqa: F401
     MultiPoleSparseSolve,
 )
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.impedances.wake_per_bin.time_domain import (
+    provides_wake_per_bin,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -1120,10 +1123,10 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         """Check that the sources implement ``get_wake_per_bin``."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
-            if not hasattr(source, "get_wake_per_bin"):
+            if not provides_wake_per_bin(source):
                 raise AttributeError(
                     f"The {source=} should implement "
-                    "`TimeDomain.get_wake_per_bin`."
+                    "`TimeDomain.get_wake_per_bin` (or `get_wake`)."
                 )
 
     def on_wakefield_init_simulation(

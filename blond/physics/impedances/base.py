@@ -129,8 +129,16 @@ class WakeFieldSource(ABC):
 
 
 class TimeDomain(TimeDomainWakePerBin, ABC):
-    """Indication of a source is defined in time domain."""
+    """
+    Indication of a source is defined in time domain.
 
+    The generic :meth:`get_wake_per_bin` treats :meth:`get_wake` as
+    piecewise linear between its samples, which smooths a jump of the wake
+    into a one-bin ramp. A source whose wake jumps, e.g. at its causal
+    onset, must override :meth:`get_wake_per_bin`.
+    """
+
+    @abstractmethod  # pragma: no cover
     def get_impedance_from_wake(
         self,
         time: NumpyArray | CupyArray,
@@ -156,8 +164,14 @@ class TimeDomain(TimeDomainWakePerBin, ABC):
         -------
         impedance_from_wake
             Impedance array.
+
+        Notes
+        -----
+        A source with a wake implements this by returning
+        ``self._impedance_from_wake_per_bin(time, n_fft)``, the spectrum
+        of :meth:`get_wake_per_bin` that the time-domain solvers apply.
         """
-        return self._impedance_from_wake_per_bin(time, n_fft)
+        pass
 
 
 class TimeDomainCounterRotation(TimeDomainCounterRotationWakePerBin, ABC):
@@ -198,6 +212,7 @@ class TimeDomainCounterRotation(TimeDomainCounterRotationWakePerBin, ABC):
         """
         pass
 
+    @abstractmethod  # pragma: no cover
     def get_impedance_from_wake_counter_rotation(
         self,
         time: NumpyArray | CupyArray,
@@ -223,8 +238,13 @@ class TimeDomainCounterRotation(TimeDomainCounterRotationWakePerBin, ABC):
         -------
         impedance_from_wake
             Impedance array.
+
+        Notes
+        -----
+        A source implements this by returning
+        ``self._impedance_from_wake_per_bin_counter_rotation(time, n_fft)``.
         """
-        return self._impedance_from_wake_per_bin_counter_rotation(time, n_fft)
+        pass
 
 
 class FreqDomain(ABC):

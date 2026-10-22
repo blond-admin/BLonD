@@ -459,7 +459,6 @@ class TestPeriodicFreqSolver(BLonDTestCase):
 
     @multi_backend_testcase
     def test_calc_induced_voltage(self):
-
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 11
         )
@@ -3409,6 +3408,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
             def get_wake(self):  # emulate wrong signature
                 return
 
+            def get_impedance_from_wake(self, time, simulation, beam, n_fft):
+                return self._impedance_from_wake_per_bin(time, n_fft)
+
         wf_mutli = WakeField.headless(
             sources=(FaultyResonators(),),
             solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
@@ -3432,6 +3434,23 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 beam=beam_mock,
             )
 
+    def test_check_source_ducktypes_rejects_source_without_wake(self):
+        """A source without any wake must be rejected at setup.
+
+        ``InductiveImpedance`` is a ``TimeDomain`` source for the FFT
+        solver only. It inherits the generic bin average, but that needs
+        a point wake ``get_wake``, which an inductance does not have.
+        """
+        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
+        parent_wakefield = Mock(WakeField)  # held weakly by the solver
+        parent_wakefield.sources = (InductiveImpedance(Z_over_n=1.0),)
+        solver._parent_wakefield = parent_wakefield
+
+        with self.assertRaisesRegex(
+            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
+        ):
+            solver._check_source_ducktypes()
+
     def test_check_source_ducktypes_accepts_bin_only_source(self):
         """A source overriding only `get_wake_per_bin` must be accepted.
 
@@ -3445,6 +3464,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         class BinOnlyResonators(TimeDomain):
             def get_wake_per_bin(self, time):
                 return backend.zeros_like(time)
+
+            def get_impedance_from_wake(self, time, simulation, beam, n_fft):
+                return self._impedance_from_wake_per_bin(time, n_fft)
 
         solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
         parent_wakefield = Mock(WakeField)  # held weakly by the solver
