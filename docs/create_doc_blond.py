@@ -28,7 +28,7 @@ API Documentation
 def main():
     """Create blond.rst."""
     this_folder = os.path.dirname(os.path.abspath(__file__))
-    target = os.path.join(this_folder, r"modules\blond.rst")
+    target = os.path.join(this_folder, r"modules/blond.rst")
     with open(target, "w", encoding="utf-8") as f:
         f.write(content)
     print(f'Created "{target}".')
