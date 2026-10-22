@@ -313,7 +313,8 @@ def is_filled(read: Callable[[], object]) -> bool:
         read()
     except NotInitialisedError:
         return False
-    return True
+    else:
+        return True
 
 
 def check_filled(obj: object, *names: str) -> None:
