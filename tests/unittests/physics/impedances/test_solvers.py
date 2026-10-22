@@ -134,7 +134,7 @@ class TestTimeDomainFftSolver(BLonDTestCase):
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
 
         with self.assertRaisesRegex(
-            Exception, "Can only accept impedance that support"
+            TypeError, "Can only accept impedance that support"
         ):
             local_solver._update_impedance_sources(beam=self.beam)
 
@@ -384,6 +384,29 @@ class TestInductiveImpedanceSolver(BLonDTestCase):
         )
 
 
+class TestInductiveImpedanceSolverSourceCheck(BLonDTestCase):
+    def test_rejects_a_non_inductive_source_with_a_type_error(self):
+        """A wrong source must be named, and not vanish under ``python -O``.
+
+        The check used to be a bare ``assert`` without a message, which
+        ``python -O`` strips, letting e.g. a resonator through.
+        """
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.sources = (
+            InductiveImpedance(Z_over_n=1.0),
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([1e9]),
+                quality_factors=np.array([1.0]),
+            ),
+        )
+
+        with self.assertRaisesRegex(TypeError, "Resonators"):
+            InductiveImpedanceSolver().on_wakefield_init_simulation(
+                simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+            )
+
+
 class TestPeriodicFreqSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
@@ -508,7 +531,7 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         # we are on _freq_y_needs_update == False, it skips
         self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(TypeError, "support `FreqDomain`"):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
@@ -3425,7 +3448,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
+            TypeError, "should implement `TimeDomain.get_wake_per_bin`"
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),
@@ -3447,7 +3470,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         solver._parent_wakefield = parent_wakefield
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
+            TypeError, "should implement `TimeDomain.get_wake_per_bin`"
         ):
             solver._check_source_ducktypes()
 

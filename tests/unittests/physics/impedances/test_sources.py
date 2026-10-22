@@ -1808,6 +1808,12 @@ class TestResonators(BLonDTestCase):
             self.resonators.get_wake_counter_rotation(time=time)
         self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
 
+    def test_declares_the_vector_fit_interface(self):
+        """`get_vectorfit` is the `SupportsVectorFittedModel` interface."""
+        from blond.physics.impedances.base import SupportsVectorFittedModel
+
+        self.assertIsInstance(self.resonators, SupportsVectorFittedModel)
+
     def test_get_vectorfit(self):
         from blond.testing.helpers import allclose_tolerances
 

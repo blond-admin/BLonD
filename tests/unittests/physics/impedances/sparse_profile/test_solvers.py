@@ -507,6 +507,7 @@ class TestMultiPoleSparseInit(BLonDTestCase):
         solver = MultiPoleSparseSolve()
         parent = Mock(WakeField)
         parent.profile = profile
+        parent.sources = ()
         solver.on_wakefield_init_simulation(
             simulation=Mock(Simulation), parent_wakefield=parent
         )

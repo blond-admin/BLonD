@@ -83,11 +83,23 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             `Simulation` context manager.
         parent_wakefield
             Wakefield that this solver affiliated to.
+
+        Raises
+        ------
+        TypeError
+            If a source is no `InductiveImpedance`.
         """
         self._parent_wakefield = parent_wakefield
-        assert all(
-            isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
-        )
+        others = [
+            type(source).__name__
+            for source in parent_wakefield.sources
+            if not isinstance(source, InductiveImpedance)
+        ]
+        if others:
+            raise TypeError(
+                "`InductiveImpedanceSolver` only accepts `InductiveImpedance`"
+                f" sources, but got {others}."
+            )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = float(sum(o.Z_over_n for o in impedances))
         self._turn_counter = simulation.turn_counter
@@ -345,8 +357,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 self._freq_y += backend.array(freq_y, dtype=backend.complex)
                 # potentially on gpu
             else:
-                raise Exception(
-                    "Can only accept impedance that support `FreqDomain`"
+                raise TypeError(
+                    "Can only accept impedance that support `FreqDomain`,"
+                    f" but got {type(source).__name__}."
                 )
         # Factor relating Fourier transform and DFT
         self._freq_y /= self._parent_wakefield.profile.hist_step
@@ -559,8 +572,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
                     dtype=backend.complex,
                 )
             else:
-                raise Exception(
-                    "Can only accept impedance that support `TimeDomain`"
+                raise TypeError(
+                    "Can only accept impedance that support `TimeDomain`,"
+                    f" but got {type(source).__name__}."
                 )
 
         self._impedance_from_wake_y_needs_update = False
@@ -1124,7 +1138,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
             if not provides_wake_per_bin(source):
-                raise AttributeError(
+                raise TypeError(
                     f"The {source=} should implement "
                     "`TimeDomain.get_wake_per_bin` (or `get_wake`)."
                 )

@@ -36,6 +36,7 @@ from blond.core.backends.backend import backend
 from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsVectorFittedModel,
     TimeDomain,
     TimeDomainCounterRotation,
     WakeFieldSource,
@@ -293,6 +294,7 @@ class Resonators(
     TimeDomain,
     FreqDomain,
     TimeDomainCounterRotation,
+    SupportsVectorFittedModel,
 ):
     r"""
     Multiple resonances of RLC circuits for impedance calculations.

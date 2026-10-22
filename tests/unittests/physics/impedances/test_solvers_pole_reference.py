@@ -1631,5 +1631,42 @@ class TestPolesMustDecay(BLonDTestCase):
             self._initialise_with_poles([0.0 + 1e9j])
 
 
+class TestMultiPoleSparseSolveSourceCheck(BLonDTestCase):
+    def test_rejects_a_source_without_poles_with_a_type_error(self):
+        """A source without a pole model must be rejected when wired up.
+
+        Without the check it only failed at the first induced voltage,
+        with an `AttributeError` on `get_vectorfit`.
+        """
+        from unittest.mock import Mock
+
+        from blond import InductiveImpedance
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = Mock(StaticProfile)
+        parent_wakefield.sources = (InductiveImpedance(Z_over_n=1.0),)
+
+        with self.assertRaisesRegex(TypeError, "SupportsVectorFittedModel"):
+            MultiPoleSparseSolve().on_wakefield_init_simulation(
+                simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+            )
+
+    def test_accepts_resonators(self):
+        from unittest.mock import Mock
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = Mock(StaticProfile)
+        parent_wakefield.sources = (
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([1e9]),
+                quality_factors=np.array([1.0]),
+            ),
+        )
+        MultiPoleSparseSolve().on_wakefield_init_simulation(
+            simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

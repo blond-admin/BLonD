@@ -142,13 +142,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         ------
         TypeError
             If the profile is neither an `EquidistantMultiProfile` nor a
-            `StaticProfile`.
+            `StaticProfile`, or a source is no `SupportsVectorFittedModel`.
         """
         profile = parent_wakefield.profile
         if not isinstance(profile, (EquidistantMultiProfile, StaticProfile)):
             raise TypeError(
                 "Expected `EquidistantMultiProfile` or `StaticProfile`,"
                 f" but got {type(profile)=}."
+            )
+        without_poles = [
+            type(source).__name__
+            for source in parent_wakefield.sources
+            if not isinstance(source, SupportsVectorFittedModel)
+        ]
+        if without_poles:
+            raise TypeError(
+                "`MultiPoleSparseSolve` needs sources that provide a pole"
+                " model (`SupportsVectorFittedModel`), but got"
+                f" {without_poles}."
             )
         self._parent_wakefield = parent_wakefield
         self._profile = profile
