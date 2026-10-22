@@ -1096,7 +1096,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             shape=self.internal_grid_shape,
         )
         # averaged like `avg_pot_well`, to which it down-samples
-        if self._last_potential_well_oversampled is None:
+
+        if not hasattr(self, "_last_potential_well_oversampled"):
             avg_pot_well_oversampled = potential_well_oversampled
         else:
             avg_pot_well_oversampled = (
