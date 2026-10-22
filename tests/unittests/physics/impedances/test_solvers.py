@@ -71,7 +71,6 @@ class TestTimeDomainFftSolver(BLonDTestCase):
         self.time_domain_fft_solver._parent_wakefield = self.parent_wakefield
         # Stand-in owned by nothing else, as in `WakeField.headless`
         hold_strongly(self.time_domain_fft_solver, "_parent_wakefield")
-        self.time_domain_fft_solver._simulation = Mock(Simulation)
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -398,7 +397,6 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         self.periodic_freq_solver._parent_wakefield = self.parent_wakefield
         # Stand-in owned by nothing else, as in `WakeField.headless`
         hold_strongly(self.periodic_freq_solver, "_parent_wakefield")
-        self.periodic_freq_solver._simulation = Mock(Simulation)
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -769,7 +767,6 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         td_fft_solver = TimeDomainFftSolver()
         parent_wakefield = Mock(WakeField)
         td_fft_solver._parent_wakefield = parent_wakefield
-        td_fft_solver._simulation = Mock(Simulation)
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
@@ -1078,7 +1075,6 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
 
         parent_wakefield = Mock(WakeField)
         analy._parent_wakefield = parent_wakefield
-        analy._simulation = Mock(Simulation)
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -1202,7 +1198,6 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         )
         # Stand-in owned by nothing else, as in `WakeField.headless`
         hold_strongly(self.multi_pass_resonator_solver, "_parent_wakefield")
-        self.multi_pass_resonator_solver._simulation = Mock(Simulation)
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
@@ -2119,7 +2114,6 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
 
         parent_wakefield = Mock(WakeField)
         local_res._parent_wakefield = parent_wakefield
-        local_res._simulation = Mock(Simulation)
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
@@ -2226,7 +2220,6 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
 
             parent_wakefield = Mock(WakeField)
             local_res._parent_wakefield = parent_wakefield
-            local_res._simulation = Mock(Simulation)
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
@@ -2251,7 +2244,6 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             local_res_analy = SingleTurnResonatorConvolutionSolver()
             parent_wakefield_analy = Mock(WakeField)
             local_res_analy._parent_wakefield = parent_wakefield_analy
-            local_res_analy._simulation = Mock(Simulation)
             local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
@@ -3338,9 +3330,6 @@ class TestHeadlessSolvers(BLonDTestCase):
         )
         beam.particle_type = mu_plus
 
-        solver = TimeDomainFftSolver()
-        solver._simulation = Mock(Simulation)
-
         wf_td = WakeField.headless(
             sources=(
                 Resonators(
@@ -3349,16 +3338,12 @@ class TestHeadlessSolvers(BLonDTestCase):
                     quality_factors=np.array([Q_factor]),
                 ),
             ),
-            solver=solver,
+            solver=TimeDomainFftSolver(),
             profile=prof,
             beam=beam,
         )
 
         ind_voltage_td = wf_td.solver.calc_induced_voltage(beam=beam)
-
-        solver = SingleTurnResonatorConvolutionSolver()
-        solver._simulation = Mock(Simulation)
-
         wf_convol = WakeField.headless(
             sources=(
                 Resonators(
@@ -3367,7 +3352,7 @@ class TestHeadlessSolvers(BLonDTestCase):
                     quality_factors=np.array([Q_factor]),
                 ),
             ),
-            solver=solver,
+            solver=SingleTurnResonatorConvolutionSolver(),
             profile=prof,
             beam=beam,
         )
@@ -3415,12 +3400,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
             def get_wake(self):  # emulate wroing implementation
                 return
 
-        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-        solver._simulation = Mock(Simulation)
-
         wf_mutli = WakeField.headless(
             sources=(FaultyResonators(),),
-            solver=solver,
+            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
             profile=prof,
             beam=beam_mock,
         )
@@ -3434,11 +3416,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         with self.assertRaisesRegex(
             AttributeError, "should implement `TimeDomain.get_wake`"
         ):
-            solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-            solver._simulation = Mock(Simulation)
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),
-                solver=solver,
+                solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
                 profile=prof,
                 beam=beam_mock,
             )
@@ -3458,9 +3438,6 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
 
-        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-        solver._simulation = Mock(Simulation)
-
         wf_mutli = WakeField.headless(
             sources=(
                 Resonators(
@@ -3469,7 +3446,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                     quality_factors=np.array([Q_factor]),
                 ),
             ),
-            solver=solver,
+            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
             profile=prof,
             beam=beam_mock,
         )
@@ -3493,8 +3470,6 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
         with self.assertWarnsRegex(UserWarning, "Expected StaticProfile"):
-            solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-            solver._simulation = Mock(Simulation)
             wf_mutli = WakeField.headless(
                 sources=(
                     Resonators(
@@ -3503,7 +3478,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                         quality_factors=np.array([Q_factor]),
                     ),
                 ),
-                solver=solver,
+                solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
                 profile=prof,
                 beam=beam_mock,
             )
@@ -3523,9 +3498,6 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
 
-        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-        solver._simulation = Mock(Simulation)
-
         wf_mutli = WakeField.headless(
             sources=(
                 Resonators(
@@ -3534,14 +3506,10 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                     quality_factors=np.array([Q_factor]),
                 ),
             ),
-            solver=solver,
+            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
             profile=prof,
             beam=beam_mock,
         )
-
-        solver = TimeDomainFftSolver(allow_next_fast_len=False)
-        solver._simulation = Mock(Simulation)
-
         wf_single = WakeField.headless(
             sources=(
                 Resonators(
@@ -3550,7 +3518,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                     quality_factors=np.array([Q_factor]),
                 ),
             ),
-            solver=solver,
+            solver=TimeDomainFftSolver(allow_next_fast_len=False),
             profile=prof,
             beam=beam_mock,
         )
@@ -3615,22 +3583,15 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         beam_mock.particle_type = uranium_29
         beam_mock.intensity = 1e-13
 
-        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
-        solver._simulation = Mock(Simulation)
-
         wf_mutli = WakeField.headless(
             sources=sources,
-            solver=solver,
+            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
             profile=prof_single,
             beam=beam_mock,
         )
-
-        solver = TimeDomainFftSolver(allow_next_fast_len=False)
-        solver._simulation = Mock(Simulation)
-
         wf_single = WakeField.headless(
             sources=sources,
-            solver=solver,
+            solver=TimeDomainFftSolver(allow_next_fast_len=False),
             profile=prof_two_turns,
             beam=beam_mock,
         )

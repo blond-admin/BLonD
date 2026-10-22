@@ -100,9 +100,6 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
     _main_cavities: InitialisedInternally[list[RFStationBaseClass]] = (
         InitialisedInternally(SetBy.RUN_SIMULATION)
     )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.RUN_SIMULATION
-    )
 
     def __init__(
         self,

@@ -1,13 +1,31 @@
 import gc
+import importlib
+import inspect
+import pkgutil
+import sys
 import unittest
 import weakref
 from copy import deepcopy
 
+import blond
 from blond.core.offenders import (
     WeakBackReference,
     hold_strongly,
 )
+from blond.physics.feedbacks.accelerators.lhc.beam_feedback import (
+    LHCBeamControl,
+)
+from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.testing.backend_testing import BLonDTestCase
+
+# Not walked for back-references: legacy and experimental code, the example
+# scripts (they run on import) and the backends (the CUDA one needs CuPy)
+_NOT_WALKED = (
+    "blond.legacy",
+    "blond.experimental",
+    "blond.examples",
+    "blond.core.backends",
+)
 
 
 class _Parent:
@@ -124,6 +142,78 @@ class TestHoldStrongly(BLonDTestCase):
         parent.child.parent = parent
         parent_copy = deepcopy(parent)
         self.assertIs(parent_copy.child.parent, parent_copy)
+
+
+def _is_walked(module_name):
+    return module_name.startswith("blond.") and not module_name.startswith(
+        _NOT_WALKED
+    )
+
+
+def _qualified_name(cls):
+    return f"{cls.__module__}.{cls.__qualname__}"
+
+
+def _subclasses(cls):
+    for subclass in cls.__subclasses__():
+        yield subclass
+        yield from _subclasses(subclass)
+
+
+def _import_walked_modules(path, prefix):
+    # Not `pkgutil.walk_packages`: it imports every package to recurse into
+    # it, including the ones not walked
+    for module_info in pkgutil.iter_modules(path, prefix):
+        if _is_walked(module_info.name):
+            module = importlib.import_module(module_info.name)
+            if module_info.ispkg:
+                _import_walked_modules(module.__path__, f"{module.__name__}.")
+
+
+def _walked_classes():
+    """Import every walked module of BLonD and return its classes."""
+    _import_walked_modules(blond.__path__, "blond.")
+    return [
+        obj
+        for name, module in list(sys.modules.items())
+        if _is_walked(name)
+        for obj in vars(module).values()
+        if isinstance(obj, type) and obj.__module__ == name
+    ]
+
+
+class TestBackReferencesNotShadowed(BLonDTestCase):
+    # A subclass redeclaring a back-reference, e.g. as `InitialisedInternally`
+    # for typing, takes precedence over the `WeakBackReference` and holds the
+    # owner strongly again, bringing back the cycle it broke.
+    maxDiff = None  # list every shadowing declaration on failure
+
+    def test_subclasses_keep_back_references_weak(self):
+        back_references = [
+            (owner, name)
+            for owner in _walked_classes()
+            for name, attribute in vars(owner).items()
+            if isinstance(attribute, WeakBackReference)
+        ]
+        checked = set()
+        shadowing = set()
+        for owner, name in back_references:
+            for subclass in _subclasses(owner):
+                if not _is_walked(subclass.__module__):
+                    continue
+                checked.add((subclass, name))
+                if isinstance(
+                    inspect.getattr_static(subclass, name), WeakBackReference
+                ):
+                    continue
+                declaring = next(
+                    cls for cls in subclass.__mro__ if name in vars(cls)
+                )
+                shadowing.add((_qualified_name(declaring), name))
+        # Guards against walking nothing, which would pass trivially
+        self.assertIn((InductiveImpedanceSolver, "_parent_wakefield"), checked)
+        self.assertIn((LHCBeamControl, "_simulation"), checked)
+        self.assertEqual(sorted(shadowing), [])
 
 
 if __name__ == "__main__":

@@ -253,9 +253,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
     _turns_array: InitialisedInternally[NumpyArray] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.RUN_SIMULATION
-    )
 
     def __init__(
         self,
@@ -1953,9 +1950,6 @@ class SimulationObservation(ObservablesOncePerTurnBase):
         ``beam.dt_min`` and ``beam.dt_max``.
     """
 
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.RUN_SIMULATION
-    )
     _t_revs: InitialisedInternally[DenseArrayRecorder] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )

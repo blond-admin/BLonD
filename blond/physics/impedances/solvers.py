@@ -74,12 +74,6 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     _turn_counter: InitialisedInternally[DynamicParameter] = (
         InitialisedInternally(SetBy.SIMULATION)
     )
-    _parent_wakefield: InitialisedInternally[WakeField] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.SIMULATION
-    )
 
     def __init__(self):
         super().__init__()
@@ -173,9 +167,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
     around the synchrotron takes ( long profiles).
     """
 
-    _parent_wakefield: InitialisedInternally[WakeField] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
     _n_time: InitialisedInternally[int] = InitialisedInternally(
         SetBy.SIMULATION
     )
@@ -184,9 +175,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
     )
     _freq_y: InitialisedInternally[NumpyArray] = InitialisedInternally(
         SetBy.RUN_SIMULATION
-    )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.SIMULATION
     )
 
     def __init__(
@@ -467,14 +455,8 @@ class TimeDomainFftSolver(WakeFieldSolver):
     the synchrotron revolution time (short profiles).
     """
 
-    _parent_wakefield: InitialisedInternally[WakeField] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
     _impedance_from_wake_y: InitialisedInternally[NumpyArray] = (
         InitialisedInternally(SetBy.RUN_SIMULATION)
-    )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.SIMULATION
     )
 
     def __init__(
@@ -656,12 +638,6 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     _wake_function_time: InitialisedInternally[NumpyArray] = (
         InitialisedInternally(SetBy.SIMULATION)
     )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.SIMULATION
-    )
-    _parent_wakefield: InitialisedInternally[WakeField] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
 
     def __init__(self):
         super().__init__()
@@ -814,12 +790,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         SetBy.SIMULATION
     )
     _maximum_storage_time: InitialisedInternally[float] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.SIMULATION
-    )
-    _parent_wakefield: InitialisedInternally[WakeField] = (
         InitialisedInternally(SetBy.SIMULATION)
     )
 
@@ -1148,14 +1118,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     representation of the last turn.
     """
 
-    _parent_wakefield: InitialisedInternally[WakeField] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
     _wake_kernel: InitialisedInternally[NumpyArray | CupyArray] = (
         InitialisedInternally(SetBy.SIMULATION)
-    )
-    _simulation: InitialisedInternally[Simulation] = InitialisedInternally(
-        SetBy.SIMULATION
     )
 
     def __init__(self, n_turns: int) -> None:
@@ -1328,9 +1292,6 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     _profile: InitialisedInternally[
         EquidistantMultiProfile | StaticProfile
     ] = InitialisedInternally(SetBy.SIMULATION)
-    _parent_wakefield: InitialisedInternally[WakeField] = (
-        InitialisedInternally(SetBy.SIMULATION)
-    )
     _voltage: InitialisedInternally[NumpyArray | CupyArray] = (
         InitialisedInternally(SetBy.RUN_SIMULATION)
     )
