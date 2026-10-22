@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
-from typing import Any, Protocol
+from typing import Protocol, TypeVar
+
+# Covariant because it only appears as a return type. A bare
+# `ScheduleFunction` is implicitly `ScheduleFunction[Any]`.
+ScheduledValueType_co = TypeVar("ScheduledValueType_co", covariant=True)
 
 
 class AnyInterpolator(Protocol):
@@ -54,16 +58,21 @@ class AnyInterpolator(Protocol):
         ...
 
 
-class ScheduleFunction(Protocol):
+class ScheduleFunction(Protocol[ScheduledValueType_co]):
     """
     A callable that computes a scheduled value per turn.
 
     Used by `ScheduledFunctional`, which calls it with the keyword
     arguments `turn_i` and `reference_time`, so the parameters must
     carry exactly these names.
+
+    Generic in the returned value, e.g. `ScheduleFunction[float]`.
+    Without a type argument, the return type is `Any`.
     """
 
-    def __call__(self, *, turn_i: int, reference_time: float) -> Any:
+    def __call__(
+        self, *, turn_i: int, reference_time: float
+    ) -> ScheduledValueType_co:
         """
         Compute the scheduled value.
 
