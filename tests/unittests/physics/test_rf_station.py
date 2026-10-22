@@ -45,7 +45,6 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -668,7 +667,7 @@ class TestCallables(BLonDTestCase):
             )  # Should  raise
 
     @pytest.mark.cupy
-    def test_invalid_purely_real_or_imaginary_array(self):
+    def test_invalid_purely_real_or_imaginary_array_cupy(self):
         try:
             import cupy as cp  # type: ignore
         except ImportError as exc:
@@ -685,28 +684,13 @@ class TestCallables(BLonDTestCase):
 
 class TestMultiHarmonicCavity(BLonDTestCase):
     def setUp(self) -> None:
-        from blond.core.beam.base import BeamBaseClass
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
-        beam.particle_type = proton
-        beam._particle_type = beam.particle_type
-        beam.reference.time = 0
-        beam.reference.beta = 0.5
-        beam.reference.velocity = beam.reference.beta * c0
-        beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference.total_energy = 938
-        beam.reference._total_energy = beam.reference.total_energy
-        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
-        # delta E  in eV
-        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
-        # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
-        beam.signed_charge_with_direction.return_value = proton._charge
-
-        self.beam = beam
+        self.beam = Beam(particle_type=proton, intensity=1)
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-6, 1e-6, 10),
+            dE=np.linspace(-1e6, 1e6, 10),
+            reference_total_energy=42e9,
+            reference_time=0,
+        )
 
         self.multi_harmonic_cavity = MultiHarmonicRFStation.headless(
             section_index=0,
@@ -716,7 +700,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            magnetic_cycle=_fixed_total_energy_cycle(939),
+            magnetic_cycle=_fixed_total_energy_cycle(43e9),
             main_harmonic_idx=0,
             beam_reference_beta=1,
         )
@@ -820,7 +804,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(self.beam.reference.total_energy, 939)  # incremented
+        self.assertEqual(self.beam.reference.total_energy, 43e9)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         # print(self.beam.dE.tolist())
@@ -828,24 +812,24 @@ class TestMultiHarmonicCavity(BLonDTestCase):
             raise TypeError("32 bit backends have been removed.")
 
         np.testing.assert_allclose(  # changer/ test pinned to some value
-            copy_to_cpu(self.beam.dE),
+            copy_to_cpu(self.beam.dE.array_local),
             [
-                -3553222.1295187217,
-                229103.39306234661,
-                -2334151.389566862,
-                -1291443.680401674,
-                1796893.796132672,
-                -1195065.0503718334,
-                1768699.6153487992,
-                2588047.0010012407,
-                -251122.31467230315,
-                3259845.9525205432,
+                -998427874.7069353,
+                -1001709199.692548,
+                -1003250553.902445,
+                -1000077941.9734716,
+                -998756362.8558929,
+                -1000689535.1536587,
+                -999802787.7970611,
+                -997158604.9898542,
+                -998907300.7153974,
+                -1001912168.2723218,
             ],
             rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
-            copy_to_cpu(self.beam.dt),
+            copy_to_cpu(self.beam.dt.array_local),
             np.linspace(-1e-6, 1e-6, 10),
         )
 
@@ -1196,28 +1180,13 @@ class TestMultiHarmonicCavity(BLonDTestCase):
 
 class TestSingleHarmonicRFStation(BLonDTestCase):
     def setUp(self) -> None:
-        from blond.core.beam.base import BeamBaseClass
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
-        beam.particle_type = proton
-        beam.reference.time = float(0)
-        beam.reference.beta = 0.5
-        beam.reference.velocity = float(beam.reference.beta * c0)
-        beam.reference.gamma = float(np.sqrt(1 - 0.25))  # beta**2
-        beam.reference.total_energy = float(938)
-        beam.dE = backend.linspace(
-            -1e6, 1e6, 10, dtype=backend.float
-        )  # delta E in eV
-        beam.dt = backend.linspace(
-            -1e-6, 1e-6, 10, dtype=backend.float
-        )  # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
-        beam.signed_charge_with_direction.return_value = proton._charge
-
-        self.beam = beam
+        self.beam = Beam(particle_type=proton, intensity=1)
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-6, 1e-6, 10),
+            dE=np.linspace(-1e6, 1e6, 10),
+            reference_total_energy=42e9,
+            reference_time=0,
+        )
 
         self.single_harmonic_cavity = SingleHarmonicRFStation.headless(
             section_index=0,
@@ -1227,8 +1196,8 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            magnetic_cycle=_fixed_total_energy_cycle(939.0),
-            beam_reference_beta=beam.reference.beta,
+            magnetic_cycle=_fixed_total_energy_cycle(43e9),
+            beam_reference_beta=self.beam.reference.beta,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
@@ -1312,31 +1281,31 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
     def test_track(self) -> None:
         self.single_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(939, self.beam.reference.total_energy)  # incremented
+        self.assertEqual(43e9, self.beam.reference.total_energy)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")
 
         np.testing.assert_allclose(  # test pinned to some value
-            copy_to_cpu(self.beam.dE),
+            copy_to_cpu(self.beam.dE.array_local),
             [
-                -1003263.8619856804,
-                221697.39838640607,
-                -623504.6270207566,
-                -1327969.3279760184,
-                27701.968069498133,
-                1095854.844844814,
-                124356.9102684273,
-                -414301.0439499994,
-                1055852.7198949838,
-                1950042.1738763654,
+                -1001810728.4507133,
+                -1000010276.6832198,
+                -1001276020.3612214,
+                -999663480.3189315,
+                -1000727028.0066442,
+                -999329964.7671833,
+                -1000165824.2017127,
+                -999007530.7009628,
+                -999594723.8709637,
+                -998693759.0866513,
             ],
             rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
-            copy_to_cpu(self.beam.dt),
+            copy_to_cpu(self.beam.dt.array_local),
             np.linspace(-1e-6, 1e-6, 10),
         )
 

@@ -374,7 +374,7 @@ class TestNumpyBackend(BLonDTestCase):
             self.skipTest("cpp not available!")
 
     @pytest.mark.backend_mutation
-    def test_set_specials_cpp(self) -> None:
+    def test_set_specials_cpp_single_core(self) -> None:
         try:
             self.numpy_backend.set_specials(mode="cpp_single_core")
         except FileNotFoundError:
@@ -388,6 +388,39 @@ class TestNumpyBackend(BLonDTestCase):
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
+
+
+class TestMusicTrackOverrides(BLonDTestCase):
+    def test_music_track_is_abstract(self):
+        """Every backend must decide whether it supports MuSiC."""
+        from blond.core.backends.backend import Specials
+
+        self.assertIn("music_track", Specials.__abstractmethods__)
+
+    def test_cuda_music_track_is_a_method_of_cuda_specials(self):
+        """Parsed from the source, so it runs without CuPy.
+
+        It was once indented into the body of `wake_from_pole_residue`,
+        where it was dead code instead of an override.
+        """
+        import ast
+
+        import blond.core.backends.cuda as cuda_package
+
+        path = os.path.join(cuda_package.__path__[0], "callables.py")
+        with open(path, encoding="utf-8") as file:
+            tree = ast.parse(file.read())
+        (cuda_specials,) = (
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "CudaSpecials"
+        )
+        methods = {
+            node.name
+            for node in cuda_specials.body
+            if isinstance(node, ast.FunctionDef)
+        }
+        self.assertIn("music_track", methods)
 
 
 class TestSpecials(BLonDTestCase):
@@ -3472,7 +3505,7 @@ class TestSpecials(BLonDTestCase):
                 )
 
     @pytest.mark.backend_mutation
-    def test_wake_from_pole_residue(self) -> None:
+    def test_wake_from_pole_residue_states_over_two_calls(self) -> None:
         """All backends must match python, incl. states over two calls."""
         self._assert_wake_matches_python(
             update_on_bin_np=np.array([0], dtype=np.int32),
