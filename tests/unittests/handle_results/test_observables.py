@@ -26,7 +26,9 @@ from blond.core.backends.mpi_distributed.distributed_array import (
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.flags import BeamFlags
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -63,23 +65,14 @@ simulation.ring.circumference = 500
 simulation.turn_counter = DynamicParameter(None)
 simulation.turn_counter.value = 0
 simulation.current_t_rev = 123
-beam = Mock(BeamBaseClass)
-beam._dE = Mock(DistributedArray)
-beam._dt = Mock(DistributedArray)
-beam._flags = Mock(DistributedArray)
-beam.common_array_size = 128
-beam.reference = Mock(ReferenceCoordinates)
-beam.reference.time = 0.8
-beam.reference.beta = 0.9
-beam.reference.total_energy = 11
-beam._dt.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._dE.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
-beam.read_partial_dt.return_value = beam._dt.array_local
-beam.read_partial_dE.return_value = beam._dE.array_local
-beam.read_partial_flags.return_value = beam._flags.array_local
-beam.dt_min = 1
-beam.dt_max = 2
+BEAM_COMMON_ARRAY_SIZE = 128
+beam = Beam(intensity=1, particle_type=proton)
+beam.setup_beam(
+    dt=np.ones(BEAM_COMMON_ARRAY_SIZE),
+    dE=np.append(np.ones(BEAM_COMMON_ARRAY_SIZE - 1), [2]),
+    reference_time=0.8,
+    reference_total_energy=11,
+)
 sep_helper = Mock(SymbolicSeparatrixHelper)
 dE_sep = np.ones(256)
 sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])
@@ -243,18 +236,12 @@ class TestBeamObservation(BLonDTestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference.time = 0.8
-        # self.beam.reference.beta = 0.9
-        self.beam.reference.total_energy = 11
-        self.beam._dt = np.ones(common_array_size, dtype=float)
-        self.beam._dE = np.ones(common_array_size, dtype=float)
-        self.beam._flags = np.ones(common_array_size, dtype=int)
-
         self.beam.setup_beam(
-            dE=np.ones(common_array_size, dtype=float),
-            dt=np.ones(common_array_size, dtype=float),
             reference_time=0.8,
             reference_total_energy=11,
+            dt=np.ones(common_array_size),
+            dE=np.ones(common_array_size),
+            flags=np.ones(common_array_size),
         )
 
     def test___init__(self) -> None:
@@ -411,16 +398,17 @@ class TestBeamObservation(BLonDTestCase):
                 ),
             )
             plt.plot(phase_observation.phases)
-            fig = plt.figure()
-            for i in range(bunch_observation.dts.shape[0]):
-                plt.clf()
-                sel = ~np.isnan(bunch_observation.dts[i, :])
-                plt.hist2d(
-                    bunch_observation.dts[i, sel],
-                    bunch_observation.dEs[i, sel],
-                    bins=256,
-                    # range=[[0, 2.5e-9], [-4e8, 4e8]],
-                )
+            if DEV_DRAW:  # one plot per observed turn, only for inspection
+                plt.figure()
+                for i in range(bunch_observation.dts.shape[0]):
+                    plt.clf()
+                    sel = ~np.isnan(bunch_observation.dts[i, :])
+                    plt.hist2d(
+                        bunch_observation.dts[i, sel],
+                        bunch_observation.dEs[i, sel],
+                        bins=256,
+                        # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                    )
             obs_beam_hist2d.plot(
                 result_idx=-1
             )  # tests that the plots are functional
@@ -431,6 +419,56 @@ class TestBeamObservation(BLonDTestCase):
         plt.show()
 
 
+class TestBeamHist2dOncePerTurn(BLonDTestCase):
+    def setUp(self) -> None:
+        rng = np.random.default_rng(seed=1)
+        self.dt = rng.normal(loc=1e-9, scale=1e-10, size=1000)
+        self.dE = rng.normal(loc=0.0, scale=1e8, size=1000)
+        self.beam = Beam(intensity=1e10, particle_type=proton)
+        self.beam.setup_beam(
+            dt=self.dt.copy(),
+            dE=self.dE.copy(),
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+        self.obs = BeamHist2dOncePerTurn(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            bins=(16, 8),
+        )
+        self.obs.on_init_simulation(simulation=simulation)
+        self.obs.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        self.obs.update()
+
+    def test_getters_match_numpy_histogram2d(self) -> None:
+        hist2d, xedges, yedges = np.histogram2d(
+            self.dt, self.dE, bins=(16, 8), density=True
+        )
+        self.assertEqual(self.obs.hist2d.shape, (1, 16, 8))
+        self.assertEqual(self.obs.xedges.shape, (1, 17))
+        self.assertEqual(self.obs.yedges.shape, (1, 9))
+        np.testing.assert_allclose(self.obs.hist2d[0], hist2d)
+        np.testing.assert_allclose(self.obs.xedges[0], xedges)
+        np.testing.assert_allclose(self.obs.yedges[0], yedges)
+
+    def test_getters_of_scalars(self) -> None:
+        np.testing.assert_allclose(self.obs.intensity, [1e10])
+        np.testing.assert_allclose(self.obs.reference_time, [0.8])
+        np.testing.assert_allclose(self.obs.reference_total_energy, [11])
+
+    def test_plot_uses_default_cmap(self) -> None:
+        image = self.obs.plot(result_idx=-1)
+        self.assertEqual(image.get_cmap().name, DEFAULT_CMAP)
+        plt.close(image.axes.figure)
+
+    def test_plot_fancy_uses_default_cmap(self) -> None:
+        ax_main, _, _ = self.obs.plot_fancy(result_idx=-1)
+        self.assertEqual(ax_main.images[0].get_cmap().name, DEFAULT_CMAP)
+        plt.close(ax_main.figure)
+
+
 class TestBunchStatistics(BLonDTestCase):
     def setUp(self) -> None:
         self.beam = Beam(
@@ -438,21 +476,9 @@ class TestBunchStatistics(BLonDTestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference._time = 0.8
-        self.beam.reference._beta = 0.9
-        self.beam.reference._total_energy = 11
-        self.beam._dt = DistributedArray(
-            np.ones(common_array_size, dtype=float)
-        )
-        self.beam._dE = DistributedArray(
-            np.ones(common_array_size, dtype=float)
-        )
-        self.beam._flags = DistributedArray(
-            np.ones(common_array_size, dtype=int)
-        )
         self.beam.setup_beam(
-            dE=np.ones(common_array_size, dtype=float),
-            dt=np.ones(common_array_size, dtype=float),
+            dE=np.ones(common_array_size),
+            dt=np.ones(common_array_size),
             reference_time=0.8,
             reference_total_energy=11,
         )
@@ -530,6 +556,43 @@ class TestBunchStatistics(BLonDTestCase):
         np.testing.assert_almost_equal(
             to_compare.reference_total_energy,
             self.bunch_statistics.reference_total_energy,
+        )
+
+    def test_mean_dE(self) -> None:
+        dE = np.linspace(-1e6, 3e6, 128)
+        self.beam.setup_beam(
+            dt=np.ones(128, dtype=float),
+            dE=dE,
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+        self.bunch_statistics.on_init_simulation(simulation=simulation)
+        self.bunch_statistics.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        self.bunch_statistics.update()
+        np.testing.assert_allclose(self.bunch_statistics.mean_dE, [1e6])
+
+    def test_macroparticle_counts(self) -> None:
+        flags = np.full(128, BeamFlags.ACTIVE.value, dtype=np.int32)
+        flags[:10] = BeamFlags.LOST.value
+        self.beam.setup_beam(
+            dt=np.ones(128, dtype=float),
+            dE=np.ones(128, dtype=float),
+            flags=flags,
+            reference_time=0.8,
+            reference_total_energy=11,
+        )
+        self.bunch_statistics.on_init_simulation(simulation=simulation)
+        self.bunch_statistics.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        self.bunch_statistics.update()
+        np.testing.assert_array_equal(
+            self.bunch_statistics.n_macroparticles, [128]
+        )
+        np.testing.assert_array_equal(
+            self.bunch_statistics.n_active_macroparticles, [118]
         )
 
 
@@ -689,6 +752,7 @@ class TestStaticProfileObservation(BLonDTestCase):
             mesh.get_array().data.ravel(),
             self.static_profile_observation.hist_y.ravel(),
         )
+        self.assertEqual(mesh.get_cmap().name, DEFAULT_CMAP)
         plt.close(mesh.axes.figure)
 
 
@@ -842,6 +906,7 @@ class TestDynamicProfileConstNBinsObservation(BLonDTestCase):
             mesh.get_array().data.ravel(),
             self.dynamic_profile_observation.hist_y.ravel(),
         )
+        self.assertEqual(mesh.get_cmap().name, DEFAULT_CMAP)
         plt.close(mesh.axes.figure)
 
 
@@ -985,6 +1050,30 @@ class TestSimulationObservation(BLonDTestCase):
         self.obs._update()
         self.assertEqual(self.obs.t_revs[0], 123)
         self.assertEqual(len(self.obs.t_revs), 2)  # two updates before
+
+    def test_separatrices(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=10,
+        )
+        self.obs._update()
+        self.assertEqual(self.obs.separatrices.shape, (1, 2, 256))
+        np.testing.assert_allclose(self.obs.separatrices[0, 0], dE_sep)
+        np.testing.assert_allclose(self.obs.separatrices[0, 1], -dE_sep)
+
+    def test_separatrix_dts(self):
+        self.obs.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=10,
+        )
+        self.obs._update()
+        self.assertEqual(self.obs.separatrix_dts.shape, (1, 256))
+        np.testing.assert_allclose(
+            self.obs.separatrix_dts[0],
+            np.linspace(beam.dt_min, beam.dt_max, 256),
+        )
 
 
 class TestDriftObservation(BLonDTestCase):

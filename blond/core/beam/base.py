@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.flags import BeamFlags
 from blond.core.backends.mpi_distributed import distributed_array
 from blond.core.backends.mpi_distributed import helpers as dist_help
 from blond.core.base import Preparable
-from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
@@ -139,10 +139,10 @@ class BeamBaseClass(Preparable, ABC):
                 f"{self.is_distributed=}, {other.is_distributed=}"
             )
 
-        if self.ratio != other.ratio:
+        if self._ratio != other._ratio:
             raise ValueError(
                 "Beams can only be added if they have the same ratio."
-                f"{self.ratio=}, {other.ratio=}"
+                f"{self._ratio=}, {other._ratio=}"
             )
 
         if self.particle_type != other.particle_type:
@@ -227,7 +227,7 @@ class BeamBaseClass(Preparable, ABC):
         new_ids
             The new particle ids.
         """
-        ratio = self.ratio
+        ratio = self._ratio
 
         self._dt = distributed_array.concatenate(self._dt, new_dt)
         self._dE = distributed_array.concatenate(self._dE, new_dE)
@@ -311,7 +311,7 @@ class BeamBaseClass(Preparable, ABC):
 
         See Also
         --------
-        blond.core.beam.flags.BeamFlags: The available flags.
+        blond.core.backends.flags.BeamFlags: The available flags.
         """
         if self._flags is None:
             raise AttributeError(
@@ -423,6 +423,20 @@ class BeamBaseClass(Preparable, ABC):
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights."""
         pass
+
+    @property
+    def _ratio(self) -> float:
+        """
+        Real particles per macro-particle, for internal use.
+
+        Returns
+        -------
+        ratio
+            Intensity divided by the number of macro-particles.
+        """
+        # Without weights every macro-particle has weight 1, so the sum
+        # of weights is `common_array_size`.
+        return self.intensity / self.common_array_size
 
     @property
     def particle_type(self) -> ParticleType:

@@ -24,11 +24,11 @@ from scipy.constants import (  # type: ignore[import-untyped]
     physical_constants,
 )
 
-import blond.generals.formatting_ as format
+import blond.generals.formatting_ as formatting
 from blond.generals.exceptions_ import InvalidParticleAttributeError
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -93,7 +93,7 @@ class ParticleType:
             The string representation.
         """
         string = (
-            f"Mass: {format.si_format(self._mass)}eV, charge: {self._charge}e, "
+            f"Mass: {formatting.si_format(self._mass)}eV, charge: {self._charge}e, "
             f"decay rate: {self._user_decay_rate}s^-1"
         )
         return string

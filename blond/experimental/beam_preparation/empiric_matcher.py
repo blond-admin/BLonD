@@ -28,6 +28,7 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
 )
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -35,69 +36,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
-
-
-def populate_beam(
-    beam: BeamBaseClass,
-    time_grid: NumpyArray,
-    deltaE_grid: NumpyArray,
-    density_grid: NumpyArray,
-    n_macroparticles: int,
-    seed: int | None,
-) -> None:
-    """
-    Fill bunch with macroparticles according to density_distribution.
-
-    Parameters
-    ----------
-    beam
-        Simulation `Beam` object.
-    time_grid
-        2D grid of positions in time, in [s].
-    deltaE_grid
-        2D grid of energies, in [eV].
-    density_grid
-        2D grid of densities according to time vs. energy.
-    n_macroparticles
-        Number of macroparticles to distribute, according to the grid.
-    seed
-        Random seed, to make function with same seed
-        always return the same value.
-
-    Notes
-    -----
-    The beam coordinate dt and dE will be overwritten.
-    """
-    # Initialise the random number generator
-    n_macroparticles_local = mpi_local_size(
-        n_macroparticles, "n_macroparticles"
-    )
-    rng = mpi_aware_random_generator_cpu(
-        seed=seed, n_forward_per_rank=n_macroparticles_local
-    )
-    # Generating particles randomly inside the grid cells according to the
-    # provided density_grid
-    indexes = rng.choice(
-        np.arange(0, np.size(density_grid)),
-        n_macroparticles,
-        p=density_grid.flatten(),
-    )
-    time_step = time_grid[0, 1] - time_grid[0, 0]
-    assert time_step > 0
-    deltaE_step = deltaE_grid[1, 0] - deltaE_grid[0, 0]
-    assert deltaE_step > 0
-    # Randomize particles inside each grid cell (uniform distribution)
-    dt = (
-        time_grid.flatten()[indexes]
-        + rng.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
-        * time_step
-    )
-    dE = (
-        deltaE_grid.flatten()[indexes]
-        + rng.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
-        * deltaE_step
-    )
-    beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")
 
 
 def normalize_as_density(hamilton_2D: NumpyArray):
@@ -139,6 +77,7 @@ class EmpiricMatcher(MatchingRoutine):
         maxiter_hamiltonian=20,
         atol_hamiltonian=1e-4,
         animate=False,
+        animate_pause_time: float = 0.1,
         hamiltonian_to_density_function: Callable[
             [NumpyArray], NumpyArray
         ] = normalize_as_density,
@@ -190,6 +129,8 @@ class EmpiricMatcher(MatchingRoutine):
             Absolute tolerance for Hamiltonian convergence.
         animate
             If True, display animation of matching process.
+        animate_pause_time
+            Time to pause after each animation frame, in [s].
         hamiltonian_to_density_function
             A function that converts from the 2D Hamiltonian to the 2D density.
             The 2D density is used to create the beam dt and dE coordinates.
@@ -259,6 +200,7 @@ class EmpiricMatcher(MatchingRoutine):
         self._atol_hamiltonian = atol_hamiltonian
 
         self.animate = animate
+        self.animate_pause_time = animate_pause_time
 
     def prepare_beam(
         self,
@@ -388,9 +330,10 @@ class EmpiricMatcher(MatchingRoutine):
                     users_beam._dt,
                     users_beam._dE,
                     bins=len(self._grid_base_dt),
+                    cmap=DEFAULT_CMAP,
                 )
                 plt.draw()
-                plt.pause(0.1)
+                plt.pause(self.animate_pause_time)
                 plt.clf()
 
         simulation.intensity_effect_manager.set_wakefields(active=True)

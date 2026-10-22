@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from blond.core.ring.helpers import (
+from blond.core.ordering import (
     _build_dependency_graph,
     filter_elements,
     get_dependencies,
@@ -276,6 +276,16 @@ class TestFunctions(BLonDTestCase):
             self.assertEqual(
                 ordered_classes, ["First", "AlsoFirst", "Second", "Third"]
             )
+
+
+class TestRingHelpersReexport(BLonDTestCase):
+    def test_old_import_path_still_works(self):
+        from blond.core import ordering
+        from blond.core.ring import helpers
+
+        for name in ("requires", "filter_elements", "get_required_order"):
+            with self.subTest(name=name):
+                self.assertIs(getattr(helpers, name), getattr(ordering, name))
 
 
 if __name__ == "__main__":

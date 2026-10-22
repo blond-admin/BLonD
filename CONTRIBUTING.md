@@ -2,7 +2,7 @@
 <img src="BLonD2_centered.png" alt="drawing" width="300"/>
 </div>
 
-[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
+[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
 
 # Developer Guide for BLonD
@@ -56,22 +56,29 @@ blond/                        BLonD beam dynamics software.
 ├────────── lhc/              Functions to define the CERN Large Hadron Collider feedback systems.
 ├────────── psb/              Functions to define the CERN Proton Synchrotron Booster feedback systems.
 ├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
+├──── simulation/             Experimental extensions to :class:`~blond.core.simulation.simulation.Simulation`.
 ├── generals/                 Function definitions that are useful outside the beam physics context.
-├──── cupy/                   Scripts that are useful to work with Cupy.
-├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
+├──── cupy_/                  Scripts that are useful to work with Cupy.
 ├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.ObservablesBaseClass`.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
 ├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├────── physics/              Beam physics classes for interfacing XSuite.
+├──── rf_noise_cpp/           Python ctypes interface to CERN's external ``rf-noise-cpp`` library.
 ├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
 ├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
-├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
+├──── feedbacks/              Module to manage and describe rf feedback systems.
+├────── accelerators/         Module to manage and describe rf feedback systems for specific accelerators.
+├──────── lhc/                Module to manage and describe rf feedback systems for the Large Hadron Collider.
+├──────── ps/                 Module to manage and describe rf feedback systems for the Proton Synchrotron.
+├──────── psb/                Module to manage and describe rf feedback systems for the Proton Synchrotron Booster.
+├──────── sps/                Module to manage and describe rf feedback systems for the Super Proton Synchrotron.
 ├──── impedances/             Module to handle the interaction of impedance sources with the beam.
 ├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
 ├── specifics/                Utility functions for specific accelerators.
 ├──── cern/                   Utility functions for CERN synchrotrons.
 ├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
+├──────── varinoise/          LHC VariNoise data (spectral-shape ``gain_y`` for band-limited RF noise).
 ├────── ps/                   Utility functions for the CERN Proton Synchrotron.
 ├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
 ├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
@@ -81,6 +88,7 @@ blond/                        BLonD beam dynamics software.
 ├── utilities/                Module contains various utilities used throughout the library.
 ├──── separatrix/             Package which contains utilities for working with separatrix.
 ```
+
 
 **Where to start reading:**
 
@@ -95,7 +103,7 @@ blond/                        BLonD beam dynamics software.
 
 Ensure the following tools are installed:
 
-* [Python 3.10+](https://www.python.org/downloads/)
+* [Python 3.11+](https://www.python.org/downloads/)
 * [Git](https://git-scm.com/)
 * [Pre-Commit](https://pre-commit.com/)
 
@@ -251,11 +259,28 @@ export BLOND_FORCE_TEST_ALL_BACKENDS=True
 python3 -m pytest -v tests/unittests/
 ```
 
+To run the suite in parallel, use pytest-xdist (part of the `dev` extra),
+as CI does for every non-MPI run. With CuPy, all workers share the GPU.
+
+```bash
+python3 -m pytest -n 4 --dist loadfile tests/unittests/
+```
+
+All `BLOND_*` environment variables that BLonD reads are listed with a short
+description in `pyproject.toml` under `[tool.blond] env-vars`. When you add,
+rename or remove one, update that list: the `check-env-vars` pre-commit hook
+fails if a variable used in `blond/` is missing there, or a listed one is no
+longer used.
+
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
 mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 ```
+
+BLonD only initialises MPI when it detects an MPI launcher (Open MPI,
+PMIx, PMI/PMI2 or MVAPICH environment variables). If your launcher is not
+detected, set `BLOND_LOAD_MPI=True`; `BLOND_LOAD_MPI=False` disables MPI.
 
 ---
 

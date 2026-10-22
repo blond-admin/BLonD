@@ -17,7 +17,9 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
+from blond.core.offenders import WeakBackReference
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
+from blond.generals.formatting_ import pretty_string
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -48,6 +50,9 @@ class Preparable(ABC):
         Additional keyword arguments for method
         resolution order of inheriting elements.
     """
+
+    # The simulation owns its elements; a strong reference would form a cycle
+    _simulation = WeakBackReference()
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -458,10 +463,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         str
             The state of the object.
         """
-        from blond.core.ring.beam_physics_relevant_elements import (
-            pretty_string,  # prevent circular import
-        )
-
         filtered_dict = {
             k: pretty_string(v)
             for k, v in self.__dict__.items()

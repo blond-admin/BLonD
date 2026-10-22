@@ -228,8 +228,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
         self._register_schedulable_variables("momentum_compaction_factor")
 
-        self._simulation: Simulation | None = None
-
         self._last_eta_0: float | None = None
 
         self.momentum_compaction_factor: float | None = (

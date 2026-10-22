@@ -923,11 +923,15 @@ class BackendBaseClass(ABC):
         self, arr: NumpyArray | CupyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         if arr.dtype != dtype:
-            warnings.warn(
-                f"Automatically casting dtype from {arr.dtype} to {dtype}",
-                stacklevel=3,
-                category=PrecisionWarning,
-            )
+            # Only warn when values can change, e.g. complex -> float or
+            # float64 -> float32; int -> float is exact for usual inputs.
+            # stacklevel 4: the caller of `cast_arr_*_if_needed`.
+            if not np.can_cast(arr.dtype, dtype, casting="safe"):
+                warnings.warn(
+                    f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                    stacklevel=4,
+                    category=PrecisionWarning,
+                )
             try:
                 # Casting numpy complex array -> float is smooth and
                 # includes an automatic ComplexWarning.  Trying to cast

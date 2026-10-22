@@ -1,4 +1,5 @@
 import os
+import sys
 import unittest
 from unittest import mock
 
@@ -63,9 +64,11 @@ class TestBackendTesting(BLonDTestCase):
     def test_backend_selection(self):
         bend_test.FORCE_ALL_BACKENDS = False
 
-        available_list = bend_test._backend_selection(
-            *backend.ALL_BACKENDS.keys()
-        )
+        # `InvalidBackend` is registered but unavailable, which warns.
+        with self.assertWarns(UserWarning):
+            available_list = bend_test._backend_selection(
+                *backend.ALL_BACKENDS.keys()
+            )
 
         bend_test.FORCE_ALL_BACKENDS = True
         all_list = bend_test._backend_selection(*backend.ALL_BACKENDS.keys())
@@ -82,9 +85,10 @@ class TestBackendTesting(BLonDTestCase):
     @unittest.skipIf(not cupy_available, "Cupy not found")
     def test_backend_validity(self):
         bend_test.FORCE_ALL_BACKENDS = False
-        available_list = bend_test._backend_selection(
-            *backend.ALL_BACKENDS.keys()
-        )
+        with self.assertWarns(UserWarning):
+            available_list = bend_test._backend_selection(
+                *backend.ALL_BACKENDS.keys()
+            )
 
         for b_end in available_list:
             b_end()
@@ -244,7 +248,7 @@ class TestBackendTesting(BLonDTestCase):
                     self.assertIsInstance(cast, cupy.ndarray)
 
 
-class TestPinFastTestBackends(BLonDTestCase):
+class TestPinFastTestSpecials(BLonDTestCase):
     """Tests for the autouse-fixture helper that pins fast test backends."""
 
     def setUp(self):
@@ -279,16 +283,26 @@ class TestPinFastTestBackends(BLonDTestCase):
 
         self.assertEqual(backend.backend.specials_mode, "numba")
 
-    @pytest.mark.backend_mutation
-    def test_resets_legacy_blond2_python_backend(self):
-        from blond.legacy.blond2.utils import bmath as bm
+    def test_resets_legacy_blond2_backend_if_imported(self):
+        # A stub stands in for BLonD 2, which the test suite no longer
+        # imports (its outputs are frozen in BLonD 2 reference files).
+        legacy_utils = mock.Mock()
+        with mock.patch.dict(
+            "sys.modules", {"blond.legacy.blond2.utils": legacy_utils}
+        ):
+            bend_test.pin_fast_test_backends()
 
-        bm.use_py()
-        self.assertEqual(type(bm).__name__, "PyBackend")
+        legacy_utils.bmath.use_cpu.assert_called_once_with()
 
-        bend_test.pin_fast_test_backends()
+    def test_does_not_import_legacy_blond2(self):
+        with mock.patch.dict("sys.modules"):
+            for name in list(sys.modules):
+                if name.startswith("blond.legacy"):
+                    del sys.modules[name]
 
-        self.assertNotEqual(type(bm).__name__, "PyBackend")
+            bend_test.pin_fast_test_backends()
+
+            self.assertNotIn("blond.legacy.blond2.utils", sys.modules)
 
 
 class LeakedBackend(backend.Numpy64Bit):

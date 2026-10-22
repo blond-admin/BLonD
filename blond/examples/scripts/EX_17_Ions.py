@@ -37,17 +37,17 @@ from scipy.constants import physical_constants
 from blond import (
     AllowPlotting,
     Beam,
+    BeamStatisticsOncePerTurn,
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
+    ParticleType,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
     momentum_compaction_factor,
     setup_backend,
 )
-from blond.core.beam.particle_types import ParticleType
-from blond.handle_results.observables import BeamStatisticsOncePerTurn
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover

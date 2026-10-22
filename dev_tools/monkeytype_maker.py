@@ -102,7 +102,7 @@ blond.generals.iterables
 blond.core.simulation.simulation
 blond.core.simulation.intensity_effect_manager
 blond.core.ring.ring
-blond.core.ring.helpers
+blond.core.ordering
 blond.core.ring.beam_physics_relevant_elements
 blond.core.helpers
 blond.core.beam.particle_types

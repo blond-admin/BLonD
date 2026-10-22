@@ -19,6 +19,7 @@ from blond.core.backends.mpi_distributed.helpers import (
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
+from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -41,7 +42,7 @@ class TestBeam(BLonDTestCase):
         self.assertEqual(self.beam.reference.time, 11.0)
         self.assertEqual(self.beam.reference.total_energy, 1e12)
 
-    def test_setup_beam(self) -> None:
+    def test_setup_beam_unknown_mpi_mode(self) -> None:
         with self.assertRaisesRegex(NameError, "Unknown"):
             self.beam.setup_beam(
                 dE=np.linspace(1, 10, 10),
@@ -120,6 +121,16 @@ class TestBeam(BLonDTestCase):
 
     def test_plot_hist2d_executes_kwargs1(self) -> None:
         self.beam.plot_hist2d(cmap="viridis")
+
+    def test_plot_hist2d_uses_default_cmap(self) -> None:
+        image = self.beam.plot_hist2d()
+        self.assertEqual(image.get_cmap().name, DEFAULT_CMAP)
+        plt.close(image.axes.figure)
+
+    def test_plot_hist2d_keeps_user_cmap(self) -> None:
+        image = self.beam.plot_hist2d(cmap="viridis")
+        self.assertEqual(image.get_cmap().name, "viridis")
+        plt.close(image.axes.figure)
 
     def test_plot_hist2d_executes_kwargs2(self) -> None:
         self.beam.plot_hist2d(bins=12)
@@ -419,6 +430,26 @@ class TestWeightenedBeam(BLonDTestCase):
         self.weightened_beam.setup_beam(
             dt=None, dE=None, flags=None, weights=None
         )
+
+
+class TestBeamSetupBeamArguments(BLonDTestCase):
+    def setUp(self):
+        self.beam = Beam(intensity=1e10, particle_type=proton)
+
+    def test_setup_beam_rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            self.beam.setup_beam(
+                dt=np.zeros(4),
+                dE=np.zeros(4),
+                reference_totl_energy=450e9,  # typo
+            )
+
+    def test_setup_beam_applies_zero_reference_time(self):
+        self.beam.reference.time = 1e-3
+        self.beam.setup_beam(
+            dt=np.zeros(4), dE=np.zeros(4), reference_time=0.0
+        )
+        self.assertEqual(self.beam.reference.time, 0.0)
 
 
 if __name__ == "__main__":

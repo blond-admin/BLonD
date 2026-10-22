@@ -34,8 +34,9 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
+from blond.core.offenders import WeakBackReference, hold_strongly
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.experimental.physics.kick_pooling import (
     PooledInterpolationKick,
     SupportsPooledInterpolationKickMixIn,
@@ -62,6 +63,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
+
+
+class _HeadlessRing:
+    """
+    Stand-in for the `Ring` of an RF station used without simulation.
+
+    Parameters
+    ----------
+    circumference
+        Ring circumference, in [m].
+    """
+
+    def __init__(self, circumference: float) -> None:
+        self.circumference = circumference
+        self.section_lengths = np.array([circumference])
 
 
 class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -244,10 +260,18 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         array such as `EquidistantMultiProfile.hist_x`, since the
         sparse-profile metadata needed to resolve particles to their
         own bucket is not (yet) forwarded through this parameter.
+    main_harmonic_idx
+        Index of the main harmonic, used to attach a single
+        `cavity_feedback` to it.
     **kwargs
         Additional keyword arguments for method
         resolution order of inheriting elements.
     """
+
+    # The ring owns this RF station and the beam feedback, which refers
+    # back to its RF stations; strong references would form cycles
+    _ring = WeakBackReference()
+    _beam_feedback = WeakBackReference()
 
     def __init__(
         self,
@@ -262,6 +286,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
+        main_harmonic_idx: int = 0,
         **kwargs: Any,  # for MRO of fused elements
     ):
         assert n_rf > 0, f"{n_rf=}"
@@ -286,7 +311,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         if not isinstance(cavity_feedback, list | None):
             self.attach_cavity_feedback(
                 cavity_feedback=cavity_feedback,
-                harmonic_index=kwargs.get("main_harmonic_idx", 0),
+                harmonic_index=main_harmonic_idx,
             )
         elif cavity_feedback is not None:
             self.attach_cavity_feedback(cavity_feedback=cavity_feedback)
@@ -1497,13 +1522,12 @@ class SingleHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring
+        hold_strongly(single_harmonic_rf_station, "_ring")
         single_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
 
         single_harmonic_rf_station.configure_run(
@@ -2067,13 +2091,13 @@ class MultiHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring and the
+        # beam feedback
+        hold_strongly(multi_harmonic_rf_station, "_ring", "_beam_feedback")
         multi_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
         multi_harmonic_rf_station.configure_run(
             beam=SimpleNamespace(

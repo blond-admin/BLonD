@@ -56,8 +56,6 @@ class TestPSBeamFeedback(BLonDTestCase):
         rel_gamma = energy / proton.mass
         rel_beta = np.sqrt(1 - 1 / rel_gamma**2)
 
-        bl_transition = [rel_gamma < gamma_t] * n_turns
-
         if rel_gamma > gamma_t:
             phase = 0
         else:
@@ -94,7 +92,6 @@ class TestPSBeamFeedback(BLonDTestCase):
             profile=self.profile,
             pl_gain=pl_gain / t_rev,
             rl_gain=rl_gain / t_rev / bending_radius,
-            below_transition=np.array(bl_transition, dtype=bool),
             sample_de=50,
             gd_pl=5.704,
             gi_pl=1 - 8.66e-5,
@@ -184,7 +181,7 @@ class TestPSBeamFeedback(BLonDTestCase):
         )
 
         # Track the next turn
-        self.simulation.turn_i.value = 1
+        self.simulation.turn_counter.value = 1
         self.beam_control.track(self.beam)
 
         # Check one-turn memory variables

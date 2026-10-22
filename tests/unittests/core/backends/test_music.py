@@ -21,7 +21,11 @@ import pytest
 from scipy.constants import elementary_charge as e
 
 from blond.core.backends.backend import Numpy64Bit, backend
-from blond.legacy.blond2.impedances.music import Music as LegacyMusic
+from blond.handle_results.helpers import callers_relative_path
+from blond.testing.helpers import save_blond2_reference_file
+
+# BLonD 2 only runs to rewrite the reference file, see resources/README.md.
+REWRITE_BLOND2_REFERENCE_FILE = False
 
 
 @pytest.fixture(autouse=True)
@@ -57,14 +61,56 @@ def _setup(seed=0, n=16):
     return dt, dE, R_S, omega_R, Q, n_particles, t_rev, const
 
 
+def _run_legacy_music(dt, dE, R_S, omega_R, Q, n_particles, t_rev, method):
+    """Run legacy MuSiC ``method`` once; return its voltage and ``dE``."""
+    from blond.legacy.blond2.impedances.music import Music as LegacyMusic
+
+    n = len(dt)
+    beam = SimpleNamespace(dt=dt.copy(), dE=dE.copy())
+    legacy = LegacyMusic(beam, [R_S, omega_R, Q], n, n_particles, t_rev)
+    getattr(legacy, method)()
+    return {
+        "induced_voltage": np.asarray(legacy.induced_voltage),
+        "dE": np.asarray(beam.dE),
+    }
+
+
+def _run_legacy_music_multiturn(
+    dt, dt2, dE, R_S, omega_R, Q, n_particles, t_rev
+):
+    """Run legacy ``track_py`` on ``dt``, then ``track_py_multi_turn``."""
+    from blond.legacy.blond2.impedances.music import Music as LegacyMusic
+
+    n = len(dt)
+    beam = SimpleNamespace(dt=dt.copy(), dE=dE.copy())
+    legacy = LegacyMusic(beam, [R_S, omega_R, Q], n, n_particles, t_rev)
+    legacy.track_py()
+    beam.dt = dt2.copy()
+    legacy.track_py_multi_turn()
+    return {
+        "induced_voltage": np.asarray(legacy.induced_voltage),
+        "dE": np.asarray(beam.dE),
+    }
+
+
 def test_music_track_single_turn_matches_legacy():
     """Single-turn python kernel reproduces legacy ``track_py``."""
     dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup()
     n = len(dt)
 
-    beam = SimpleNamespace(dt=dt.copy(), dE=dE.copy())
-    legacy = LegacyMusic(beam, [R_S, omega_R, Q], n, n_particles, t_rev)
-    legacy.track_py()
+    blond2_reference_path = callers_relative_path(
+        "resources/music_track_single_turn_blond2.npz", stacklevel=1
+    )
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
+            **_run_legacy_music(
+                dt, dE, R_S, omega_R, Q, n_particles, t_rev, "track_py"
+            ),
+        )
+    with np.load(blond2_reference_path) as blond2_reference:
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
+        dE_blond2 = blond2_reference["dE"]
 
     alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
     idx = np.argsort(dt)
@@ -89,8 +135,8 @@ def test_music_track_single_turn_matches_legacy():
         False,
     )
 
-    np.testing.assert_allclose(iv, legacy.induced_voltage, rtol=1e-12)
-    np.testing.assert_allclose(dE_s, beam.dE, rtol=1e-12)
+    np.testing.assert_allclose(iv, induced_voltage_blond2, rtol=1e-12)
+    np.testing.assert_allclose(dE_s, dE_blond2, rtol=1e-12)
 
 
 def test_music_track_matches_bruteforce_ground_truth():
@@ -103,9 +149,19 @@ def test_music_track_matches_bruteforce_ground_truth():
     dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup(seed=42, n=200)
     n = len(dt)
 
-    beam = SimpleNamespace(dt=dt.copy(), dE=dE.copy())
-    legacy = LegacyMusic(beam, [R_S, omega_R, Q], n, n_particles, t_rev)
-    legacy.track_classic()  # O(n^2) brute-force reference
+    blond2_reference_path = callers_relative_path(
+        "resources/music_track_bruteforce_blond2.npz", stacklevel=1
+    )
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
+            # O(n^2) brute-force reference
+            **_run_legacy_music(
+                dt, dE, R_S, omega_R, Q, n_particles, t_rev, "track_classic"
+            ),
+        )
+    with np.load(blond2_reference_path) as blond2_reference:
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
 
     alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
     idx = np.argsort(dt)
@@ -132,7 +188,7 @@ def test_music_track_matches_bruteforce_ground_truth():
 
     # rtol above the O(n) vs O(n^2) round-off (recurrence accumulates over
     # n steps); abs agreement is ~14 digits on the ~1e5-1e6 V signal.
-    np.testing.assert_allclose(iv, legacy.induced_voltage, rtol=1e-6)
+    np.testing.assert_allclose(iv, induced_voltage_blond2, rtol=1e-6)
 
 
 def test_music_track_multiturn_matches_legacy():
@@ -140,12 +196,20 @@ def test_music_track_multiturn_matches_legacy():
     dt, dE, R_S, omega_R, Q, n_particles, t_rev, const = _setup(seed=3)
     n = len(dt)
 
-    beam = SimpleNamespace(dt=dt.copy(), dE=dE.copy())
-    legacy = LegacyMusic(beam, [R_S, omega_R, Q], n, n_particles, t_rev)
-    legacy.track_py()
     dt2 = (np.random.default_rng(7).random(n) * 1e-9).astype(backend.float)
-    beam.dt = dt2.copy()
-    legacy.track_py_multi_turn()
+    blond2_reference_path = callers_relative_path(
+        "resources/music_track_multiturn_blond2.npz", stacklevel=1
+    )
+    if REWRITE_BLOND2_REFERENCE_FILE:
+        save_blond2_reference_file(
+            blond2_reference_path,
+            **_run_legacy_music_multiturn(
+                dt, dt2, dE, R_S, omega_R, Q, n_particles, t_rev
+            ),
+        )
+    with np.load(blond2_reference_path) as blond2_reference:
+        induced_voltage_blond2 = blond2_reference["induced_voltage"]
+        dE_blond2 = blond2_reference["dE"]
 
     alpha, omega_bar, c1, c2, c3, c4 = _music_params(R_S, omega_R, Q)
     idx = np.argsort(dt)
@@ -190,5 +254,5 @@ def test_music_track_multiturn_matches_legacy():
         True,
     )
 
-    np.testing.assert_allclose(iv2, legacy.induced_voltage, rtol=1e-12)
-    np.testing.assert_allclose(dE2_s, beam.dE, rtol=1e-12)
+    np.testing.assert_allclose(iv2, induced_voltage_blond2, rtol=1e-12)
+    np.testing.assert_allclose(dE2_s, dE_blond2, rtol=1e-12)

@@ -40,8 +40,8 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
+from blond.core.ordering import filter_elements, get_required_order
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import filter_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.formatting_ import si_format
@@ -139,6 +139,9 @@ class Simulation(Preparable):
     >>> sim = Simulation.from_locals(locals())
     """
 
+    # Deprecated alias; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["turn_i"]
+
     def __init__(
         self,
         ring: Ring,
@@ -172,7 +175,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         return self.turn_counter
 
@@ -181,7 +184,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         self.turn_counter = value
 
@@ -274,9 +277,12 @@ class Simulation(Preparable):
         end_turn = start_turn_i + int_from_float_with_warning(
             n_turns, warning_stacklevel=2
         )
-        # deepcopy to prevent side effects
-        deepcopy(self).run_simulation(
-            beams=beams,
+        # Deepcopy simulation and beams in one go to prevent side effects
+        # on the caller's objects; a joint copy keeps references between
+        # them (e.g. `self._beams`) pointing at the copied beams.
+        simulation_copy, beams_copy = deepcopy((self, beams))
+        simulation_copy.run_simulation(
+            beams=beams_copy,
             n_turns=end_turn,
             show_progressbar=False,
             callbacks=start_profiling,
@@ -712,7 +718,8 @@ class Simulation(Preparable):
 
     @staticmethod
     def from_locals(
-        locals: dict[str, Any], verbose: bool = False
+        locals: dict[str, Any],  # noqa: A002 (public keyword)
+        verbose: bool = False,
     ) -> Simulation:
         """
         Automatically create a Simulation by discovering components in the current scope.
@@ -1160,6 +1167,10 @@ class Simulation(Preparable):
             If ``n_turns`` is None and the magnetic cycle has unlimited turns.
         NotImplementedError
             If more than two beams are provided (currently unsupported).
+        NotImplementedError
+            If turns were already tracked. Resuming a simulation is not
+            supported yet; to interrupt a run, call ``finalize`` once for
+            all turns and then ``mainloop`` repeatedly.
 
         See Also
         --------
@@ -1235,6 +1246,7 @@ class Simulation(Preparable):
         >>>     ...
         >>> my_callback.each_turn_i = 2
         """
+        self._raise_if_resuming()
         beams = _as_tuple(beams)
         observe = _as_tuple(observe)
         if callbacks is not None:
@@ -1265,6 +1277,16 @@ class Simulation(Preparable):
             callbacks=callbacks,
             until_section_index=until_section_index,
         )
+
+    def _raise_if_resuming(self) -> None:
+        """Refuse to continue a simulation that already tracked turns."""
+        if self.turn_counter.value != 0:
+            raise NotImplementedError(
+                f"Resuming a simulation is not supported yet, but"
+                f" {self.turn_counter.value} turns were already tracked."
+                f" To interrupt a run, call `finalize` once with the total"
+                f" `n_turns` and then `mainloop` repeatedly."
+            )
 
     def finalize(
         self,
