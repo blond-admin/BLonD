@@ -473,6 +473,9 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         if name is None:
             name = (
                 f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
+                if hasattr(type(self), "n_instances")
+                else f"Unnamed-{type(self).__name__}"
+
             )
         self.name = name
         self.observables: dict[
