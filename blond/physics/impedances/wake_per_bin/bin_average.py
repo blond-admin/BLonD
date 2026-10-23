@@ -102,7 +102,7 @@ def causal_third_antiderivative_factor(
     pole_t = pole * t_causal
     # A zero pole always takes the series below; the guard only keeps the
     # discarded direct form from evaluating 0 / 0.
-    pole_safe = backend.where(pole == 0, 1.0, pole)
+    pole_safe = backend.where(backend.array(pole == 0), 1.0, pole)
     direct = (
         backend.exp(pole_t) - 1.0 - pole_t - 0.5 * pole_t**2
     ) / pole_safe**3
@@ -146,7 +146,8 @@ def _smoothed_pole(
     pole_dt = pole * dt
     # (e^q - 1) / q tends to 1 for a zero pole, which the quotient reaches
     # as 0 / 0. Selected with `where`, not `if`: `pole` may be on the device.
-    is_zero = pole_dt == 0
+    # `backend.array` because `cupy.where` rejects a host `bool` condition.
+    is_zero = backend.array(pole_dt == 0)
     expm1_ratio = backend.where(
         is_zero,
         1.0,

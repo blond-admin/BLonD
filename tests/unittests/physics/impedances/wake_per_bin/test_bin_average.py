@@ -1269,6 +1269,40 @@ class TestTripleBoxAverageStaysOnTheDevice(BLonDTestCase):
         )
 
 
+class TestWhereConditionIsAnArray(BLonDTestCase):
+    """Every `backend.where` condition must be an array, not a ``bool``.
+
+    `cupy.where` calls ``condition.astype``, so a condition computed from a
+    host-scalar pole (``pole == 0``) raises `AttributeError` on the cuda
+    backend while `numpy.where` accepts it. A strict `where` reproduces
+    that on a CPU backend.
+    """
+
+    def setUp(self) -> None:
+        original_where = backend.where
+
+        def strict_where(condition, *args, **kwargs):
+            if not hasattr(condition, "astype"):
+                raise TypeError(
+                    f"`where` condition is a {type(condition).__name__}, "
+                    "which `cupy.where` rejects"
+                )
+            return original_where(condition, *args, **kwargs)
+
+        patcher = mock.patch.object(backend, "where", strict_where)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.times = backend.array(
+            np.linspace(-2.0, 10.0, 64), dtype=backend.float
+        )
+
+    def test_host_scalar_pole(self) -> None:
+        triple_box_average_pole(self.times, -0.3 + 2.0j, 1.0 + 0.5j, 1.0)
+
+    def test_host_scalar_zero_pole(self) -> None:
+        triple_box_average_pole(self.times, 0j, 1.0 + 0.5j, 1.0)
+
+
 # Directions of p * t in the complex plane the series / direct switches are
 # probed along, and magnitudes |p t| straddling the switch at 1.
 _POLE_DIRECTIONS = {
