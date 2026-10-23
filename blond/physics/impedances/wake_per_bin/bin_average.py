@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import cmath
 import math
+import numbers
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
@@ -99,7 +100,12 @@ def causal_third_antiderivative_factor(
     causal = t > 0.0
     t_causal = backend.where(causal, t, 0.0)
     pole_t = pole * t_causal
-    direct = (backend.exp(pole_t) - 1.0 - pole_t - 0.5 * pole_t**2) / pole**3
+    # A zero pole always takes the series below; the guard only keeps the
+    # discarded direct form from evaluating 0 / 0.
+    pole_safe = backend.where(backend.array(pole == 0), 1.0, pole)
+    direct = (
+        backend.exp(pole_t) - 1.0 - pole_t - 0.5 * pole_t**2
+    ) / pole_safe**3
     # t**3 * sum_k (p t)**k / (k + 3)!, by Horner on the ratio of successive
     # coefficients (a_(k+1) / a_k = 1 / (k + 4)).
     series_factor = backend.ones_like(pole_t)
@@ -121,7 +127,7 @@ def _smoothed_pole(
 
     :math:`((e^{p \Delta t} - 1) / (p \Delta t))^3 e^{p (t - 3\Delta t/2)}`.
     For a damped pole and ``t > 1.5 * dt`` every factor is bounded by one, so
-    nothing here can overflow at any binning.
+    nothing here can overflow at any binning. For a zero pole it is one.
 
     Parameters
     ----------
@@ -138,9 +144,16 @@ def _smoothed_pole(
         The B-spline-averaged pole, dimensionless.
     """
     pole_dt = pole * dt
-    return (backend.expm1(pole_dt) / pole_dt) ** 3 * backend.exp(
-        pole * (t - 1.5 * dt)
+    # (e^q - 1) / q tends to 1 for a zero pole, which the quotient reaches
+    # as 0 / 0. Selected with `where`, not `if`: `pole` may be on the device.
+    # `backend.array` because `cupy.where` rejects a host `bool` condition.
+    is_zero = backend.array(pole_dt == 0)
+    expm1_ratio = backend.where(
+        is_zero,
+        1.0,
+        backend.expm1(pole_dt) / backend.where(is_zero, 1.0, pole_dt),
     )
+    return expm1_ratio**3 * backend.exp(pole * (t - 1.5 * dt))
 
 
 def triple_box_average_pole(
@@ -157,7 +170,8 @@ def triple_box_average_pole(
     used where the B-spline straddles the onset, and the exponential closed
     form (``_smoothed_pole``) past it, where differencing would cancel
     digits. A complex pole stands in for its unstored conjugate partner and
-    is doubled; a real pole (``pole.imag == 0``) is not.
+    is doubled; a real pole (``pole.imag == 0``) is not. A zero pole gives
+    the averaged step :math:`\mathrm{Re}[\rho]\,\Theta(t)`.
 
     Parameters
     ----------
@@ -451,14 +465,17 @@ def triple_box_average_linear_pole(
     the average of :math:`e^{p t}` is :math:`E^3 e^{p (t - 3\Delta t/2)}`
     and that of :math:`t e^{p t}` its derivative in :math:`p`,
     :math:`(t E^3 + 3 \Delta t E^2 G)\, e^{p (t - 3\Delta t/2)}`, with
-    :math:`E` and :math:`G` from ``_expm1_ratio_and_ramp_factor``.
+    :math:`E` and :math:`G` from ``_expm1_ratio_and_ramp_factor``. As in
+    :func:`triple_box_average_poles`, a long grid takes the near branch on
+    the few bins around the onset only (see ``_near_window``).
 
     Parameters
     ----------
     t
         Time array (bin centres) at which the wake is evaluated, in [s].
     pole
-        Pole :math:`p`, in [rad/s].
+        Pole :math:`p`, in [rad/s]. A host scalar, not an array: the
+        series / direct choice for it is made on the host.
     constant
         :math:`c_0`, in the units of the wake.
     slope
@@ -471,18 +488,12 @@ def triple_box_average_linear_pole(
     wake
         Bin-averaged wake, in the units of ``constant``.
     """
+    assert isinstance(pole, numbers.Number), "`pole` must be a host scalar"
     onset = 1.5 * dt
     fully_causal = t > onset
-    t_near = backend.where(fully_causal, onset, t)
-    near = 0.0
-    for weight, shift in ((1.0, 1.5), (-3.0, 0.5), (3.0, -0.5), (-1.0, -1.5)):
-        lag = t_near + shift * dt
-        near = near + weight * (
-            constant * _causal_third_antiderivative_factor_any(lag, pole)
-            + slope * _causal_third_antiderivative_factor_ramp(lag, pole)
-        )
-    near = (near / dt**3).real
     expm1_ratio, ramp_factor = _expm1_ratio_and_ramp_factor(pole * dt)
+    # The far argument is clamped to its side of the onset so the discarded
+    # values stay finite.
     t_far = backend.where(fully_causal, t, onset)
     far = (
         backend.exp(pole * (t_far - onset))
@@ -491,7 +502,56 @@ def triple_box_average_linear_pole(
             + slope * 3.0 * dt * expm1_ratio**2 * ramp_factor
         )
     ).real
+    near_idx = _near_window(t, dt)
+    if near_idx is not None:
+        # Zero, not the clamped far value, before the kernel's support.
+        wake = backend.where(fully_causal, far, 0.0)
+        wake[near_idx] = _near_branch_linear(
+            t[near_idx], pole, constant, slope, dt
+        )
+        return wake
+    t_near = backend.where(fully_causal, onset, t)
+    near = _near_branch_linear(t_near, pole, constant, slope, dt)
     return backend.where(fully_causal, far, near)
+
+
+def _near_branch_linear(
+    t: NumpyArray | CupyArray,
+    pole: complex,
+    constant: complex,
+    slope: complex,
+    dt: float,
+) -> NumpyArray | CupyArray:
+    r"""
+    Linear-times-pole wake from the third differences of the antiderivatives.
+
+    Parameters
+    ----------
+    t
+        Time array, in [s]. Meant for ``t <= 1.5 * dt``; zero for
+        ``t <= -1.5 * dt``.
+    pole
+        Pole :math:`p`, a host scalar, in [rad/s].
+    constant
+        :math:`c_0`, in the units of the wake.
+    slope
+        :math:`c_1`, in the units of the wake per second.
+    dt
+        Bin width, in [s].
+
+    Returns
+    -------
+    wake
+        Bin-averaged wake, in the units of ``constant``.
+    """
+    near = 0.0
+    for weight, shift in ((1.0, 1.5), (-3.0, 0.5), (3.0, -0.5), (-1.0, -1.5)):
+        lag = t + shift * dt
+        near = near + weight * (
+            constant * _causal_third_antiderivative_factor_any(lag, pole)
+            + slope * _causal_third_antiderivative_factor_ramp(lag, pole)
+        )
+    return (near / dt**3).real
 
 
 def bspline_kink_kernel(u: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
