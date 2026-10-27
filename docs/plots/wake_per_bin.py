@@ -52,9 +52,10 @@ def plot_module() -> None:
     t = np.linspace(-3, 8, 2000)
     lags = np.arange(-3, 9.0)
     wake = np.where(t > 0, 2 * (residue * np.exp(pole * t)).real, 0.0)
-    point_taps = np.where(
-        lags > 0, 2 * (residue * np.exp(pole * lags)).real, 0.0
-    )
+    # At the jump, the point tap takes the mean W(0) = W(0+) / 2.
+    point_taps = 2 * (residue * np.exp(pole * np.maximum(lags, 0))).real
+    point_taps = np.where(lags > 0, point_taps, 0.5 * point_taps)
+    point_taps[lags < 0] = 0.0
     average_taps = triple_box_average_pole(lags, pole, residue, DT)
     ax_taps.axhline(0.0, color="0.7", lw=0.8, zorder=0)
     ax_taps.plot(t, wake, color=EXACT_COLOR, lw=0.8, label=r"$W(t)$")
@@ -90,7 +91,9 @@ def plot_module() -> None:
     )
     ax_taps.set_xlabel(r"$t / \Delta t$")
     ax_taps.set_ylabel("wake")
-    ax_taps.set_title("taps the solver applies", fontsize=10)
+    ax_taps.set_title(
+        r"taps the solver applies, $p\,\Delta t = -0.6 + 4i$", fontsize=10
+    )
     ax_taps.legend(fontsize=7, loc="upper right")
 
     # Weight a sampling scheme gives to the alias image j of a frequency.
@@ -133,7 +136,7 @@ def plot_module() -> None:
         r"$f\,\Delta t$  (image $j$ folds onto $f - j/\Delta t$)"
     )
     ax_alias.set_ylabel("weight of the image")
-    ax_alias.set_title("alias images", fontsize=10)
+    ax_alias.set_title(r"weight given to frequency $f$", fontsize=10)
     ax_alias.legend(fontsize=7, loc="lower left")
     fig.tight_layout()
 
@@ -218,10 +221,10 @@ def plot_causal_third_antiderivative_factor() -> None:
         label=r"$t^3/6$ (leading term)",
     )
     ax_phi.set_ylim(-1, 3.5)
-    ax_phi.set_xlabel(r"$t$")
+    ax_phi.set_xlabel(r"$t$ [s]")
     ax_phi.set_ylabel(r"$\varphi_3(t)$")
     ax_phi.set_title(
-        rf"$p = {pole.real} + {pole.imag}i$; zero for $t \leq 0$",
+        rf"$p = {pole.real} + {pole.imag}i$ [rad/s]; zero for $t \leq 0$",
         fontsize=10,
     )
     ax_phi.legend(fontsize=7, loc="center left")
@@ -236,27 +239,31 @@ def plot_causal_third_antiderivative_factor() -> None:
             for q in pole_t
         ]
     ).real
-    ax_error.axvspan(1e-6, 1.0, color=SHADE, zorder=0)
+    floor = 1e-17  # errors below it, exact results among them, sit on it
+    ax_error.axvspan(1e-7, 1.0, color=SHADE, zorder=0)
+    ax_error.axhline(2.2e-16, color="0.6", ls=":", lw=1)
+    ax_error.text(12, 2.2e-16, "machine\nepsilon", va="center", fontsize=7)
     ax_error.loglog(
         magnitude,
-        np.abs(direct / reference - 1) + 1e-17,
+        np.maximum(np.abs(direct / reference - 1), floor),
         color="tab:red",
         label="direct form everywhere",
     )
     ax_error.loglog(
         magnitude,
-        np.abs(implemented / reference - 1) + 1e-17,
+        np.maximum(np.abs(implemented / reference - 1), floor),
         color=AVERAGE_COLOR,
-        label="this function",
+        label=r"this function (bottom edge: $< 10^{-17}$)",
     )
+    ax_error.set_xlim(1e-6, 10)
     ax_error.text(3e-3, 1e1, "series used", ha="center", va="top", fontsize=8)
     ax_error.set_ylim(1e-17, 10)
-    ax_error.set_xlabel(r"$|p\,t|$")
+    ax_error.set_xlabel(r"$|p\,t|$, real $p < 0$")
     ax_error.set_ylabel(r"relative error of $\varphi_3$")
     ax_error.set_title(
         r"the direct numerator cancels for small $|p t|$", fontsize=10
     )
-    ax_error.legend(fontsize=7, loc="lower left")
+    ax_error.legend(fontsize=7, loc="upper right")
     fig.tight_layout()
 
 
@@ -264,12 +271,24 @@ def plot_triple_box_average_pole() -> None:
     """W and its average for a complex, a real and a zero pole."""
     t = np.linspace(-3, 7, 2000)
     cases = (
-        (complex(-0.4, 2.0), r"complex pole: $\kappa = 2$", (-1.6, 2.4)),
-        (complex(-0.5, 0.0), r"real pole: $\kappa = 1$", (-0.15, 1.3)),
-        (complex(0.0, 0.0), r"zero pole: averaged step", (-0.15, 1.3)),
+        (
+            complex(-0.4, 2.0),
+            r"complex pole $p\,\Delta t = -0.4 + 2i$: $\kappa = 2$",
+            (-1.6, 2.4),
+        ),
+        (
+            complex(-0.5, 0.0),
+            r"real pole $p\,\Delta t = -0.5$: $\kappa = 1$",
+            (-0.15, 1.3),
+        ),
+        (
+            complex(0.0, 0.0),
+            r"zero pole: averaged step, $\kappa = 1$",
+            (-0.15, 1.3),
+        ),
     )
     residue = complex(1.0, 0.0)
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.4))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.8))
     _title(fig, "triple_box_average_pole")
     for ax, (pole, title, ylim) in zip(axes, cases, strict=True):
         kappa = 2.0 if pole.imag else 1.0
@@ -292,9 +311,10 @@ def plot_triple_box_average_pole() -> None:
         )
         ax.set_title(title, fontsize=10)
         ax.set_xlabel(r"$t / \Delta t$")
-        ax.legend(fontsize=7, loc="center right")
     axes[0].set_ylabel(r"wake, $\rho = 1$")
-    fig.tight_layout()
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=2, fontsize=8)
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
 
 
 def plot_triple_box_average_linear_pole() -> None:
@@ -397,6 +417,17 @@ def _plot_edge_kernel(function_name, kernel, edge, labels, legend_loc) -> None:
         r"returned: the difference, zero for $|u| \geq \frac{3}{2}$",
         fontsize=10,
     )
+    if kernel is bspline_step_kernel:
+        ax_excess.plot(0.0, kernel(np.array([0.0]))[0], "o", color="k")
+        ax_excess.annotate(
+            r"$u = 0$: $-\frac{1}{2}$ ($\Theta(0) = 1$)",
+            xy=(0.0, -0.5),
+            xytext=(0.35, -0.42),
+            fontsize=8,
+        )
+        ax_excess.text(
+            1.9, 0.35, r"upper sign: $u \geq 0$", ha="right", fontsize=8
+        )
     ax_excess.legend(fontsize=8, loc=legend_loc)
     fig.tight_layout()
 
@@ -427,9 +458,8 @@ def plot_bspline_step_kernel() -> None:
         (
             r"step $\Theta(u)$",
             r"average $C(u)$",
-            r"$-\mathrm{sgn}(u)\,(\frac{1}{2} - \frac{3|u|}{4}"
-            r" + \frac{|u|^3}{3})$",
-            r"$-\mathrm{sgn}(u)\,\frac{(3/2 - |u|)^3}{6}$",
+            r"$\mp(\frac{1}{2} - \frac{3|u|}{4} + \frac{|u|^3}{3})$",
+            r"$\mp\frac{(3/2 - |u|)^3}{6}$",
         ),
         "lower left",
     )
