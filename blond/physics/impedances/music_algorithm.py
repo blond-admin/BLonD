@@ -61,7 +61,9 @@ class Music(BeamPhysicsRelevant):
     ----------
     induced_voltage
         Induced voltage of the most recent turn [V] (one entry per
-        macro-particle, in the sorted order).
+        macro-particle, in the sorted order). Use
+        :meth:`binned_induced_voltage` to compare it with the per-bin
+        induced voltage of a profile-based solver.
 
     See Also
     --------
@@ -71,8 +73,11 @@ class Music(BeamPhysicsRelevant):
     -----
     Only the ``python`` and ``cpp`` backends are supported (those that
     BLonD2 shipped); ``numba``, ``cuda`` and MPI raise
-    :class:`NotImplementedError`. Like BLonD2, only singly-charged
-    particles (``charge == 1``) are supported.
+    :class:`NotImplementedError`. Any particle charge :math:`q` is
+    supported, with the convention of
+    :class:`~blond.physics.impedances.base.WakeField`: the induced voltage
+    is linear in :math:`q`, the kick :math:`q` times it (sign-flipped for
+    a counter-rotating beam).
 
     References
     ----------
@@ -139,6 +144,9 @@ class Music(BeamPhysicsRelevant):
         # MuSiC prefactor [V]; depends on the beam, so computed in
         # `configure_run` once the beam is known.
         self._const: float | None = None
+        # The beam's charge with its direction, which the kick is times the
+        # induced voltage; computed in `configure_run`.
+        self._kick_charge: float | None = None
         # Turn 1 starts the recurrence fresh; later turns bridge the wake.
         self._first_turn = True
         # Reference clock time [s] at the previous track; the difference to
@@ -154,6 +162,10 @@ class Music(BeamPhysicsRelevant):
         self._parameter_array: NumpyArray | None = None
         # Induced voltage [V] of the most recent turn (one entry/particle).
         self.induced_voltage: NumpyArray | None = None
+        # The (sorted) dt [s] `induced_voltage` was evaluated at. Later
+        # elements of the turn move the beam's own dt on, so binning needs
+        # this copy.
+        self._induced_voltage_dt: NumpyArray | None = None
 
     def _check_supported(self) -> None:
         """
@@ -204,19 +216,15 @@ class Music(BeamPhysicsRelevant):
             f"{self.each_turn_i}."
         )
         n_macroparticles = beam.n_macroparticles_partial()
-        charge = beam.particle_type.charge
-        assert charge == 1, (
-            "MuSiC currently only supports singly-charged particles "
-            f"(charge == 1), but got charge={charge}."
-        )
+        # The kernel adds what it computes to dE, so it computes the kick:
+        # the voltage of the beam's current (one factor of the charge)
+        # times the charge with direction of the kicked particle (another);
+        # `_track` divides the latter out again for `induced_voltage`.
+        self._kick_charge = float(beam.signed_charge_with_direction())
         self._const = (
             -e
-            # TODO investigate: the energy kick arguably scales with
-            # charge**2 (one factor from the beam current, one from the
-            # kick onto a test particle), mirroring `WakeField`. Disabled
-            # until verified; `charge == 1` is asserted above so it would
-            # have no effect anyway.
-            # * charge**2
+            * beam.particle_type.charge
+            * self._kick_charge
             * self._R_S
             * self._omega_R
             * beam.intensity
@@ -228,6 +236,7 @@ class Music(BeamPhysicsRelevant):
             [1.0, 0.0, 0.0], dtype=backend.float
         )
         self.induced_voltage = None
+        self._induced_voltage_dt = None
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -279,8 +288,64 @@ class Music(BeamPhysicsRelevant):
             time_since_last_track,
             multiturn,
         )
+        self.induced_voltage /= self._kick_charge
+        self._induced_voltage_dt = dt.copy()
         self._prev_reference_time = reference_time
         self._first_turn = False
+
+    def binned_induced_voltage(
+        self, bin_centers: NumpyArray, bin_width: float
+    ) -> NumpyArray:
+        """
+        Mean induced voltage of the most recent turn per bin, in [V].
+
+        Puts the per-particle :attr:`induced_voltage` on the bins of a
+        profile, to compare it with a profile-based solver's induced
+        voltage. Each bin averages the voltage of the particles whose
+        ``dt`` at the time of the kick lies in ``[center - bin_width / 2,
+        center + bin_width / 2)``; the beam's current ``dt`` may already
+        have moved on. The bins need not be contiguous, e.g. those of an
+        `EquidistantMultiProfile`, but must not overlap.
+
+        Parameters
+        ----------
+        bin_centers
+            Centres of the bins, ascending, in [s].
+        bin_width
+            Width of every bin, in [s].
+
+        Returns
+        -------
+        binned_induced_voltage
+            Mean voltage per bin; NaN where a bin holds no particle, since
+            MuSiC evaluates the voltage at the particles only.
+
+        Raises
+        ------
+        RuntimeError
+            If called before the first turn was tracked.
+        """
+        if self._induced_voltage_dt is None:
+            raise RuntimeError(
+                "`binned_induced_voltage` needs a tracked turn; call it "
+                "after `track`."
+            )
+        bin_centers = np.asarray(bin_centers, dtype=float)
+        # dt is sorted, so every bin is a contiguous run of particles
+        first, stop = (
+            np.searchsorted(
+                self._induced_voltage_dt, bin_centers + offset, side="left"
+            )
+            for offset in (-bin_width / 2, bin_width / 2)
+        )
+        cumulative = np.concatenate(([0.0], np.cumsum(self.induced_voltage)))
+        n_particles = stop - first
+        binned = np.full(len(bin_centers), np.nan)
+        filled = n_particles > 0
+        binned[filled] = (
+            cumulative[stop[filled]] - cumulative[first[filled]]
+        ) / n_particles[filled]
+        return binned
 
     @staticmethod
     def headless(
