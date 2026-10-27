@@ -21,6 +21,15 @@ The price is one non-causal tap: :math:`B_2` reaches to
 :math:`-\tfrac32 \Delta t`, so the voltage of a bin depends on the charge of
 the next one.
 
+.. plot:: plots/wake_per_bin.py plot_module
+
+    Left: a complex pole whose oscillation the bins cannot resolve. The point
+    taps :math:`W(k\Delta t)` catch it at arbitrary phases; the averaged taps
+    :math:`\overline W(k\Delta t)` sample the smooth average, and the one at
+    :math:`k = -1` is the non-causal tap. Right: the weight each alias image
+    :math:`j` gets, one for point sampling and :math:`|\mathrm{sinc}|^3
+    \propto |j|^{-3}` for :math:`B_2`.
+
 For a pole :math:`p` with residue :math:`\rho`, wake
 :math:`W(t) = \kappa\,\mathrm{Re}[\rho e^{p t}]` for :math:`t > 0`, where
 :math:`\kappa = 2` for a complex pole, which stands in for its unstored
@@ -84,6 +93,13 @@ def causal_third_antiderivative_factor(
     :math:`t > 0` and zero otherwise. For :math:`|p t| < 1` that numerator
     cancels to :math:`O((p t)^3)`, so the equivalent series
     :math:`t^3 \sum_k (p t)^k / (k + 3)!` is summed instead.
+
+    .. plot:: plots/wake_per_bin.py plot_causal_third_antiderivative_factor
+
+        Left: :math:`\varphi_3(t)`, zero for :math:`t \leq 0` and growing as
+        :math:`t^3 / 6` at first; the shaded range is summed as the series.
+        Right: the direct form loses all digits as :math:`|p t| \to 0`; this
+        function stays at machine precision.
 
     Parameters
     ----------
@@ -172,6 +188,12 @@ def triple_box_average_pole(
     digits. A complex pole stands in for its unstored conjugate partner and
     is doubled; a real pole (``pole.imag == 0``) is not. A zero pole gives
     the averaged step :math:`\mathrm{Re}[\rho]\,\Theta(t)`.
+
+    .. plot:: plots/wake_per_bin.py plot_triple_box_average_pole
+
+        The three cases of the text, with :math:`\rho = 1`. Shaded: the near
+        branch, :math:`|t| \leq \tfrac32 \Delta t`; right of it, the far branch
+        (``_smoothed_pole``).
 
     Parameters
     ----------
@@ -469,6 +491,12 @@ def triple_box_average_linear_pole(
     :func:`triple_box_average_poles`, a long grid takes the near branch on
     the few bins around the onset only (see ``_near_window``).
 
+    .. plot:: plots/wake_per_bin.py plot_triple_box_average_linear_pole
+
+        :math:`p\,\Delta t = -0.25 + 1.2 i`, :math:`c_0 = 1`,
+        :math:`c_1 = 0.6 / \Delta t`. Shaded: the near branch; right of it, the
+        far branch with the formula printed below the curve.
+
     Parameters
     ----------
     t
@@ -567,6 +595,11 @@ def bspline_kink_kernel(u: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         \quad (|u| \leq \tfrac12), \qquad
         \frac{(3/2 - |u|)^4}{24} \quad (\tfrac12 < |u| < \tfrac32).
 
+    .. plot:: plots/wake_per_bin.py plot_bspline_kink_kernel
+
+        Left: :math:`(u)_+` and :math:`R(u)`. Right: what is returned,
+        :math:`R(u) - (u)_+`, coloured by the two pieces of the formula above.
+
     Parameters
     ----------
     u
@@ -592,6 +625,12 @@ def bspline_step_kernel(u: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
     integral :math:`C(u)`; what is returned is :math:`C(u) - \Theta(u)`
     with :math:`\Theta(0) = 1`, which is odd about the step (but for
     :math:`u = 0` itself) and vanishes for :math:`|u| \geq 3/2`.
+
+    .. plot:: plots/wake_per_bin.py plot_bspline_step_kernel
+
+        Left: :math:`\Theta(u)` and :math:`C(u)`. Right: what is returned,
+        :math:`C(u) - \Theta(u)`, coloured by its two pieces; at :math:`u = 0`
+        it is :math:`-\tfrac12`, since :math:`\Theta(0) = 1`.
 
     Parameters
     ----------
@@ -619,6 +658,11 @@ def quadratic_bspline(x: float) -> float:
     The kernel a time-domain wake is bin-averaged with, normalised to
     unit integral and expressed in units of the bin width, so that its
     support is :math:`(-3/2,\, 3/2)`.
+
+    .. plot:: plots/wake_per_bin.py plot_quadratic_bspline
+
+        Box, box * box, and :math:`B_2`, coloured by the two pieces that
+        this function evaluates.
 
     Parameters
     ----------
