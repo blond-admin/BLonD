@@ -594,7 +594,9 @@ class Simulation(Preparable):
         >>> plt.show()
         """
         if len(dt) == 0 or len(dt) == 1:
-            raise ValueError(f"dt must contain at least two values, but was {dt}.")
+            raise ValueError(
+                f"dt must contain at least two values, but was {dt}."
+            )
 
         from blond.core.beam.beams import ProbeBeam  # prevent circular import
 
