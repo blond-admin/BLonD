@@ -199,7 +199,6 @@ exclude_patterns = [
     "*/blond.generals._hashing*",
     "*vari_noise*",
     "*/blond.testing.*",
-    "*/blond.interfaces.xsuite.*",
     "*/blond.specifics.cern.*",  # empty at the moment
 ]
 # callables are only importable with cupy compiled
@@ -384,7 +383,10 @@ nitpick_ignore_regex = [
     # public API still references their base classes in type hints / inheritance
     # diagrams, but they have no documented page to link to.
     (r"py:.*", r"blond\.experimental\..*"),
-    (r"py:.*", r"blond\.interfaces\.xsuite\..*"),
+    # The xsuite packages are not in the intersphinx mapping, so type-hint
+    # references into them from the blond.interfaces.xsuite wrappers cannot
+    # be resolved to a target.
+    (r"py:.*", r"x(track|part|objects)(\..*)?"),
 ]
 
 

@@ -53,28 +53,26 @@ class TestBeamPhysicsRelevantElements(BLonDTestCase):
         ):
             self.beam_physics_relevant_elements._check_section_indexing()
 
-    def test_missing_drift_cavity(self):
+    def test_section_without_rf_station_is_legal(self):
+        # One RF station anywhere in the ring is enough; a drift-only
+        # section must pass the section-indexing check.
         element = Mock(spec=DriftBaseClass)
         element.orbit_length = 0.5
         element.section_index = 2
         element.name = "element"
         self.beam_physics_relevant_elements.add_element(element)
-        with self.assertRaisesRegex(
-            RuntimeError, "Missing RF station in section"
-        ):
-            self.beam_physics_relevant_elements._check_section_indexing()
+        self.beam_physics_relevant_elements._check_section_indexing()
 
+    def test_missing_length_bearing_element(self):
+        # Every section must occupy length along the orbit; an RF-only
+        # section has zero length and is rejected.
         element = Mock(spec=RFStationBaseClass)
         element.section_index = 2
         element.name = "element"
-        self.beam_physics_relevant_elements.add_element(
-            element
-        )  # complete section 2 and open new one
-        element = Mock(spec=RFStationBaseClass)
-        element.section_index = 3
-        element.name = "element"
         self.beam_physics_relevant_elements.add_element(element)
-        with self.assertRaisesRegex(RuntimeError, "Missing drift in section"):
+        with self.assertRaisesRegex(
+            RuntimeError, "Missing length-bearing element"
+        ):
             self.beam_physics_relevant_elements._check_section_indexing()
 
     def test_add_element(self):
