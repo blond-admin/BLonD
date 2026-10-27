@@ -90,7 +90,7 @@ def plot_module() -> None:
         arrowprops={"arrowstyle": "->", "lw": 0.8},
     )
     ax_taps.set_xlabel(r"$t / \Delta t$")
-    ax_taps.set_ylabel("wake")
+    ax_taps.set_ylabel(r"wake, $\rho = 1$")
     ax_taps.set_title(
         r"taps the solver applies, $p\,\Delta t = -0.6 + 4i$", fontsize=10
     )
@@ -118,7 +118,7 @@ def plot_module() -> None:
         color="0.5",
         ls="--",
         lw=0.8,
-        label=r"$\propto |j|^{-3}$",
+        label=r"$(\pi f \Delta t)^{-3}$, $\propto |j|^{-3}$ at the images",
     )
     for image in range(0, 5):
         if image % 2:
@@ -135,7 +135,12 @@ def plot_module() -> None:
     ax_alias.set_xlabel(
         r"$f\,\Delta t$  (image $j$ folds onto $f - j/\Delta t$)"
     )
-    ax_alias.set_ylabel("weight of the image")
+    # The frequency the pole on the left oscillates at.
+    pole_frequency = pole.imag / (2 * np.pi)
+    ax_alias.axvline(
+        pole_frequency, color="0.3", ls=":", lw=1, label="pole on the left"
+    )
+    ax_alias.set_ylabel(r"weight of frequency $f$")
     ax_alias.set_title(r"weight given to frequency $f$", fontsize=10)
     ax_alias.legend(fontsize=7, loc="lower left")
     fig.tight_layout()
@@ -256,8 +261,8 @@ def plot_causal_third_antiderivative_factor() -> None:
         label=r"this function (bottom edge: $< 10^{-17}$)",
     )
     ax_error.set_xlim(1e-6, 10)
-    ax_error.text(3e-3, 1e1, "series used", ha="center", va="top", fontsize=8)
-    ax_error.set_ylim(1e-17, 10)
+    ax_error.text(1e-4, 1e-13, "series used", ha="center", fontsize=8)
+    ax_error.set_ylim(1e-17, 1e4)
     ax_error.set_xlabel(r"$|p\,t|$, real $p < 0$")
     ax_error.set_ylabel(r"relative error of $\varphi_3$")
     ax_error.set_title(
@@ -342,8 +347,8 @@ def plot_triple_box_average_linear_pole() -> None:
     ax.text(
         7.5,
         -2.2,
-        r"$[(c_0 + c_1 t) E^3 + 3 c_1 \Delta t E^2 G]"
-        r"\,e^{p (t - 3\Delta t/2)}$",
+        r"$\mathrm{Re}\{[(c_0 + c_1 t) E^3 + 3 c_1 \Delta t E^2 G]"
+        r"\,e^{p (t - 3\Delta t/2)}\}$",
         ha="center",
         fontsize=8,
     )
@@ -458,8 +463,10 @@ def plot_bspline_step_kernel() -> None:
         (
             r"step $\Theta(u)$",
             r"average $C(u)$",
-            r"$\mp(\frac{1}{2} - \frac{3|u|}{4} + \frac{|u|^3}{3})$",
-            r"$\mp\frac{(3/2 - |u|)^3}{6}$",
+            r"$\mp(\frac{1}{2} - \frac{3|u|}{4} + \frac{|u|^3}{3})$, "
+            r"$|u| \leq \frac{1}{2}$",
+            r"$\mp\frac{(3/2 - |u|)^3}{6}$, "
+            r"$\frac{1}{2} < |u| < \frac{3}{2}$",
         ),
         "lower left",
     )

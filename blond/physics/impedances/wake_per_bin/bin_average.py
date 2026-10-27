@@ -13,30 +13,34 @@ A profile is a histogram of bin width :math:`\Delta t` and the induced
 voltage lives on the same grid, so a time-domain solver applies the wake at
 whole-bin lags only. Point-sampling the wake there aliases every resonance
 above the profile's Nyquist frequency :math:`1 / (2\Delta t)` back onto the
-bunch spectrum, which is why a broadband (low-Q) resonator came out wrong.
-This module instead averages the wake with the quadratic B-spline
+bunch spectrum. A broadband (low-Q) resonator, whose impedance reaches far
+beyond Nyquist, is hit hardest. This module instead averages the wake with the quadratic B-spline
 :math:`B_2 = \mathrm{box} * \mathrm{box} * \mathrm{box}` of one bin width:
 interpolating the profile linearly between bin centres is a convolution
-with box * box, and reading the voltage out as its mean over a bin is the
+with :math:`\mathrm{box} * \mathrm{box}`, and reading the voltage out as its mean over a bin is the
 third box. The weight of the alias image :math:`j` then falls from one to
 :math:`|\mathrm{sinc}|^3`, with :math:`\mathrm{sinc}(x) = \sin(\pi x) /
-(\pi x)`, which decays as :math:`|j|^{-3}`. Two costs come with it. Near
-Nyquist the first image is still weakly suppressed, and in band the bunch
+(\pi x)`, which decays as :math:`|j|^{-3}`. Three costs come with it: near
+Nyquist the first image is still weakly suppressed; in band the bunch
 spectrum is attenuated by :math:`\mathrm{sinc}^3(f \Delta t)`, to 0.26 at
-Nyquist. And :math:`B_2` reaches back to :math:`-\tfrac32 \Delta t`, so
+Nyquist; and :math:`B_2` reaches back to :math:`-\tfrac32 \Delta t`, so
 there is one non-causal tap: the voltage of a bin depends on the charge of
 the next one.
 
 .. plot:: plots/wake_per_bin.py plot_module
 
-    Left: the complex pole :math:`p\,\Delta t = -0.6 + 4i`, whose
+    Left: the complex pole :math:`p\,\Delta t = -0.6 + 4i` with
+    :math:`\rho = 1` (so :math:`\kappa = 2` and :math:`W(0^+) = 2`), whose
     oscillation the bins cannot resolve. The point taps :math:`W(k\Delta t)`
     (with :math:`W(0) = W(0^+) / 2`) catch it at arbitrary phases; the
     averaged taps :math:`\overline W(k\Delta t)` sample the smooth average,
     and the one at :math:`k = -1` is the non-causal tap. Right: the weight
-    given to a frequency :math:`f`, plotted over the alias images
-    :math:`j`: one for point sampling, :math:`|\mathrm{sinc}(f \Delta t)|^3`
-    for :math:`B_2`, with the envelope :math:`\propto |j|^{-3}`.
+    given to a frequency :math:`f`, across the alias images :math:`j`: one
+    for point sampling, :math:`|\mathrm{sinc}(f \Delta t)|^3` for
+    :math:`B_2`, under the envelope :math:`(\pi f \Delta t)^{-3}`, which is
+    :math:`\propto |j|^{-3}` at the images. The left pole oscillates at
+    :math:`f \Delta t = 4 / 2\pi \approx 0.64` (dotted), inside the
+    :math:`j = 1` image, where point sampling keeps it at full weight.
 
 A pole is :math:`p = -\alpha + i \bar\omega`, with damping rate
 :math:`\alpha` (not the momentum compaction) and damped angular frequency
@@ -94,7 +98,7 @@ _FACTORIAL_3 = 6.0
 # From this many bins on, `triple_box_average_poles` evaluates the near
 # branch on the few bins around the onset only (one host sync per call on
 # CuPy); below it, on the whole array (no sync).
-_NEAR_WINDOW_MIN_BINS = 4096
+_NEAR_WINDOW_MIN_BINS = 4096  # quoted in the docstrings: keep them in sync
 # Below that, the poles are evaluated together, lags times poles at once:
 # at most this many elements per batch, so the temporaries stay a few MB.
 _MAX_BROADCAST_ELEMENTS = 2**18
@@ -211,7 +215,8 @@ def triple_box_average_pole(
     (the far branch) past it, where differencing would cancel digits. A
     complex pole stands in for its conjugate partner, which is not passed,
     and is doubled; a real pole (``pole.imag == 0``) is not. A zero pole
-    gives the averaged step :math:`\mathrm{Re}[\rho]\,\Theta(t)`.
+    gives the :math:`B_2` average of the step
+    :math:`\mathrm{Re}[\rho]\,\Theta(t)`.
 
     .. plot:: plots/wake_per_bin.py plot_triple_box_average_pole
 
@@ -223,9 +228,10 @@ def triple_box_average_pole(
     Parameters
     ----------
     t
-        Time array (bin centres) at which the wake is evaluated, in [s]. May
-        be negative: the kernel reaches back to ``-1.5 * dt``, so a lag grid
-        of whole bins needs ``-dt`` for the non-causal tap.
+        Lags at which the wake is evaluated, in [s]; for a solver, whole
+        multiples of ``dt``. May be negative: the kernel reaches back to
+        ``-1.5 * dt``, so a grid of whole-bin lags needs ``-dt`` for the
+        non-causal tap.
     pole
         Pole :math:`p = -\alpha + i \bar\omega`, in [rad/s]: one pole of a
         complex-conjugate pair only, since it is doubled for the other;
@@ -336,17 +342,24 @@ def triple_box_average_poles(
     residues: NumpyArray | CupyArray,
     dt: float,
 ) -> NumpyArray | CupyArray:
-    """
+    r"""
     Sum of :func:`triple_box_average_pole` over several poles.
 
     Each complex pole is doubled for its conjugate partner, so ``poles``
     holds one pole of each conjugate pair only; real and zero poles are
     passed with a zero imaginary part and are not doubled.
 
+    A grid of 4096 lags or more evaluates the near branch only on the lags
+    :math:`-\tfrac32\Delta t < t \leq \tfrac32\Delta t`, found once for all
+    poles, at the cost of one host sync per call for a CuPy array. A
+    shorter grid evaluates the near branch everywhere, with no sync, and
+    batches all poles into one broadcast evaluation.
+
     Parameters
     ----------
     t
-        Time array (bin centres) at which the wake is evaluated, in [s].
+        Lags at which the wake is evaluated, in [s]; for a solver, whole
+        multiples of ``dt``, from ``-dt`` on.
     poles
         Poles of the model as a complex array, in [rad/s].
     residues
@@ -519,8 +532,10 @@ def triple_box_average_linear_pole(
 
     For :math:`-\tfrac32\Delta t < t \leq \tfrac32\Delta t` (the near
     branch), it is the third difference of the third antiderivatives
-    :math:`\varphi_3` (see :func:`causal_third_antiderivative_factor`) and
-    :math:`\psi_3 = \partial_p \varphi_3`. Past it (the far branch), the
+    :math:`\varphi_3` of :math:`e^{p t}\,\Theta(t)` (see
+    :func:`causal_third_antiderivative_factor`) and :math:`\psi_3` of
+    :math:`t\, e^{p t}\,\Theta(t)`; as :math:`t e^{p t} = \partial_p
+    e^{p t}`, :math:`\psi_3 = \partial_p \varphi_3`. Past it (the far branch), the
     average of :math:`e^{p t}` is :math:`E^3 e^{p (t - 3\Delta t/2)}` and
     that of :math:`t e^{p t}` its derivative in :math:`p`,
     :math:`(t E^3 + 3 \Delta t E^2 G)\, e^{p (t - 3\Delta t/2)}`, with
@@ -531,9 +546,10 @@ def triple_box_average_linear_pole(
         G = \frac{dE}{dq} - \frac{E}{2}
           = \frac{e^q (q - 2) + q + 2}{2 q^2},
 
-    both summed as series for :math:`|q| < 1`, where these forms cancel. As
-    in :func:`triple_box_average_poles`, a grid of a few thousand lags or
-    more evaluates the near branch on the bins around the onset only.
+    both summed as series for :math:`|q| < 1`, where these forms cancel. A
+    grid of 4096 lags or more evaluates the near branch only on the lags
+    :math:`-\tfrac32\Delta t < t \leq \tfrac32\Delta t`, as
+    :func:`triple_box_average_poles` does.
 
     .. plot:: plots/wake_per_bin.py plot_triple_box_average_linear_pole
 
@@ -544,7 +560,8 @@ def triple_box_average_linear_pole(
     Parameters
     ----------
     t
-        Time array (bin centres) at which the wake is evaluated, in [s].
+        Lags at which the wake is evaluated, in [s]; for a solver, whole
+        multiples of ``dt``, from ``-dt`` on.
     pole
         Pole :math:`p = -\alpha + i \bar\omega`, in [rad/s]. A host scalar,
         not an array: the series / direct choice for it is made on the host.
@@ -671,8 +688,8 @@ def bspline_step_kernel(u: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
 
     .. math::
         \mp \left(\frac12 - \frac{3|u|}{4} + \frac{|u|^3}{3}\right)
-        \quad (|u| < \tfrac12), \qquad
-        \mp \frac{(3/2 - |u|)^3}{6} \quad (\tfrac12 \leq |u| < \tfrac32),
+        \quad (|u| \leq \tfrac12), \qquad
+        \mp \frac{(3/2 - |u|)^3}{6} \quad (\tfrac12 < |u| < \tfrac32),
 
     with the upper sign for :math:`u \geq 0`. :math:`C(u)` itself is
     continuous; :math:`\Theta(0) = 1` only decides which side of the jump
@@ -707,9 +724,10 @@ def bspline_step_kernel(u: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
 
 def quadratic_bspline(x: float) -> float:
     r"""
-    Quadratic B-spline :math:`box * box * box` of unit width, at ``x``.
+    Quadratic B-spline of unit width, at ``x``.
 
-    The kernel a time-domain wake is bin-averaged with, expressed in units
+    :math:`B_2 = \mathrm{box} * \mathrm{box} * \mathrm{box}`, the kernel a
+    time-domain wake is bin-averaged with, expressed in units
     of the bin width, so that its support is :math:`(-3/2,\, 3/2)` and its
     integral over :math:`x` is one:
 
@@ -721,7 +739,8 @@ def quadratic_bspline(x: float) -> float:
 
     .. plot:: plots/wake_per_bin.py plot_quadratic_bspline
 
-        Box, box * box, and :math:`B_2`, coloured by the two pieces that
+        :math:`\mathrm{box}`, :math:`\mathrm{box} * \mathrm{box}` and
+        :math:`B_2`, coloured by the two pieces that
         this function evaluates.
 
     Parameters
