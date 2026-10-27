@@ -41,7 +41,7 @@ class _FrequencyOffset:
         self,
         ring: Ring,
         rf_station: RFStation,
-        system: Optional[int, Iterable[int]] = None,
+        system: int | Iterable[int] | None = None,
         main_harmonic: Optional[float] = None,
     ):
         #: | *Import Ring*
@@ -125,25 +125,6 @@ class _FrequencyOffset:
         #: | *Store design frequency during offset*
         self.design_frequency = self.rf_station.omega_rf_d[:, : self.end_turn]
 
-    def calculate_phase_slip(self):
-        """
-        Calculate the phase slippage resulting from the frequency offset for \
-        each RF system
-        """
-
-        delta_phi = (
-            2
-            * np.pi
-            * self.rf_station.harmonic[:, : self.end_turn]
-            * (
-                self.rf_station.harmonic[:, : self.end_turn]
-                * self.new_frequency
-                - self.design_frequency
-            )
-            / self.design_frequency
-        )
-        self.phase_slippage = np.cumsum(delta_phi, axis=1)
-
     def apply_new_frequency(self):
         """
         Sets the RF frequency and phase
@@ -155,24 +136,11 @@ class _FrequencyOffset:
                 * self.new_frequency
             )
 
-            self.rf_station.phi_rf[:, : self.end_turn] += self.phase_slippage
-
-            for n in range(self.rf_station.n_rf):
-                self.rf_station.phi_rf[n, self.end_turn :] += (
-                    self.phase_slippage[n, -1]
-                )
-
         else:
             for system in self.system:
                 self.rf_station.omega_rf[system, : self.end_turn] = (
                     self.rf_station.harmonic[system, : self.end_turn]
                     * self.new_frequency
-                )
-                self.rf_station.phi_rf[system, : self.end_turn] += (
-                    self.phase_slippage[system]
-                )
-                self.rf_station.phi_rf[system, self.end_turn :] += (
-                    self.phase_slippage[system, -1]
                 )
 
 
@@ -215,18 +183,17 @@ class FixedFrequency(_FrequencyOffset):
             0, self.end_transition_turn
         ]
 
-        if transition:
+        if transition: #TODO what if transition = False?
             self.calculate_frequency_prog = self.transition_1
 
         self.compute()
 
     def compute(self):
-        self.calculate_frequency_prog()
+        self.calculate_frequency_prog() #TODO transition = Flase?
         self.set_frequency(self.frequency_prog)
-        self.calculate_phase_slip()
         self.apply_new_frequency()
 
-    def linear_calculate_frequency_prog(self):
+    def linear_calculate_frequency_prog(self): #Never used?
         """
         Calculate the fixed and transition frequency programs turn by turn
         """
