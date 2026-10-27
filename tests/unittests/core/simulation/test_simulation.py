@@ -539,6 +539,18 @@ class TestSimulation(BLonDTestCase):
         self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
         self.assertEqual(self.simulation.turn_counter.value, 2)
 
+    def test_get_potential_well_empiric_raises_on_too_few_dt(self):
+        # The well is integrated over the len(dt) - 1 intervals between the
+        # sample points, so fewer than two points cannot define a well.
+        for dt in (np.array([]), np.array([1e-9])):
+            with self.subTest(n_points=len(dt)):
+                with self.assertRaisesRegex(
+                    ValueError, "dt must contain at least two values"
+                ):
+                    self.simulation.get_potential_well_empiric(
+                        dt, particle_type=proton
+                    )
+
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
             SingleHarmonicRFStation, recursive=False
