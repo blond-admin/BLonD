@@ -103,7 +103,13 @@ extensions = [
     "sphinx.ext.intersphinx",
     "nbsphinx",
     "sphinx_copybutton",  # add copy button to code cells
+    # renders the `.. plot::` figures in docstrings, from docs/plots/
+    "matplotlib.sphinxext.plot_directive",
 ]
+plot_include_source = False
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_formats = ["svg"]
 # From https://nbsphinx.readthedocs.io/en/0.8.9/custom-css.html#For-a-Single-Notebook
 # Hide the [1], [2], etc. displays at
 # the left side of the Jupyter-Notebook cells.
