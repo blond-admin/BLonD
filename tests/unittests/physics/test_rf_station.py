@@ -64,7 +64,6 @@ def _fixed_total_energy_cycle(total_energy: float):
     reject. ``headless(magnetic_cycle=...)`` only needs the
     ``get_target_total_energy`` interface.
     """
-
     return SimpleNamespace(get_target_total_energy=lambda **_: total_energy)
 
 
@@ -1081,7 +1080,6 @@ class TestMultiHarmonicCavity(BLonDTestCase):
         non-zero acceleration to cover the ``Delta E_ref * dt`` term in
         the multi-harmonic Hamiltonian.
         """
-
         dt_s, q_s = sympy.symbols("dt q", real=True)
 
         for ref_energy_change in (-1e5, 0.0, 1e5):
@@ -1668,6 +1666,105 @@ class TestRFStationUnknownKwargs(BLonDTestCase):
             phi_rf=np.array([0.0, np.pi]),
         )
         self.assertEqual(rf_station.main_harmonic_idx, 1)
+
+
+class TestOmegaRfDesignFollowsReference(unittest.TestCase):
+    """``omega_rf_design`` must rescale with the live reference each track.
+
+    Headless stations (``magnetic_cycle=None``) are driven by an external
+    loop (e.g. wrapped for xsuite, which feeds ``beam.reference`` from
+    ``particles.energy0``): the only energy information they receive is the
+    live reference, so ``track_reference`` refreshes the design omega from
+    it on every call. A frozen omega would silently detune the RF during
+    any ramp — the cross-code ramp comparisons run at 450 GeV where
+    delta-beta/beta is ~1e-10 and would not catch it, hence this explicit
+    low-energy pin (beta changes by ~25% between the two energies).
+    """
+
+    CIRCUMFERENCE = 2 * np.pi * 100.0
+    E_LO = 1.5e9
+    E_HI = 4.0e9
+
+    @staticmethod
+    def _beam_at(total_energy: float):
+        from blond import Beam, proton
+
+        beam = Beam(intensity=1.0, particle_type=proton)
+        beam.setup_beam(
+            dt=np.zeros(2),
+            dE=np.zeros(2),
+            reference_total_energy=total_energy,
+        )
+        return beam
+
+    @staticmethod
+    def _beta(total_energy: float) -> float:
+        from blond import proton
+
+        return float(np.sqrt(1.0 - (proton.mass / total_energy) ** 2))
+
+    def _expected_omega(self, harmonic, total_energy: float):
+        return (
+            harmonic
+            * 2.0
+            * np.pi
+            * self._beta(total_energy)
+            * c0
+            / self.CIRCUMFERENCE
+        )
+
+    def test_single_harmonic_omega_follows_reference_energy(self):
+        from blond import SingleHarmonicRFStation
+
+        rf = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e3,
+            phi_rf=0.0,
+            harmonic=7,
+            circumference=self.CIRCUMFERENCE,
+            beam_reference_beta=self._beta(self.E_LO),
+            magnetic_cycle=None,
+        )
+        omega_init = float(rf.omega_rf_design)
+        self.assertAlmostEqual(
+            omega_init / self._expected_omega(7, self.E_LO), 1.0, places=12
+        )
+
+        rf.track(beam=self._beam_at(self.E_HI))
+        omega_hi = float(rf.omega_rf_design)
+        # Guards against a frozen omega: at these energies the design
+        # frequency moves by ~25%, far beyond any tolerance.
+        self.assertGreater(abs(omega_hi - omega_init), 1e6)
+        self.assertAlmostEqual(
+            omega_hi / self._expected_omega(7, self.E_HI), 1.0, places=12
+        )
+
+        # And back down: the refresh is per-track, not one-shot.
+        rf.track(beam=self._beam_at(self.E_LO))
+        self.assertAlmostEqual(
+            float(rf.omega_rf_design) / omega_init, 1.0, places=12
+        )
+
+    def test_multi_harmonic_omega_follows_reference_energy(self):
+        from blond import MultiHarmonicRFStation, copy_to_cpu
+
+        harmonics = np.array([7.0, 14.0, 21.0])
+        rf = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e3, 0.0, 0.0]),
+            phi_rf=np.array([0.0, np.pi, 0.0]),
+            harmonic=harmonics,
+            circumference=self.CIRCUMFERENCE,
+            main_harmonic_idx=0,
+            beam_reference_beta=self._beta(self.E_LO),
+            magnetic_cycle=None,
+        )
+        rf.track(beam=self._beam_at(self.E_HI))
+        np.testing.assert_allclose(
+            copy_to_cpu(rf.omega_rf_design),
+            self._expected_omega(harmonics, self.E_HI),
+            rtol=1e-12,
+        )
 
 
 if __name__ == "__main__":
