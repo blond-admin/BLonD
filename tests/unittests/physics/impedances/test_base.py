@@ -12,7 +12,10 @@ import numpy as np
 
 from blond import Resonators, StaticProfile, WakeField, backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.impedances.base import TimeDomainCounterRotation
+from blond.physics.impedances.base import (
+    TimeDomain,
+    TimeDomainCounterRotation,
+)
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -57,6 +60,11 @@ class _RampCounterRotation(TimeDomainCounterRotation):
     def get_wake_counter_rotation(self, time):
         return 2.0 * time
 
+    def get_impedance_from_wake_counter_rotation(
+        self, time, simulation, beam, n_fft
+    ):
+        return self._impedance_from_wake_per_bin_counter_rotation(time, n_fft)
+
 
 class TestTimeDomainCounterRotation(BLonDTestCase):
     def test_get_wake_per_bin_counter_rotation_default_is_the_stencil(self):
@@ -75,3 +83,31 @@ class TestTimeDomainCounterRotation(BLonDTestCase):
         np.testing.assert_allclose(
             wake_per_bin[2:-2], 2.0 * np.arange(2, 6), rtol=1e-12
         )
+
+
+class TestTimeDomain(BLonDTestCase):
+    def test_subclass_without_impedance_from_wake_is_abstract(self):
+        """A source must say how it turns into an impedance.
+
+        Leaving it out must fail when the source is built, not at the
+        first turn of a simulation.
+        """
+
+        class Empty(TimeDomain):
+            pass
+
+        with self.assertRaises(TypeError):
+            Empty()
+
+    def test_counter_rotation_without_impedance_is_abstract(self):
+        """The same holds for the counter-rotating impedance."""
+
+        class WakesOnly(TimeDomainCounterRotation):
+            def get_wake(self, time):
+                return time
+
+            def get_wake_counter_rotation(self, time):
+                return time
+
+        with self.assertRaises(TypeError):
+            WakesOnly()

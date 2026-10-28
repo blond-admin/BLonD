@@ -288,9 +288,7 @@ class Music(BeamPhysicsRelevant):
             time_since_last_track,
             multiturn,
         )
-        if self._kick_charge != 1.0:
-            # the kernel computed the kick; keep the voltage itself
-            self.induced_voltage /= self._kick_charge
+        self.induced_voltage /= self._kick_charge
         self._induced_voltage_dt = dt.copy()
         self._prev_reference_time = reference_time
         self._first_turn = False

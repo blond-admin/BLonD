@@ -39,8 +39,10 @@ from blond.physics.impedances.base import (
     SupportsVectorFittedModel,
     WakeFieldSource,
 )
-from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    triple_box_average_poles,
+)
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -1632,6 +1634,43 @@ class TestPolesMustDecay(BLonDTestCase):
     def test_undamped_pole_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "pole 0"):
             self._initialise_with_poles([0.0 + 1e9j])
+
+
+class TestMultiPoleSparseSolveSourceCheck(BLonDTestCase):
+    def test_rejects_a_source_without_poles_with_a_type_error(self):
+        """A source without a pole model must be rejected when wired up.
+
+        Without the check it only failed at the first induced voltage,
+        with an `AttributeError` on `get_vectorfit`.
+        """
+        from unittest.mock import Mock
+
+        from blond import InductiveImpedance
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = Mock(StaticProfile)
+        parent_wakefield.sources = (InductiveImpedance(Z_over_n=1.0),)
+
+        with self.assertRaisesRegex(TypeError, "SupportsVectorFittedModel"):
+            MultiPoleSparseSolve().on_wakefield_init_simulation(
+                simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+            )
+
+    def test_accepts_resonators(self):
+        from unittest.mock import Mock
+
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.profile = Mock(StaticProfile)
+        parent_wakefield.sources = (
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([1e9]),
+                quality_factors=np.array([1.0]),
+            ),
+        )
+        MultiPoleSparseSolve().on_wakefield_init_simulation(
+            simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+        )
 
 
 if __name__ == "__main__":

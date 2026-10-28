@@ -6,4 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Beam physics classes for interfacing XSuite."""
+"""CUDA kernels of the pole-residue (multipole) wake."""

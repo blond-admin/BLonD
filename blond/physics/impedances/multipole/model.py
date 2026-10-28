@@ -17,7 +17,9 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.impedances.bin_average import triple_box_average_pole
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    triple_box_average_pole,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
