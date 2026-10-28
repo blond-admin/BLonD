@@ -183,17 +183,19 @@ class FixedFrequency(_FrequencyOffset):
             0, self.end_transition_turn
         ]
 
-        if transition: #TODO what if transition = False?
+        if transition:
             self.calculate_frequency_prog = self.transition_1
+        else:
+            self.calculate_frequency_prog = self.linear_calculate_frequency_prog
 
         self.compute()
 
     def compute(self):
-        self.calculate_frequency_prog() #TODO transition = Flase?
+        self.calculate_frequency_prog()
         self.set_frequency(self.frequency_prog)
         self.apply_new_frequency()
 
-    def linear_calculate_frequency_prog(self): #Never used?
+    def linear_calculate_frequency_prog(self):
         """
         Calculate the fixed and transition frequency programs turn by turn
         """
