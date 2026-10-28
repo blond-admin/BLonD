@@ -597,7 +597,15 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 else None
             ),
         )
-        assert n_rf_stations > 0
+        if n_rf_stations < 1:
+            raise ValueError(
+                "`MagneticCyclePerTurn` requires at least one RF station in "
+                "the ring to apply the per-turn energy increment, but got "
+                f"{n_rf_stations=}. If your only cavity lives inside a "
+                "wrapped external element (e.g. `WrapXsuite4Blond`, which is "
+                "not an RF station by type), add a BLonD-side RF station to "
+                "drive the ramp, or use a constant magnetic cycle."
+            )
         shape = (n_rf_stations, n_turns_max)
         _magnetic_rigidity = np.empty(shape)
         stair_like = np.linspace(
