@@ -278,6 +278,8 @@ exclude_patterns = [
     "*/blond.examples.*",
     "*/blond._versio*",
     "*/blond.core.backends.cuda.call*",
+    "*/blond.core.backends.cuda.gpu_module*",
+    "*/blond.core.backends.cuda.multipole*",
     "*/blond.core.backends.cpp.call*",
     "*/blond.core.backends.cpp.lib*",
     "*/blond.generals._files*",
