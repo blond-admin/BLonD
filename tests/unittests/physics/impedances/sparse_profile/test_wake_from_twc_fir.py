@@ -374,7 +374,7 @@ class TestScannedTwcKernel(unittest.TestCase):
 
     def test_sps_scale_matches_cpp(self):
         """Many scan chunks, large lattice sites: no loss of precision."""
-        from blond.core.backends.cuda.callables import _TWC_SCAN_CHUNK
+        from blond.core.backends.cuda.multipole.twc_fir import _TWC_SCAN_CHUNK
 
         hist_y, grid_index, r_shunt, a_tilde, frequency_r, bin_dt = (
             _sps_scale_case()

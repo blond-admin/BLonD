@@ -304,12 +304,16 @@ class Ring(Preparable):
     @property
     def n_rf_stations(self) -> int:
         """
-        Get the total number of RF stations in the ring.
+        Get the number of RF stations in the ring.
+
+        Black-box elements (e.g. ``WrapXsuite4Blond``) are not RF stations
+        by type and are therefore not counted: ``MagneticCyclePerTurn``
+        divides each turn's energy increment across ``n_rf_stations``.
 
         Returns
         -------
         n_rf_stations
-            The count of all RF station elements currently in the ring.
+            The count of RF station elements in the ring.
         """
         from blond.physics.rf_station import RFStationBaseClass
 
@@ -340,15 +344,16 @@ class Ring(Preparable):
 
         Notes
         -----
-        This is calculated by summing the `orbit_length` of all drift elements and
-        may differ from the reference circumference during simulation.
+        This is calculated by summing the `orbit_length` of all length-bearing
+        elements (drifts, black-box wrappers) and may differ from the
+        reference circumference during simulation.
         """
-        from blond.physics.drifts import DriftBaseClass
+        from blond.core.base import HasOrbitLength
 
-        all_drifts = self.elements.get_elements(
-            DriftBaseClass, recursive=False
+        segments = self.elements.get_elements(HasOrbitLength, recursive=False)
+        orbit_length = float(
+            sum([segment.orbit_length for segment in segments])
         )
-        orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
         return orbit_length
 
     @property

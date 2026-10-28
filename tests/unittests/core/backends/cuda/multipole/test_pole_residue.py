@@ -20,9 +20,11 @@ class TestPoleChunkCount(BLonDTestCase):
 
     def setUp(self) -> None:
         skip_if_cuda_unusable(self)
-        from blond.core.backends.cuda.callables import _pole_chunk_count
+        from blond.core.backends.cuda.multipole.pole_residue import (
+            pole_chunk_count,
+        )
 
-        self.chunk_count = _pole_chunk_count
+        self.chunk_count = pole_chunk_count
 
     def test_no_chunks_when_poles_fill_the_gpu(self) -> None:
         self.assertEqual(self.chunk_count(10_000, 16 * 16 * 6, 6), 1)
@@ -50,10 +52,10 @@ class TestChunkedPoleKernel(BLonDTestCase):
         skip_if_cuda_unusable(self)
         import cupy as cp
 
-        from blond.core.backends.cuda import callables
+        from blond.core.backends.cuda.multipole import pole_residue
 
         self.cp = cp
-        self.callables = callables
+        self.pole_residue = pole_residue
 
     @staticmethod
     def _grid(name: str) -> np.ndarray:
@@ -79,7 +81,7 @@ class TestChunkedPoleKernel(BLonDTestCase):
         states = cp.asarray(states_in)
         voltage = cp.zeros(len(index))
         bin_offsets = np.rint((profile_time - profile_time[0]) / bin_dt)
-        self.callables._wake_from_pole_residue_in_chunks(
+        self.pole_residue.wake_from_pole_residue_in_chunks(
             bin_offsets=cp.asarray(bin_offsets, dtype=np.int64),
             profile=cp.asarray(profile),
             carried_charge=cp.asarray([0.8]),

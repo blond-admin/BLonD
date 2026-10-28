@@ -17,7 +17,7 @@ The key folds the CUDA toolchain version into the hash so a cubin built with
 one ``nvcc`` is never reused with an incompatible one. The target GPU
 architecture is additionally encoded in the cubin *filename* (``_sm_<cc>_``),
 so different GPUs coexist in the same directory; source-defined ``nvcc`` flags
-are already covered by hashing the ``.py``/``.cu`` sources.
+are already covered by hashing the ``.py``/``.cu``/``.cuh`` sources.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import os
 
 from blond.generals.hashing_ import hash_build_target
 
-_EXTENSIONS = (".py", ".cu")
+_EXTENSIONS = (".py", ".cu", ".cuh")
 
 
 def resolve_nvcc() -> str:
@@ -73,7 +73,8 @@ def cuda_compiled_dir(folder: str, nvcc: str | None = None) -> str:
     hash_ = hash_build_target(
         folder=folder,
         extensions=_EXTENSIONS,
-        recursive=False,
+        # The multipole/ subfolder holds sources too.
+        recursive=True,
         probe_commands=[[nvcc, "--version"]],
     )
     return os.path.join(folder, "compiled", hash_)
