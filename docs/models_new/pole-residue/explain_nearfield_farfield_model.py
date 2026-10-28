@@ -885,7 +885,7 @@ def _(dt_demo, np, pole_demo, quad, rho_demo, warnings):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        from blond.physics.impedances.bin_average import (
+        from blond.physics.impedances.wake_per_bin.bin_average import (
             triple_box_average_pole,
         )
 
@@ -1502,7 +1502,7 @@ def _(mo):
     | this note | code |
     |---|---|
     | $p$, $\rho$ of a resonator (Recipe 1) | `Resonators.get_vectorfit` — `blond/physics/impedances/sources.py`; `ResonatorsWakePerBin._wake_per_bin` — `blond/physics/impedances/wake_per_bin/sources.py` |
-    | $B_2$ (2.2) | `quadratic_bspline` — `blond/physics/impedances/bin_average.py` |
+    | $B_2$ (2.2) | `quadratic_bspline` — `blond/physics/impedances/wake_per_bin/bin_average.py` |
     | $\varphi_3$ (4.2), series form for $\lvert p\tau\rvert < 1$ | `causal_third_antiderivative_factor` — ibid. |
     | far form (4.3) | `_smoothed_pole` — ibid. |
     | Recipe 2 complete | `triple_box_average_pole(s)` — ibid.; exposed as `Resonators.get_wake_per_bin` |

@@ -22,7 +22,6 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.bin_average import triple_box_average_poles
 from blond.physics.impedances.multipole.checks import (
     _check_decaying_poles,
     _check_whole_bin_gaps,
@@ -34,6 +33,9 @@ from blond.physics.impedances.multipole.model import (
     _PoleModel,
 )
 from blond.physics.impedances.multipole.vector_fit import VectorFit
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    triple_box_average_poles,
+)
 from blond.physics.profiles import StaticProfile
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -95,7 +97,7 @@ class MultiPoleSparseSolve(WakeFieldSolver):
     :math:`\rho\,((e^{p\Delta t} - 1) / (p\Delta t))^3\, e^{p\Delta t / 2}`
     and read two bins behind the bin -- and a **near field**, the three
     taps at lags of minus one, zero and one bin, evaluated in closed form by
-    :func:`~blond.physics.impedances.bin_average.triple_box_average_poles`.
+    :func:`~blond.physics.impedances.wake_per_bin.bin_average.triple_box_average_poles`.
     The split is an identity, not an approximation, for a profile whose
     bins lie a whole number of bins apart (checked at the first call); see
     Steps 61-71 of ``docs/models_new/pole-residue/
@@ -178,13 +180,24 @@ class MultiPoleSparseSolve(WakeFieldSolver):
         ------
         TypeError
             If the profile is neither an `EquidistantMultiProfile` nor a
-            `StaticProfile`.
+            `StaticProfile`, or a source is no `SupportsVectorFittedModel`.
         """
         profile = parent_wakefield.profile
         if not isinstance(profile, (EquidistantMultiProfile, StaticProfile)):
             raise TypeError(
                 "Expected `EquidistantMultiProfile` or `StaticProfile`,"
                 f" but got {type(profile)=}."
+            )
+        without_poles = [
+            type(source).__name__
+            for source in parent_wakefield.sources
+            if not isinstance(source, SupportsVectorFittedModel)
+        ]
+        if without_poles:
+            raise TypeError(
+                "`MultiPoleSparseSolve` needs sources that provide a pole"
+                " model (`SupportsVectorFittedModel`), but got"
+                f" {without_poles}."
             )
         self._parent_wakefield = parent_wakefield
         self._profile = profile

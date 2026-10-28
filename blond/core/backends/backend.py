@@ -768,6 +768,9 @@ class BackendBaseClass(ABC):
         self.ndarray: type = None  # type: ignore
         self.where: Callable = None  # type: ignore
         self.hstack: type = None  # type: ignore
+        self.floor: Callable = None  # type: ignore
+        self.searchsorted: Callable = None  # type: ignore
+        self.bincount: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -1157,6 +1160,9 @@ class NumpyBackend(BackendBaseClass):
         self.ndarray = np.ndarray
         self.where = np.where
         self.hstack = np.hstack
+        self.floor = np.floor
+        self.searchsorted = np.searchsorted
+        self.bincount = np.bincount
 
         self._finalize()
 
@@ -1307,6 +1313,9 @@ class CupyBackend(BackendBaseClass):
         self.ndarray = cp.ndarray
         self.where = cp.where
         self.hstack = cp.hstack
+        self.floor = cp.floor
+        self.searchsorted = cp.searchsorted
+        self.bincount = cp.bincount
 
         from blond.core.backends.cuda.callables import CudaSpecials
 

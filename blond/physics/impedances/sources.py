@@ -37,6 +37,7 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.hashing_ import hash_linspace
 from blond.physics.impedances.base import (
     FreqDomain,
+    SupportsVectorFittedModel,
     TimeDomain,
     TimeDomainCounterRotation,
     VectorFit,
@@ -295,6 +296,7 @@ class Resonators(
     TimeDomain,
     FreqDomain,
     TimeDomainCounterRotation,
+    SupportsVectorFittedModel,
 ):
     r"""
     Multiple resonances of RLC circuits for impedance calculations.
@@ -425,7 +427,7 @@ class Resonators(
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
+    ) -> NumpyArray | CupyArray:
         """
         Get the wake function, but converted to frequency domain.
 
@@ -452,7 +454,7 @@ class Resonators(
         --------
         get_impedance_from_wake_freq : Function used to calculate the corresponding frequency.
         """
-        return super().get_impedance_from_wake(time, simulation, beam, n_fft)
+        return self._impedance_from_wake_per_bin(time, n_fft)
 
     def get_impedance_from_wake_counter_rotation(
         self,
@@ -460,7 +462,7 @@ class Resonators(
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray | CupyArray:  # Fixme all get_impedance_from_wake same
+    ) -> NumpyArray | CupyArray:
         """
         Get the wake function, but converted to frequency domain.
 
@@ -483,9 +485,7 @@ class Resonators(
         impedance_from_wake
             Wake impedance in frequency domain for counter-rotating mode.
         """
-        return super().get_impedance_from_wake_counter_rotation(
-            time, simulation, beam, n_fft
-        )
+        return self._impedance_from_wake_per_bin_counter_rotation(time, n_fft)
 
     def get_impedance_from_wake_freq(self, time, n_fft: int):
         """
@@ -922,10 +922,10 @@ class ImpedanceTableTime(
         Wake amplitude, in [V].
     first_sample_is_half_jump
         How ``wake_y[0]`` is read where the table starts with a causal
-        jump. ``True`` (default): it is half the jump, as in a table sampled
-        from a BLonD wake at its onset. ``False``: it is the wake value
-        itself, as in a table from an external wake solver (CST, ABCI, a
-        measurement). Irrelevant when ``wake_y[0]`` is zero; see
+        jump. ``False`` (default): it is the wake value itself, as in a
+        table from an external wake solver (CST, ABCI, a measurement).
+        ``True``: it is half the jump, as in a table sampled from a BLonD
+        wake at its onset. Irrelevant when ``wake_y[0]`` is zero; see
         ``ImpedanceTableTimeWakePerBin`` for the details.
     """
 
@@ -933,7 +933,7 @@ class ImpedanceTableTime(
         self,
         wake_x: NumpyArray,
         wake_y: NumpyArray,
-        first_sample_is_half_jump: bool = True,
+        first_sample_is_half_jump: bool = False,
     ):
         super().__init__(is_dynamic=False)
         self._wake_x = backend.array(wake_x)
@@ -947,7 +947,7 @@ class ImpedanceTableTime(
     def from_file(
         filepath: PathLike | str,
         reader: ImpedanceReader,
-        first_sample_is_half_jump: bool = True,
+        first_sample_is_half_jump: bool = False,
     ) -> ImpedanceTableTime:
         """
         Instance table from a file on the disk.
@@ -961,8 +961,8 @@ class ImpedanceTableTime(
         first_sample_is_half_jump
             How the first tabulated wake value is interpreted where the
             table starts with a causal jump; see the class docstring. Keep
-            the default for a table written out by BLonD, pass ``False``
-            for one from an external wake solver.
+            the default for a table from an external wake solver, pass
+            ``True`` for one written out by BLonD.
 
         Returns
         -------
@@ -1002,7 +1002,7 @@ class ImpedanceTableTime(
         impedance_from_wake
             Wake impedance in frequency domain.
         """
-        return super().get_impedance_from_wake(time, simulation, beam, n_fft)
+        return self._impedance_from_wake_per_bin(time, n_fft)
 
 
 # TODO rework docstring
@@ -1148,7 +1148,7 @@ class TravelingWaveCavity(
         impedance_from_wake
             Wake impedance in frequency domain.
         """
-        return super().get_impedance_from_wake(time, simulation, beam, n_fft)
+        return self._impedance_from_wake_per_bin(time, n_fft)
 
     @staticmethod
     def _shape(arg: NumpyArray | CupyArray) -> NumpyArray | CupyArray:

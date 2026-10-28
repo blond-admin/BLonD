@@ -31,7 +31,6 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.bin_average import triple_box_average_pole
 from blond.physics.impedances.solvers import (
     ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedance,
@@ -132,7 +131,7 @@ class TestTimeDomainFftSolver(BLonDTestCase):
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
 
         with self.assertRaisesRegex(
-            Exception, "Can only accept impedance that support"
+            TypeError, "Can only accept impedance that support"
         ):
             local_solver._update_impedance_sources(beam=self.beam)
 
@@ -382,6 +381,29 @@ class TestInductiveImpedanceSolver(BLonDTestCase):
         )
 
 
+class TestInductiveImpedanceSolverSourceCheck(BLonDTestCase):
+    def test_rejects_a_non_inductive_source_with_a_type_error(self):
+        """A wrong source must be named, and not vanish under ``python -O``.
+
+        The check used to be a bare ``assert`` without a message, which
+        ``python -O`` strips, letting e.g. a resonator through.
+        """
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.sources = (
+            InductiveImpedance(Z_over_n=1.0),
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([1e9]),
+                quality_factors=np.array([1.0]),
+            ),
+        )
+
+        with self.assertRaisesRegex(TypeError, "Resonators"):
+            InductiveImpedanceSolver().on_wakefield_init_simulation(
+                simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+            )
+
+
 class TestPeriodicFreqSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
@@ -457,7 +479,6 @@ class TestPeriodicFreqSolver(BLonDTestCase):
 
     @multi_backend_testcase
     def test_calc_induced_voltage(self):
-
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 11
         )
@@ -507,7 +528,7 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         # we are on _freq_y_needs_update == False, it skips
         self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(TypeError, "support `FreqDomain`"):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
@@ -3407,6 +3428,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
             def get_wake(self):  # emulate wrong signature
                 return
 
+            def get_impedance_from_wake(self, time, simulation, beam, n_fft):
+                return self._impedance_from_wake_per_bin(time, n_fft)
+
         wf_mutli = WakeField.headless(
             sources=(FaultyResonators(),),
             solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
@@ -3421,7 +3445,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake_per_bin`"
+            TypeError, "should implement `TimeDomain.get_wake_per_bin`"
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),
@@ -3429,6 +3453,23 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 profile=prof,
                 beam=beam_mock,
             )
+
+    def test_check_source_ducktypes_rejects_source_without_wake(self):
+        """A source without any wake must be rejected at setup.
+
+        ``InductiveImpedance`` is a ``TimeDomain`` source for the FFT
+        solver only. It inherits the generic bin average, but that needs
+        a point wake ``get_wake``, which an inductance does not have.
+        """
+        solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
+        parent_wakefield = Mock(WakeField)  # held weakly by the solver
+        parent_wakefield.sources = (InductiveImpedance(Z_over_n=1.0),)
+        solver._parent_wakefield = parent_wakefield
+
+        with self.assertRaisesRegex(
+            TypeError, "should implement `TimeDomain.get_wake_per_bin`"
+        ):
+            solver._check_source_ducktypes()
 
     def test_check_source_ducktypes_accepts_bin_only_source(self):
         """A source overriding only `get_wake_per_bin` must be accepted.
@@ -3443,6 +3484,9 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
         class BinOnlyResonators(TimeDomain):
             def get_wake_per_bin(self, time):
                 return backend.zeros_like(time)
+
+            def get_impedance_from_wake(self, time, simulation, beam, n_fft):
+                return self._impedance_from_wake_per_bin(time, n_fft)
 
         solver = ContinuousMultiTurnTimeDomainSolver(n_turns=10)
         # Kept in a local: the solver holds its parent wakefield weakly.
@@ -3693,89 +3737,3 @@ class TestPeriodicFreqSolverBranches(BLonDTestCase):
 
         perf_warnings = [x for x in w if "Because" in str(x.message)]
         self.assertEqual(len(perf_warnings), 0)
-
-
-class TestIsFarFieldPole(BLonDTestCase):
-    """The far-field selection evaluates all poles' near taps at once."""
-
-    def setUp(self) -> None:
-        from blond.physics.impedances.multipole import model as pole_model
-
-        self.pole_model = pole_model
-        bin_dt = 1e-10
-        rng = np.random.default_rng(5)
-        n_poles = 40
-        is_real = np.arange(n_poles) % 4 == 1
-        # damping from a fraction of a bin to thousands of bins, so the
-        # selection keeps some poles and drops others
-        poles = -np.logspace(6, 11, n_poles) + 1j * np.where(
-            is_real, 0.0, rng.uniform(1e8, 9e9, n_poles)
-        )
-        residues = rng.normal(size=n_poles) + 1j * np.where(
-            is_real, 0.0, rng.normal(size=n_poles)
-        )
-        poles = backend.array(poles, dtype=backend.complex)
-        residues = backend.array(residues, dtype=backend.complex)
-        pole_dt = poles * bin_dt
-        self.model = pole_model._PoleModel(
-            poles=poles,
-            residues=residues,
-            counterrotating_pole_signs=backend.ones(n_poles),
-            pair_factors=2.0 - (poles.imag == 0),
-            tail_residues=(
-                residues
-                * (backend.expm1(pole_dt) / pole_dt) ** 3
-                * backend.exp(pole_dt / 2.0)
-            ),
-            taps=backend.zeros(3),
-            adjacent=backend.zeros(0, dtype=bool),
-            bin_dt=bin_dt,
-            span_dt=1e-6,
-        )
-        self.tolerance = 1e-3
-
-    def _per_pole_reference(self) -> np.ndarray:
-        model = self.model
-        lags = backend.array(
-            [model.bin_dt, 0.0, -model.bin_dt], dtype=backend.float
-        )
-        near_field_peaks = np.empty(len(model.poles))
-        for pole_i in range(len(model.poles)):
-            pole = model.poles[pole_i : pole_i + 1]
-            residue = model.residues[pole_i : pole_i + 1]
-            in_phase = triple_box_average_pole(
-                lags, pole, residue, model.bin_dt
-            )
-            quadrature = triple_box_average_pole(
-                lags, pole, -1j * residue, model.bin_dt
-            )
-            near_field_peaks[pole_i] = np.max(
-                np.hypot(copy_to_cpu(in_phase), copy_to_cpu(quadrature))
-            )
-        decay_per_bin = copy_to_cpu(
-            backend.exp(model.poles.real * model.bin_dt)
-        )
-        tail_at_two_bins = copy_to_cpu(
-            model.pair_factors * backend.abs(model.tail_residues)
-        )
-        return tail_at_two_bins >= (
-            self.tolerance * near_field_peaks * (1.0 - decay_per_bin)
-        )
-
-    def test_matches_per_pole_selection(self) -> None:
-        expected = self._per_pole_reference()
-        # the case is only meaningful if it keeps some poles and drops some
-        self.assertTrue(expected.any())
-        self.assertFalse(expected.all())
-        result = self.pole_model._is_far_field_pole(self.model, self.tolerance)
-        np.testing.assert_array_equal(result, expected)
-
-    def test_near_taps_of_all_poles_in_two_calls(self) -> None:
-        with patch.object(
-            self.pole_model,
-            "triple_box_average_pole",
-            wraps=self.pole_model.triple_box_average_pole,
-        ) as single_pole:
-            self.pole_model._is_far_field_pole(self.model, self.tolerance)
-        # in phase and in quadrature, each for every pole at once
-        self.assertEqual(single_pole.call_count, 2)

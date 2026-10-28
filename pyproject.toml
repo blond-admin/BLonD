@@ -70,6 +70,7 @@ doc = [
   "sphinx-copybutton",           # for the copy button of code on the website
   "marimo",                      # marimo notebooks exported for the docs
   "nbformat",                    # needed by `marimo export ipynb`
+  "xsuite",                      # document the xsuite interface glue
 ]
 mpi = [
   # Distributed computing. Optional: the wheel needs an MPI runtime
@@ -77,16 +78,38 @@ mpi = [
   # BLonD degrades to a single rank without it.
   "mpi4py>=4",
 ]
+# The >=13.3.0 floor is required for NumPy 2 (NEP 50): CuPy <13.3.0 routes
+# ``cupy.full(n, <python float>)`` through ``copyto`` -> ``numpy.can_cast`` on
+# the Python scalar, which NumPy >=2 rejects with a TypeError. CuPy 13.3.0 is
+# the first release that probes castability via ``numpy.copyto`` instead, so
+# ``WrapXsuite4Blond`` (which builds a p0c buffer that way) works on the GPU.
+# Without a floor, a lowest-version resolve grabs the buggy 13.2.0.
 gpu_cuda12 = [
   "cupy-cuda12x>=13.3.0,!=14.0.0,!=14.2.0", # GPU array computing (CUDA 12)
 ]
 gpu_cuda13 = [
-  "cupy-cuda13x>=13.3.0,!=14.0.0,!=14.2.0", # GPU array computing (CUDA 13)
+  "cupy-cuda13x>=13.6.0,!=14.0.0,!=14.2.0", # GPU array computing (CUDA 13); 13.6.0 is the
+  # oldest cuda13 wheel and already NEP-50-safe.
 ]
 xsuite = [
+  # Depend on the `xsuite` meta-package alone: it pins a mutually-compatible
+  # x-stack (xtrack/xobjects/xpart/xfields/xcoll/xdeps) to exact versions and
+  # ships prebuilt tracking kernels built against exactly those versions.
+  # Letting xsuite be the single source of truth keeps the installed stack in
+  # lock-step with the shipped kernels, so `xtrack.Tracker._build_kernel`
+  # finds a suitable prebuilt kernel instead of recompiling from C source on
+  # every `build_tracker`. (Declaring xtrack/xobjects/xpart separately with
+  # `>=` floors is redundant — xsuite's `==` pins win — and risks a resolver
+  # conflict if a future xsuite pins below a floor, for no benefit.)
+  "xsuite>=0.45.10",
+  # Deliberate exception to the rule above: cap xpart below 0.23.16. That
+  # release renamed RFBucket's `z_offset` to `zeta0`, made it required, and
+  # dropped its auto-centring default, which collapses the bucket to zero
+  # width for a non-zero phi_rf and crashes the matcher with a
+  # ZeroDivisionError (reported upstream). The `<` cap backtracks the xsuite
+  # meta-package to the last release pinning xpart 0.23.15; drop it once the
+  # regression is fixed upstream.
   "xpart>=0.23.9, !=0.23.16", # particle objects
-  "xobjects>=0.5.12",         # xsuite low-level objects
-  "xtrack>=0.99.5",           # particle tracking
 ]
 all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
 all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
@@ -197,6 +220,7 @@ exclude_files = [ # don't process filepaths that match these regex
   '^blond/legacy/.*',
   '^blond/core/backends/cpp/callables.py',
   '^blond/core/backends/cuda/callables.py',
+  '^blond/core/backends/cuda/multipole/.*',
   '^blond/core/backends/numba/callables.py',
   '^blond/experimental/.*',
 
