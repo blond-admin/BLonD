@@ -978,8 +978,9 @@ class TestTravelingWaveCavityWakePerBin(BLonDTestCase):
                     np.full(len(frequency), 1e5), frequency, a_factor
                 )
                 a_tilde = np.array(a_factor) / (2 * np.pi)
+                frequency_R = copy_to_cpu(twc.frequency_R)
 
-                def wake(t, twc=twc, a_tilde=a_tilde):
+                def wake(t, frequency_R=frequency_R, a_tilde=a_tilde):
                     out = np.zeros_like(t)
                     for i in range(len(a_tilde)):
                         inside = (t > 0) & (t <= a_tilde[i])
@@ -988,7 +989,7 @@ class TestTravelingWaveCavityWakePerBin(BLonDTestCase):
                             4e5
                             / a_tilde[i]
                             * (1 - t / a_tilde[i])
-                            * np.cos(2 * np.pi * twc.frequency_R[i] * t),
+                            * np.cos(2 * np.pi * frequency_R[i] * t),
                             0.0,
                         )
                     return out
