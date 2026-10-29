@@ -1477,6 +1477,18 @@ class LHCCavityLoop(CavityFeedback):
     RFFB : class
         LHCCavityLoopCommissioning type class containing RF FB gains and delays. If this parameter is None, a new
         LHCCavityLoopCommissioning is used.
+    beam_current_reference : str
+        Reference of the phase of the RF beam current that drives the
+        cavities. 'phi_s' (default): the beam current is rotated by
+        -j exp(i phi_s), with phi_s the synchronous phase of rf_station.
+        'profile': the beam current keeps the phase measured from the
+        profile, which already holds where the beam sits; only the constant
+        convention factor j is applied. The induced voltage then acts on
+        the beam at its own phase, and the energy the beam loses equals the
+        power dissipated in the cavities, whatever phi_s is. With 'phi_s'
+        that holds only for phi_s = pi: the offset of the beam from pi is
+        counted twice, a few mrad for hadrons but up to the synchronous
+        phase offset of an electron beam (radiation loss).
     """
 
     def __init__(
@@ -1495,7 +1507,14 @@ class LHCCavityLoop(CavityFeedback):
         RFFB: Optional[LHCCavityLoopCommissioning] = None,
         n_h: int = 0,
         n_s: int = 10,
+        beam_current_reference: str = "phi_s",
     ):
+        if beam_current_reference not in ("phi_s", "profile"):
+            raise ValueError(
+                "beam_current_reference must be 'phi_s' or 'profile', got "
+                f"{beam_current_reference!r}"
+            )
+        self.beam_current_reference = beam_current_reference
         super().__init__(
             rf_station=rf_station,
             profile=profile,
@@ -1622,15 +1641,25 @@ class LHCCavityLoop(CavityFeedback):
 
         self.logger.info("LHCCavityLoop class initialized")
 
+    def beam_current_phase(self) -> float:
+        r"""Phase [rad] of the rotation -j exp(i phase) applied to the RF
+        beam current before it drives the cavity model: the synchronous
+        phase of the RFStation at the present turn with
+        beam_current_reference 'phi_s', pi with 'profile' (the RF beam
+        current, computed from the profile on the time grid of the RF,
+        dT = -phi_rf / omega_rf, already holds the phase at which the beam
+        sits; only the constant convention factor -j exp(i pi) = j
+        remains)."""
+        if self.beam_current_reference == "profile":
+            return np.pi
+        return self.rf_station.phi_s[self.rf_station.counter[0]]
+
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
         if not no_beam:
-            self.I_BEAM_FINE *= -1j * np.exp(
-                1j * (self.rf_station.phi_s[self.rf_station.counter[0]])
-            )
-            self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(
-                1j * (self.rf_station.phi_s[self.rf_station.counter[0]])
-            )
+            rotation = -1j * np.exp(1j * self.beam_current_phase())
+            self.I_BEAM_FINE *= rotation
+            self.I_BEAM_COARSE[-self.n_coarse :] *= rotation
 
         # Track the different parts of the model
         self.update_arrays()
@@ -2491,6 +2520,10 @@ class FCCBoosterCavityLoop(LHCCavityLoop):
     RFFB : class
         LHCCavityLoopCommissioning type class containing RF FB gains and delays. If this parameter is None, a new
         LHCCavityLoopCommissioning is used.
+    beam_current_reference : str
+        'phi_s' (default) or 'profile': see LHCCavityLoop. Electron beams
+        sit far from phi_s = pi (radiation loss, acceleration): use
+        'profile' for energy-conserving beam loading.
     """
 
     def __init__(
@@ -2509,6 +2542,7 @@ class FCCBoosterCavityLoop(LHCCavityLoop):
         RFFB: Optional[LHCCavityLoopCommissioning] = None,
         n_h: int = 0,
         n_s: int = 20,
+        beam_current_reference: str = "phi_s",
     ):
         super().__init__(
             rf_station=rf_station,
@@ -2525,4 +2559,5 @@ class FCCBoosterCavityLoop(LHCCavityLoop):
             RFFB=RFFB,
             n_h=n_h,
             n_s=n_s,
+            beam_current_reference=beam_current_reference,
         )

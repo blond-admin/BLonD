@@ -2,11 +2,11 @@
 """
 Test functions of the rf beam current with sparse profiles.
 
-The rf beam current computed on sparse profiles (a SparseBatch and a
-SparseBucket built on the same beam) is compared with the one computed on a
-standard Profile covering all the buckets, for three injection schemes: all
-the batches at once, one batch per turn in bucket order, and one batch per
-turn out of bucket order.
+The rf beam current computed on sparse profiles (a SparseBatch, a
+SparseBucket and a SparseBunch built on the same beam) is compared with the
+one computed on a standard Profile covering all the buckets, for three
+injection schemes: all the batches at once, one batch per turn in bucket
+order, and one batch per turn out of bucket order.
 
 These test functions have been partially generated with the help of a LLM.
 
@@ -22,7 +22,7 @@ from scipy.constants import e
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_profiles import SparseBatch, SparseBucket
+from blond.beam.sparse_profiles import SparseBatch, SparseBucket, SparseBunch
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.signal_processing import (
@@ -46,6 +46,11 @@ N_MACROPARTICLES = int(1e5)
 BUNCH_INTENSITY = 1e20
 BUNCH_SIGMA_DT = 0.25e-9  # [s]; the whole bunch stays inside its RF bucket,
 # so the standard and sparse profiles see the same total charge
+# Half-width of the SparseBunch windows [rms bunch lengths]: wider than the
+# bunch, which the reinsertion in the bucket cuts at 4.4 rms lengths, and
+# narrower than the bucket (5 rms lengths on each side), so that the
+# windows of bunches in adjacent buckets do not overlap
+BUNCH_WINDOW_LENGTH_IN_SIGMA = 4.7
 number_of_batches = 10  # Length of the batch [number of batches]
 batch_spacing = 5  # Number of empty buckets between each batch [number of rf
 # buckets]
@@ -232,14 +237,37 @@ def build_sparse_bucket_profile(
     return sparse_profile
 
 
+def build_sparse_bunch_profile(
+    beam, rf_station, n_slices, batch_buckets, injected_batches
+):
+    """A SparseBunch profile with one profile (a window centred on the
+    bunch) per bunch of the injected batches, on the grid of the RF buckets
+    (n_slices bins per bucket): its bins are bins of the standard profile.
+    The comparisons with the standard profile rely on every particle being
+    in a window."""
+    sparse_profile = SparseBunch(
+        rf_station=rf_station,
+        beam=beam,
+        number_of_slices_per_bucket=n_slices,
+        bunch_list=bunch_pattern(batch_buckets, injected_batches),
+        length_in_sigma=BUNCH_WINDOW_LENGTH_IN_SIGMA,
+        tracker_mode="onebyone",
+    )
+    sparse_profile.track()
+    assert sparse_profile.n_macroparticles_outside == 0
+    return sparse_profile
+
+
 class TestRFBeamCurrent(unittest.TestCase):
     """Compare the rf beam current computed on sparse profiles with the one
     computed on a standard Profile covering all the buckets.
 
-    Two sparse profiles are built on the same beam, a SparseBatch (one
-    profile per batch) and a SparseBucket (one profile per bunch), and
-    every check runs on both of them. Here all the batches are injected at
-    once, in bucket order; the subclasses inject them one per turn.
+    Three sparse profiles are built on the same beam, a SparseBatch (one
+    profile per batch), a SparseBucket (one RF bucket per bunch) and a
+    SparseBunch (one window centred on each bunch, narrower than its
+    bucket), and every check runs on all of them. Here all the batches are
+    injected at once, in bucket order; the subclasses inject them one per
+    turn.
     """
 
     N_SLICES = (
@@ -280,9 +308,17 @@ class TestRFBeamCurrent(unittest.TestCase):
             self.batch_buckets,
             self.injected_batches,
         )
+        self.profile_bunch = build_sparse_bunch_profile(
+            self.beam,
+            self.rf,
+            self.N_SLICES,
+            self.batch_buckets,
+            self.injected_batches,
+        )
         self.profiles_sparse = {
             "SparseBatch": self.profile_sparse,
             "SparseBucket": self.profile_bucket,
+            "SparseBunch": self.profile_bunch,
         }
         self.T_s = (
             self.rf_periods_per_coarse_sample

@@ -33,6 +33,7 @@ from blond.beam.profile import (
 from blond.beam.sparse_profiles import (
     SparseBatch,
     SparseBucket,
+    SparseBunch,
     SparseProfileBaseClass,
 )
 from blond.input_parameters.rf_parameters import RFStation
@@ -568,8 +569,10 @@ class TestSparseInterpolatedKick(unittest.TestCase):
     Profile of the same bin size covering all the buckets, and stay
     within the interpolation error of the exact (non-interpolated) kick.
     Every check runs on the SparseProfileBaseClass (one bucket per
-    window), on a SparseBucket (one bucket per window) and on a
-    SparseBatch (two buckets per window).
+    window), on a SparseBucket (one bucket per window), on a
+    SparseBatch (two buckets per window) and on a SparseBunch (one
+    window centred on each bunch, narrower than its bucket, on the bin
+    lattice of the buckets).
     """
 
     # Machine and RF parameters
@@ -583,10 +586,14 @@ class TestSparseInterpolatedKick(unittest.TestCase):
     n_macroparticles_per_bunch = 5000
     n_slices_per_bucket = 64
     batch_length = 2  # Buckets per SparseBatch window
+    # Half-width of the SparseBunch windows [rms bunch lengths]: the bunches
+    # are cut at 4 rms lengths and the bucket is 5 rms lengths on each side
+    length_in_sigma = 4.5
     sparse_profile_kinds = (
         "SparseProfileBaseClass",
         "SparseBucket",
         "SparseBatch",
+        "SparseBunch",
     )
 
     def setUp(self):
@@ -681,6 +688,8 @@ class TestSparseInterpolatedKick(unittest.TestCase):
                 bunch_list=filling_pattern,
                 tracker_mode="onebyone",
             )
+        if profile_kind == "SparseBunch":
+            return self._make_sparse_bunch(rf_station, beam, filling_pattern)
         return SparseBatch(
             rf_station=rf_station,
             beam=beam,
@@ -689,6 +698,20 @@ class TestSparseInterpolatedKick(unittest.TestCase):
             batch_list=filling_pattern,
             batch_length=self.batch_length,
             tracker_mode="onebyone",
+        )
+
+    def _make_sparse_bunch(self, rf_station, beam, bunch_list):
+        """A SparseBunch with one window around each bunch of bunch_list,
+        on the bin lattice of the standard profile. Particles without a
+        window (test_kernel_windows_out_of_time_order) are not reported."""
+        return SparseBunch(
+            rf_station=rf_station,
+            beam=beam,
+            number_of_slices_per_bucket=self.n_slices_per_bucket,
+            bunch_list=bunch_list,
+            length_in_sigma=self.length_in_sigma,
+            tracker_mode="onebyone",
+            warn_outside_fraction=None,
         )
 
     def _bunch_slice(self, i):
@@ -794,25 +817,20 @@ class TestSparseInterpolatedKick(unittest.TestCase):
         """A window injected later, between two existing ones, is last in
         the list of windows; particles outside all the windows are not
         kicked. The kick should match the window-by-window kick and the
-        one of a standard profile."""
+        one of a standard profile, with the windows of a SparseBucket and
+        with those of a SparseBunch."""
         n = self.n_macroparticles_per_bunch
         # Bunches in injection order, then particles without a window
         dt, dE = self._bunches((0, 20, 10, 40))
 
-        def make_sparse_profile(rf_station, beam):
-            bunch_list = np.zeros(self.h)
-            bunch_list[[0, 20]] = 1
-            profile = SparseBucket(
+        def make_sparse_bucket(rf_station, beam, bunch_list):
+            return SparseBucket(
                 rf_station=rf_station,
                 beam=beam,
                 number_of_slices_per_profile=self.n_slices_per_bucket,
                 bunch_list=bunch_list,
                 tracker_mode="onebyone",
             )
-            bunch_list = bunch_list.copy()
-            bunch_list[10] = 1
-            profile.update_bunch_list(bunch_list)
-            return profile
 
         def make_standard_profile(rf_station, beam):
             return Profile(
@@ -824,20 +842,45 @@ class TestSparseInterpolatedKick(unittest.TestCase):
                 ),
             )
 
-        dE_kernel = self._track_beam_one_turn(dt, dE, make_sparse_profile)
-        with mock.patch.object(cavity_loop_kernels, "NUMBA_AVAILABLE", False):
-            dE_loop = self._track_beam_one_turn(dt, dE, make_sparse_profile)
         dE_standard = self._track_beam_one_turn(dt, dE, make_standard_profile)
+        for profile_kind, make_windows in (
+            ("SparseBucket", make_sparse_bucket),
+            ("SparseBunch", self._make_sparse_bunch),
+        ):
 
-        np.testing.assert_allclose(dE_kernel, dE_loop, rtol=0, atol=1e-5)
-        np.testing.assert_allclose(dE_kernel, dE_standard, rtol=0, atol=1e-5)
-        np.testing.assert_array_equal(dE_kernel[3 * n :], dE[3 * n :])
-        for i in range(3):
-            self.assertGreater(
-                np.max(np.abs(dE_kernel - dE)[self._bunch_slice(i)]),
-                0.1 * self.V,
-                f"bunch {i} was not kicked",
-            )
+            def make_sparse_profile(rf_station, beam):
+                bunch_list = np.zeros(self.h)
+                bunch_list[[0, 20]] = 1
+                profile = make_windows(rf_station, beam, bunch_list)
+                bunch_list = bunch_list.copy()
+                bunch_list[10] = 1
+                profile.update_bunch_list(bunch_list)
+                return profile
+
+            with self.subTest(profile=profile_kind):
+                dE_kernel = self._track_beam_one_turn(
+                    dt, dE, make_sparse_profile
+                )
+                with mock.patch.object(
+                    cavity_loop_kernels, "NUMBA_AVAILABLE", False
+                ):
+                    dE_loop = self._track_beam_one_turn(
+                        dt, dE, make_sparse_profile
+                    )
+
+                np.testing.assert_allclose(
+                    dE_kernel, dE_loop, rtol=0, atol=1e-5
+                )
+                np.testing.assert_allclose(
+                    dE_kernel, dE_standard, rtol=0, atol=1e-5
+                )
+                np.testing.assert_array_equal(dE_kernel[3 * n :], dE[3 * n :])
+                for i in range(3):
+                    self.assertGreater(
+                        np.max(np.abs(dE_kernel - dE)[self._bunch_slice(i)]),
+                        0.1 * self.V,
+                        f"bunch {i} was not kicked",
+                    )
 
     def test_overlapping_windows_use_window_loop(self):
         """A particle in two overlapping windows is kicked once per window

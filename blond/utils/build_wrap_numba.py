@@ -754,6 +754,7 @@ def resonator_induced_voltage_1_turn(
 from blond.utils.build_wrap_python import (
     distribution_from_tomoscope as __distribution_from_tomoscope_python,
     sparse_histogram as __sparse_histogram_python,
+    sparse_bunch_histogram as __sparse_bunch_histogram_python,
     beam_phase_fast as __beam_phase_fast_python,
     beam_phase as __beam_phase_python,
     music_track_multiturn as __music_track_multiturn_python,
@@ -768,6 +769,8 @@ from blond.utils.build_wrap_python import (
 options = dict(nopython=True, nogil=True, fastmath=True, cache=True)
 sparse_histogram = jit(__sparse_histogram_python, **options)
 sparse_histogram.__doc__ = __sparse_histogram_python.__doc__
+sparse_bunch_histogram = jit(__sparse_bunch_histogram_python, **options)
+sparse_bunch_histogram.__doc__ = __sparse_bunch_histogram_python.__doc__
 
 distribution_from_tomoscope = jit(
     __distribution_from_tomoscope_python, **options

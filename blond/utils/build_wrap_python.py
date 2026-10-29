@@ -595,6 +595,51 @@ def sparse_histogram(
 # ---------------------------------------------------
 
 
+# --------------- One-pass histogram of windows on a bin lattice ----------
+def sparse_bunch_histogram(
+    dt: NumpyArray,
+    profile: NumpyArray,
+    sorted_first_bins: NumpyArray,
+    sorted_rows: NumpyArray,
+    n_bins: int,
+    inv_bin_size: float,
+):
+    """
+    Histogram of a sparse beam in windows that all have n_bins bins of the
+    same size and start on a global bin lattice (bin k covers
+    [k / inv_bin_size, (k + 1) / inv_bin_size)), in one pass over the
+    particles: the bin index of a particle locates its window by bisection
+    among the first bins of the windows, sorted in time. Particles outside
+    every window are skipped.
+
+    profile (number of windows, n_bins) is zeroed and filled here; the
+    window whose first bin is sorted_first_bins[j] is row sorted_rows[j].
+    Author: Lina Valle
+    """
+    profile[:] = 0.0
+    n_windows = len(sorted_first_bins)
+    first = sorted_first_bins[0]
+    end = sorted_first_bins[n_windows - 1] + n_bins
+    for a in dt:
+        b = int(np.floor(a * inv_bin_size))
+        if b < first or b >= end:
+            continue
+        lo = 0
+        hi = n_windows
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if sorted_first_bins[mid] <= b:
+                lo = mid
+            else:
+                hi = mid
+        offset = b - sorted_first_bins[lo]
+        if offset < n_bins:
+            profile[sorted_rows[lo], offset] += 1.0
+
+
+# ---------------------------------------------------
+
+
 # --------------- Similar to tomoscope.cpp -----------------
 def distribution_from_tomoscope(
     dt: np.ndarray,

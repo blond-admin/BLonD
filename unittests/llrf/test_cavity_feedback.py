@@ -17,9 +17,9 @@ import os
 import unittest
 
 import numpy as np
-from scipy.constants import c
+from scipy.constants import c, e
 
-from blond.beam.beam import Beam, Proton
+from blond.beam.beam import Beam, Electron, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
@@ -1314,6 +1314,101 @@ class TestLHCCavityLoopCommissioning(unittest.TestCase):
     def test_generate_white_noise(self):
         # TODO: implement test for `generate_white_noise`
         self.lhc_cavity_loop_commissioning.generate_white_noise(n_points=None)
+
+
+class TestLHCCavityLoopBeamCurrentReference(unittest.TestCase):
+    r"""Beam loading of a passive cavity (generator off) driven by a bunch
+    that does not sit at phi_s = pi, as an electron bunch that loses energy
+    to synchrotron radiation. The beam is frozen and the loop is tracked to
+    its steady state; per turn, the energy the bunch loses must equal the
+    energy the cavities dissipate."""
+
+    # loaded Q high enough that the voltage builds up over many turns, as
+    # in a lepton ring: the self-field of the bunch within its turn, whose
+    # fine-grid model is approximate, is then a small part of the voltage
+    Q_L = 2e5
+    R_over_Q = 45
+    n_cavities = 8
+    n_turns = 700
+    intensity = 1e11
+
+    def track(self, beam_current_reference, phi_s, bunch_phase,
+              detuning_in_half_bandwidths=0.0):
+        """Steady-state beam loading; returns the energy lost by the bunch
+        and dissipated in the cavities over the last turn [J] and the
+        loop."""
+        h = 1000
+        ring = Ring(h * c / 400e6, 1 / 53.8**2, 20e9, particle=Electron(),
+                    n_turns=self.n_turns)
+        rf = RFStation(ring, [h], [1e6], [0])
+        rf.phi_s[:] = phi_s
+        n_macroparticles = 20000
+        beam = Beam(ring, n_macroparticles, self.intensity)
+        omega_rf = rf.omega_rf[0, 0]
+        t_rf = 2 * np.pi / omega_rf
+        rng = np.random.default_rng(1)
+        beam.dt[:] = (5 * t_rf + bunch_phase / omega_rf
+                      + rng.normal(0, 0.05 * t_rf, n_macroparticles))
+        beam.dE[:] = rng.normal(0, 1e6, n_macroparticles)
+        # the window covers the buckets on both sides of the bunch
+        profile = Profile(beam, CutOptions(cut_left=4 * t_rf,
+                                           cut_right=7 * t_rf, n_slices=192))
+        profile.track()
+        f_c = (omega_rf / (2 * np.pi)
+               * (1 + detuning_in_half_bandwidths / (2 * self.Q_L)))
+        # generator off: no gains, no tuner
+        commissioning = LHCCavityLoopCommissioning(G_a=0, G_d=0, G_o=0,
+                                                   open_tuner=True)
+        loop = LHCCavityLoop(rf, profile, n_cavities=self.n_cavities,
+                             f_c=f_c, Q_L=self.Q_L, R_over_Q=self.R_over_Q,
+                             n_pretrack=0, RFFB=commissioning,
+                             beam_current_reference=beam_current_reference)
+        tracker = RingAndRFTracker(rf, beam, profile=profile,
+                                   interpolation=True, cavity_feedback=loop)
+        dt, dE = beam.dt.copy(), beam.dE.copy()
+        for _ in range(self.n_turns - 1):
+            profile.track()
+            tracker.track()
+            kick = np.mean(beam.dE - dE)  # [eV] per particle
+            beam.dt[:], beam.dE[:] = dt, dE
+        lost = -kick * e * self.intensity
+        v_cavity = loop.V_ANT_COARSE[-loop.n_coarse:]
+        dissipated = (self.n_cavities * np.sum(np.abs(v_cavity) ** 2)
+                      * loop.T_s / (2 * self.R_over_Q * self.Q_L))
+        return lost, dissipated, loop
+
+    def test_invalid_reference(self):
+        with self.assertRaises(ValueError):
+            self.track('synchronous', np.pi, np.pi)
+
+    def test_profile_reference_ignores_phi_s(self):
+        # the beam is where it is: phi_s of the RFStation must not matter
+        _, _, loop_pi = self.track('profile', np.pi, np.pi - 0.6)
+        _, _, loop_shifted = self.track('profile', np.pi - 0.6, np.pi - 0.6)
+        np.testing.assert_allclose(loop_shifted.V_ANT_FINE,
+                                   loop_pi.V_ANT_FINE, rtol=1e-12)
+
+    def test_phi_s_reference_unchanged_at_pi(self):
+        _, _, loop_profile = self.track('profile', np.pi, np.pi - 0.6)
+        _, _, loop_phi_s = self.track('phi_s', np.pi, np.pi - 0.6)
+        np.testing.assert_allclose(loop_phi_s.V_ANT_FINE,
+                                   loop_profile.V_ANT_FINE, rtol=1e-12)
+
+    def test_energy_balance_profile_reference(self):
+        for detuning in (0.0, 1.0):
+            for phi_s in (np.pi, np.pi - 0.6, 0.4):
+                with self.subTest(detuning=detuning, phi_s=phi_s):
+                    lost, dissipated, _ = self.track('profile', phi_s, phi_s,
+                                                     detuning)
+                    self.assertAlmostEqual(lost / dissipated, 1, delta=0.02)
+
+    def test_energy_balance_broken_by_phi_s_reference(self):
+        # the legacy rotation counts the offset of the beam from pi twice
+        for detuning in (0.0, 1.0):
+            with self.subTest(detuning=detuning):
+                lost, dissipated, _ = self.track('phi_s', np.pi - 0.6,
+                                                 np.pi - 0.6, detuning)
+                self.assertGreater(abs(lost / dissipated - 1), 0.05)
 
 
 if __name__ == "__main__":

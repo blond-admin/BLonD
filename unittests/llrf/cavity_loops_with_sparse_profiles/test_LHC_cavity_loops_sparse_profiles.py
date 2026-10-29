@@ -3,10 +3,10 @@
 Test functions of the LHC Cavity Loop.
 
 These tests ensure the LHC cavity loop provides the same results and outputs
-with a standard beam profile and a sparse profile (a SparseBatch and a
-SparseBucket built on the same beam), for three injection schemes: all the
-batches at once, one batch per turn in bucket order, and one batch per turn
-out of bucket order.
+with a standard beam profile and a sparse profile (a SparseBatch, a
+SparseBucket and a SparseBunch built on the same beam), for three injection
+schemes: all the batches at once, one batch per turn in bucket order, and
+one batch per turn out of bucket order.
 
 To do so, the tests ensure the standard profile and the sparse profiles have
 equivalent bin_centers and other parameters. Then, the COARSE grid and the
@@ -36,6 +36,7 @@ from blond.beam.profile import CutOptions, Profile
 from blond.beam.sparse_profiles import (
     SparseBatch,
     SparseBucket,
+    SparseBunch,
     SparseProfileBaseClass,
 )
 from blond.input_parameters.rf_parameters import RFStation
@@ -64,6 +65,11 @@ N_MACROPARTICLES = int(1e5)
 BUNCH_INTENSITY = 1e11
 BUNCH_SIGMA_DT = 0.25e-9  # [s]; the whole bunch stays inside its RF bucket,
 # so the standard and sparse profiles see the same total charge
+# Half-width of the SparseBunch windows [rms bunch lengths]: wider than the
+# bunch, which the reinsertion in the bucket cuts at 4.4 rms lengths, and
+# narrower than the bucket (5 rms lengths on each side), so that the
+# windows of bunches in adjacent buckets do not overlap
+BUNCH_WINDOW_LENGTH_IN_SIGMA = 4.7
 number_of_batches = 10  # Length of the batch [number of batches]
 batch_spacing = 5  # Number of empty buckets between each batch [number of rf
 # buckets]
@@ -202,16 +208,21 @@ def inject_batch(
     return k + 1
 
 
-def build_standard_profile(beam, rf_station, n_slices, extra_buckets):
+def build_standard_profile(
+    beam, rf_station, n_slices, extra_buckets, cut_left=0.0
+):
     """A standard Profile covering all the batches and extra_buckets more,
-    so that its last coarse-grid sample is complete."""
+    so that its last coarse-grid sample is complete. With cut_left, an edge
+    of a bin of that grid, the profile starts there instead of at the first
+    bucket, on the same bins."""
     n_buckets = batch_spacing * number_of_batches + extra_buckets
+    bin_size = rf_station.t_rf[0, 0] / n_slices
     profile = Profile(
         beam,
         CutOptions(
-            cut_left=0.0,
+            cut_left=cut_left,
             cut_right=n_buckets * rf_station.t_rf[0, 0],
-            n_slices=n_slices * n_buckets,
+            n_slices=n_slices * n_buckets - int(np.rint(cut_left / bin_size)),
         ),
     )
     profile.track()
@@ -247,6 +258,27 @@ def build_sparse_bucket_profile(
         tracker_mode="onebyone",
     )
     sparse_profile.track()
+    return sparse_profile
+
+
+def build_sparse_bunch_profile(
+    beam, rf_station, n_slices, batch_buckets, injected_batches
+):
+    """A SparseBunch profile with one profile (a window centred on the
+    bunch) per bunch of the injected batches, on the grid of the RF buckets
+    (n_slices bins per bucket): its bins are bins of the standard profile.
+    The comparisons with the standard profile rely on every particle being
+    in a window."""
+    sparse_profile = SparseBunch(
+        rf_station=rf_station,
+        beam=beam,
+        number_of_slices_per_bucket=n_slices,
+        bunch_list=bunch_pattern(batch_buckets, injected_batches),
+        length_in_sigma=BUNCH_WINDOW_LENGTH_IN_SIGMA,
+        tracker_mode="onebyone",
+    )
+    sparse_profile.track()
+    assert sparse_profile.n_macroparticles_outside == 0
     return sparse_profile
 
 
@@ -342,10 +374,10 @@ class TestLHCCavityLoopStandardProfile(unittest.TestCase):
 
 
 class TestLHCCavityLoopSparseProfile(unittest.TestCase):
-    """The same regression tests as above, but built with a SparseBatch and
-    with a SparseBucket profile. Since `track_one_turn` / the open-drive
-    path never touches the profile object, these must reproduce exactly the
-    same reference numbers as the standard-Profile case.
+    """The same regression tests as above, but built with a SparseBatch,
+    a SparseBucket and a SparseBunch profile. Since `track_one_turn` / the
+    open-drive path never touches the profile object, these must reproduce
+    exactly the same reference numbers as the standard-Profile case.
     """
 
     def setUp(self):
@@ -367,9 +399,17 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
             batch_buckets_sequential,
             number_of_batches,
         )
+        self.profile_bunch = build_sparse_bunch_profile(
+            self.beam,
+            self.rf,
+            1000,
+            batch_buckets_sequential,
+            number_of_batches,
+        )
         self.profiles_sparse = {
             "SparseBatch": self.profile_sparse,
             "SparseBucket": self.profile_bucket,
+            "SparseBunch": self.profile_bunch,
         }
         self.RFFB = build_open_drive_commissioning()
 
@@ -403,10 +443,11 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
         self.assertEqual(
             len(self.profile_sparse.profiles_list), number_of_batches
         )
-        self.assertEqual(
-            len(self.profile_bucket.profiles_list),
-            number_of_batches * number_of_bunches_per_batch,
-        )
+        for profile_per_bunch in (self.profile_bucket, self.profile_bunch):
+            self.assertEqual(
+                len(profile_per_bunch.profiles_list),
+                number_of_batches * number_of_bunches_per_batch,
+            )
 
     def test_open_drive_default_Q_L(self):
         self._check_open_drive(
@@ -437,8 +478,8 @@ class TestLHCCavityLoopSparseProfile(unittest.TestCase):
 
 class TestProfileEquivalence(unittest.TestCase):
     """Sanity check the premise the comparison tests below rely on: a
-    SparseBatch and a SparseBucket must slice the same beam into exactly the
-    same bins as a standard Profile with the same cuts.
+    SparseBatch, a SparseBucket and a SparseBunch must slice the same beam
+    into exactly the same bins as a standard Profile with the same cuts.
     """
 
     def setUp(self):
@@ -464,16 +505,30 @@ class TestProfileEquivalence(unittest.TestCase):
             batch_buckets_sequential,
             number_of_batches,
         )
+        self.bunch = build_sparse_bunch_profile(
+            self.beam,
+            self.rf,
+            self.n_slices,
+            batch_buckets_sequential,
+            number_of_batches,
+        )
         self.profiles_sparse = {
             "SparseBatch": self.sparse,
             "SparseBucket": self.bucket,
+            "SparseBunch": self.bunch,
         }
-        for profile_sparse in self.profiles_sparse.values():
-            self.assertAlmostEqual(
-                self.standard.bin_centers[0],
-                profile_sparse.bin_centers[0],
-                places=12,
-            )
+        for name, profile_sparse in self.profiles_sparse.items():
+            # Bins between the first bins of the two profiles: none, or a
+            # whole number for the SparseBunch, whose first window starts
+            # inside the first bucket
+            offset = (
+                profile_sparse.bin_centers[0] - self.standard.bin_centers[0]
+            ) / self.standard.bin_size
+            if name == "SparseBunch":
+                self.assertGreater(offset, 0.5)
+                self.assertAlmostEqual(offset, np.rint(offset), places=6)
+            else:
+                self.assertAlmostEqual(offset, 0.0, places=6)
         self.rtol = 1e-12
         self.atol = 1e-12
 
@@ -537,9 +592,16 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
     """Core comparison requested: for the *same* beam and the *same* time
     grid, LHCCavityLoop should produce the same coarse- and fine-grid
     signals whether it is fed a standard Profile or an equivalent sparse
-    profile, a SparseBatch (one profile per batch) or a SparseBucket (one
-    profile per bunch). Here all the batches are injected at once, in
-    bucket order; the subclasses inject them one per turn.
+    profile, a SparseBatch (one profile per batch), a SparseBucket (one RF
+    bucket per bunch) or a SparseBunch (one window centred on each bunch,
+    narrower than its bucket). Here all the batches are injected at once,
+    in bucket order; the subclasses inject them one per turn.
+
+    The fine-grid solve starts from the coarse-grid state one bin before
+    the first bin of the profile, so each sparse profile is compared with
+    a standard profile starting at its first window: at the first bucket
+    for the SparseBatch and the SparseBucket (profile_std), inside that
+    bucket for the SparseBunch (profile_std_bunch, on the same bins).
     """
 
     N_SLICES = (
@@ -572,10 +634,25 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
             self.batch_buckets,
             self.injected_batches,
         )
+        self.profile_bunch = build_sparse_bunch_profile(
+            self.beam,
+            self.rf,
+            self.N_SLICES,
+            self.batch_buckets,
+            self.injected_batches,
+        )
         self.profiles_sparse = {
             "SparseBatch": self.profile_sparse,
             "SparseBucket": self.profile_bucket,
+            "SparseBunch": self.profile_bunch,
         }
+        self.profile_std_bunch = build_standard_profile(
+            self.beam,
+            self.rf,
+            self.N_SLICES,
+            extra_buckets=10,
+            cut_left=np.min(self.profile_bunch.cut_left_array),
+        )
 
         self.RFFB = LHCCavityLoopCommissioning()  # default, closed loop
         self._make_loops()
@@ -611,10 +688,15 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
     # Helpers -----------------------------------------------------------------
 
     def _make_loops(self):
-        """Fresh cavity loops on the current profiles: CL_standard, and one
-        per sparse profile in loops_sparse."""
+        """Fresh cavity loops on the current profiles: one per sparse
+        profile in loops_sparse, and the standard-profile loop each of them
+        is compared with in loops_standard (CL_standard for the SparseBatch
+        and the SparseBucket, CL_standard_bunch for the SparseBunch)."""
         self.CL_standard = build_cavity_loop(
             self.rf, self.profile_std, self.RFFB
+        )
+        self.CL_standard_bunch = build_cavity_loop(
+            self.rf, self.profile_std_bunch, self.RFFB
         )
         self.CL_sparse = build_cavity_loop(
             self.rf, self.profile_sparse, self.RFFB
@@ -622,38 +704,49 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
         self.CL_bucket = build_cavity_loop(
             self.rf, self.profile_bucket, self.RFFB
         )
+        self.CL_bunch = build_cavity_loop(
+            self.rf, self.profile_bunch, self.RFFB
+        )
         self.loops_sparse = {
             "SparseBatch": self.CL_sparse,
             "SparseBucket": self.CL_bucket,
+            "SparseBunch": self.CL_bunch,
+        }
+        self.loops_standard = {
+            "SparseBatch": self.CL_standard,
+            "SparseBucket": self.CL_standard,
+            "SparseBunch": self.CL_standard_bunch,
         }
 
+    def _standard_loops(self):
+        """The standard-profile cavity loops, each one once."""
+        return self.CL_standard, self.CL_standard_bunch
+
     def _track_loops(self):
-        self.CL_standard.track()
-        for CL_sparse in self.loops_sparse.values():
-            CL_sparse.track()
+        for CL in (*self._standard_loops(), *self.loops_sparse.values()):
+            CL.track()
 
     def _disable_fine_grid(self):
-        self.CL_standard.disable_fine_grid = True
-        for CL_sparse in self.loops_sparse.values():
-            CL_sparse.disable_fine_grid = True
+        for CL in (*self._standard_loops(), *self.loops_sparse.values()):
+            CL.disable_fine_grid = True
 
-    def _windows(self, CL_sparse):
+    def _windows(self, CL_sparse, CL_standard):
         """Yield (p, profile, index) for each window of the sparse profile
         of a cavity loop: the profile number, its Profile object and the
-        index of its first bin in the standard profile."""
+        index of its first bin in the standard profile of CL_standard."""
         for p, profile in enumerate(CL_sparse.profile.profiles_list):
             index = np.argmin(
                 np.abs(
-                    self.CL_standard.profile.bin_centers
-                    - profile.bin_centers[0]
+                    CL_standard.profile.bin_centers - profile.bin_centers[0]
                 )
             )
             yield p, profile, index
 
     def _assert_bin_centers_match(self, CL_sparse, name):
-        for p, profile, index in self._windows(CL_sparse):
+        CL_standard = self.loops_standard[name]
+        for p, profile, index in self._windows(CL_sparse, CL_standard):
             np.testing.assert_allclose(
-                self.CL_standard.profile.bin_centers[index],
+                CL_standard.profile.bin_centers[index],
                 CL_sparse.profile.bin_centers[p * profile.n_slices],
                 rtol=self.rtol,
                 atol=self.atol,
@@ -662,13 +755,14 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
             )
 
     def _assert_fine_grid_match(self, array, CL_sparse, name, offset=0):
-        """Compare a fine-grid array of CL_sparse with the one of
-        CL_standard window by window. offset=1 skips the first element of
-        the arrays of length n_slices + 1 (I_GEN_FINE, V_ANT_FINE), which
-        is common to all windows."""
-        array_std = getattr(self.CL_standard, array)
+        """Compare a fine-grid array of CL_sparse with the one of its
+        standard-profile loop window by window. offset=1 skips the first
+        element of the arrays of length n_slices + 1 (I_GEN_FINE,
+        V_ANT_FINE), which is common to all windows."""
+        CL_standard = self.loops_standard[name]
+        array_std = getattr(CL_standard, array)
         array_sparse = getattr(CL_sparse, array)
-        for p, profile, index in self._windows(CL_sparse):
+        for p, profile, index in self._windows(CL_sparse, CL_standard):
             n = profile.n_slices
             np.testing.assert_allclose(
                 array_std[index + offset : index + n + offset],
@@ -696,14 +790,14 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
     def _check_rf_beam_current(self):
         """The beam current seen on the coarse and fine grids must not
         depend on which profile representation was used."""
-        self.CL_standard.rf_beam_current(lpf=self.CL_standard.lpf)
+        for CL_standard in self._standard_loops():
+            CL_standard.rf_beam_current(lpf=CL_standard.lpf)
         for name, CL_sparse in self.loops_sparse.items():
+            CL_standard = self.loops_standard[name]
             with self.subTest(profile=name):
                 CL_sparse.rf_beam_current(lpf=CL_sparse.lpf)
                 np.testing.assert_allclose(
-                    self.CL_standard.I_BEAM_COARSE[
-                        -self.CL_standard.n_coarse :
-                    ],
+                    CL_standard.I_BEAM_COARSE[-CL_standard.n_coarse :],
                     CL_sparse.I_BEAM_COARSE[-CL_sparse.n_coarse :],
                     rtol=self.rtol,
                     atol=self.atol,
@@ -714,13 +808,15 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
                 self._assert_fine_grid_match("I_BEAM_FINE", CL_sparse, name)
 
     def _check_coarse_antenna_voltage_after_one_track(self):
-        self.CL_standard.track()
+        for CL_standard in self._standard_loops():
+            CL_standard.track()
         for name, CL_sparse in self.loops_sparse.items():
+            CL_standard = self.loops_standard[name]
             with self.subTest(profile=name):
                 CL_sparse.track()
                 for array in ("V_ANT_COARSE", "I_GEN_COARSE"):
                     np.testing.assert_allclose(
-                        getattr(self.CL_standard, array),
+                        getattr(CL_standard, array),
                         getattr(CL_sparse, array),
                         rtol=self.rtol,
                         atol=self.atol,
@@ -731,7 +827,8 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
     def _check_fine_grid_track_one_turn(self):
         """The track_one_turn() function should provide the same output for
         a standard and a sparse profile."""
-        self.CL_standard.track_one_turn()
+        for CL_standard in self._standard_loops():
+            CL_standard.track_one_turn()
         for name, CL_sparse in self.loops_sparse.items():
             with self.subTest(profile=name):
                 CL_sparse.track_one_turn()
@@ -745,7 +842,8 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
         Since the first element of I_GEN_FINE and V_ANT_FINE is common, the
         test only covers the n_slices per profile (offset=1)."""
         self._disable_fine_grid()
-        self.CL_standard.track()
+        for CL_standard in self._standard_loops():
+            CL_standard.track()
         for name, CL_sparse in self.loops_sparse.items():
             with self.subTest(profile=name):
                 CL_sparse.track()
@@ -761,27 +859,37 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
     def _check_fine_grid_cavity_response_inputs(self):
         """The input to the cavity_response_fine_matrix function should be
         identical for the standard profile and the sparse profiles."""
-        self.CL_standard.track()
-        t_at_init = (
-            self.CL_standard.profile.bin_centers[0]
-            - self.CL_standard.profile.bin_size
-        )
+        for CL_standard in self._standard_loops():
+            CL_standard.track()
         for name, CL_sparse in self.loops_sparse.items():
+            CL_standard = self.loops_standard[name]
+            t_at_init = (
+                CL_standard.profile.bin_centers[0]
+                - CL_standard.profile.bin_size
+            )
             with self.subTest(profile=name):
                 CL_sparse.track()
-                np.testing.assert_equal(
-                    self.CL_standard.samples_fine, CL_sparse.samples_fine
+                # Equal to rounding only: the bins of a SparseBunch window
+                # are bins of its standard profile, but obtained from
+                # other edges
+                np.testing.assert_allclose(
+                    CL_standard.samples_fine,
+                    CL_sparse.samples_fine,
+                    rtol=1e-12,
+                    atol=0,
                 )
                 t_at_init_sparse = (
                     CL_sparse.profile.bin_centers[0]
                     - CL_sparse.profile.bin_size
                 )
-                np.testing.assert_equal(t_at_init, t_at_init_sparse)
+                np.testing.assert_allclose(
+                    t_at_init, t_at_init_sparse, rtol=1e-12, atol=0
+                )
                 np.testing.assert_array_equal(
-                    self.CL_standard.rf_centers, CL_sparse.rf_centers
+                    CL_standard.rf_centers, CL_sparse.rf_centers
                 )
                 np.testing.assert_allclose(
-                    self.CL_standard.V_ANT_COARSE,
+                    CL_standard.V_ANT_COARSE,
                     CL_sparse.V_ANT_COARSE,
                     rtol=self.rtol,
                     atol=self.atol,
@@ -791,8 +899,8 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
                 for array in ("V_ANT_COARSE", "I_GEN_COARSE"):
                     np.testing.assert_allclose(
                         self._coarse_state_at(
-                            self.CL_standard,
-                            getattr(self.CL_standard, array),
+                            CL_standard,
+                            getattr(CL_standard, array),
                             t_at_init,
                         ),
                         self._coarse_state_at(
@@ -806,7 +914,7 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
                         f"standard Profile and {name} for the same beam.",
                     )
                 np.testing.assert_allclose(
-                    self.CL_standard.I_GEN_FINE[0],
+                    CL_standard.I_GEN_FINE[0],
                     CL_sparse.I_GEN_FINE[0],
                     rtol=self.rtol,
                     atol=self.atol,
@@ -825,12 +933,14 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
         a standard Profile and an equivalent sparse profile. Since the
         first element of V_ANT_FINE is common, the test only covers the
         n_slices per profile (offset=1)."""
-        self.CL_standard.track()
+        for CL_standard in self._standard_loops():
+            CL_standard.track()
         for name, CL_sparse in self.loops_sparse.items():
+            CL_standard = self.loops_standard[name]
             with self.subTest(profile=name):
                 CL_sparse.track()
                 np.testing.assert_allclose(
-                    self.CL_standard.V_ANT_FINE[0],
+                    CL_standard.V_ANT_FINE[0],
                     CL_sparse.V_ANT_FINE[0],
                     rtol=self.rtol,
                     atol=self.atol,
@@ -899,12 +1009,14 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypes(unittest.TestCase):
                     )
 
     def _check_generator_power(self):
-        self.CL_standard.track()
+        for CL_standard in self._standard_loops():
+            CL_standard.track()
         for name, CL_sparse in self.loops_sparse.items():
+            CL_standard = self.loops_standard[name]
             with self.subTest(profile=name):
                 CL_sparse.track()
                 np.testing.assert_allclose(
-                    self.CL_standard.generator_power(),
+                    CL_standard.generator_power(),
                     CL_sparse.generator_power(),
                     rtol=self.rtol,
                     atol=self.atol,
@@ -955,7 +1067,7 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
 
     def _inject_all(self, check):
         """Inject the remaining batches one at a time; after each injection
-        re-track the standard profile and run check() on the cavity loops."""
+        re-track the standard profiles and run check() on the cavity loops."""
         while self.injected_batches < number_of_batches:
             self.injected_batches = inject_batch(
                 self.beam,
@@ -966,6 +1078,7 @@ class TestLHCCavityLoopConsistencyBetweenProfileTypesMultiTurnInjection(
                 self.injected_batches,
             )
             self.profile_std.track()
+            self.profile_std_bunch.track()
             with self.subTest(injected_batches=self.injected_batches):
                 check()
 
