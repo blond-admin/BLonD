@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import skrf as rf
 from matplotlib import pyplot as plt
+from scipy.constants import c, mu_0
 
 from blond.core.backends.backend import backend
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
@@ -1219,4 +1220,221 @@ class TravelingWaveCavity(
             Zplus = self.R_S[i] * self._shape(arg2_plus)
             imp = Zplus + Zminus
             impedance += imp
+        return impedance
+
+
+class ResistiveWall(WakeFieldSource, FreqDomain):
+    r"""
+    Longitudinal resistive-wall impedance of a round beam pipe.
+
+    .. math::
+
+        Z(f) = \frac{Z_0 c L}{\pi}
+        \frac{1}{(1 - i\,\mathrm{sgn} f)\, 2 b c
+        \sqrt{\frac{\sigma_c Z_0 c}{4 \pi |f|}} + i\, 2 \pi b^2 f}
+
+    with :math:`Z(0) = 0`. At low frequency this is the thick-wall
+    impedance :math:`(1 + i) L / (2 \pi b \sigma_c \delta)` with skin
+    depth :math:`\delta`; the second term in the denominator makes it
+    capacitive above the crossover frequency
+    :math:`c / (2 \pi s_0)`, :math:`s_0 = (2 b^2 / (Z_0 \sigma_c))^{1/3}`,
+    so the wake stays finite at :math:`t = 0^+`.
+
+    Parameters
+    ----------
+    pipe_radius
+        Beam pipe radius :math:`b`, in [m].
+    pipe_length
+        Beam pipe length :math:`L`, in [m].
+    conductivity
+        Wall conductivity :math:`\sigma_c`, in [S/m]. Use
+        `from_resistivity` to give the resistivity instead.
+
+    Raises
+    ------
+    ValueError
+        If a parameter is not positive.
+
+    See Also
+    --------
+    from_resistivity : Construct from the wall resistivity.
+
+    Notes
+    -----
+    Ported from BLonD 2's ``ResistiveWall``, whose code divides only the
+    skin-depth term by :math:`\pi` and so overestimates the capacitive
+    term by a factor :math:`\pi`; this class follows the BLonD 2
+    docstring, which agrees with Bane and Sands.
+
+    References
+    ----------
+    K. L. F. Bane and M. Sands, "The short-range resistive wall wakefields",
+    SLAC-PUB-95-7074 (1995).
+    """
+
+    def __init__(
+        self, pipe_radius: float, pipe_length: float, conductivity: float
+    ):
+        super().__init__(is_dynamic=False)
+        for name, value in (
+            ("pipe_radius", pipe_radius),
+            ("pipe_length", pipe_length),
+            ("conductivity", conductivity),
+        ):
+            if not value > 0:
+                raise ValueError(f"`{name}` must be positive, got {value}.")
+        self._pipe_radius = float(pipe_radius)
+        self._pipe_length = float(pipe_length)
+        self._conductivity = float(conductivity)
+
+        self._cache_impedance: NumpyArray | CupyArray | None = None
+        self._cache_impedance_hash: int | None = None
+
+    @classmethod
+    def from_resistivity(
+        cls, pipe_radius: float, pipe_length: float, resistivity: float
+    ) -> ResistiveWall:
+        """
+        Construct from the wall resistivity.
+
+        Parameters
+        ----------
+        pipe_radius
+            Beam pipe radius, in [m].
+        pipe_length
+            Beam pipe length, in [m].
+        resistivity
+            Wall resistivity, in [Ω m].
+
+        Returns
+        -------
+        resistive_wall
+            The resistive wall with conductivity ``1 / resistivity``.
+
+        Raises
+        ------
+        ValueError
+            If a parameter is not positive.
+        """
+        if not resistivity > 0:
+            raise ValueError(
+                f"`resistivity` must be positive, got {resistivity}."
+            )
+        return cls(
+            pipe_radius=pipe_radius,
+            pipe_length=pipe_length,
+            conductivity=1.0 / resistivity,
+        )
+
+    @property
+    def pipe_radius(self) -> float:
+        """
+        Beam pipe radius, in [m].
+
+        Returns
+        -------
+        pipe_radius
+            Beam pipe radius, in [m].
+        """
+        return self._pipe_radius
+
+    @property
+    def pipe_length(self) -> float:
+        """
+        Beam pipe length, in [m].
+
+        Returns
+        -------
+        pipe_length
+            Beam pipe length, in [m].
+        """
+        return self._pipe_length
+
+    @property
+    def conductivity(self) -> float:
+        """
+        Wall conductivity, in [S/m].
+
+        Returns
+        -------
+        conductivity
+            Wall conductivity, in [S/m].
+        """
+        return self._conductivity
+
+    @property
+    def resistivity(self) -> float:
+        """
+        Wall resistivity, in [Ω m].
+
+        Returns
+        -------
+        resistivity
+            Wall resistivity, in [Ω m].
+        """
+        return 1.0 / self._conductivity
+
+    def get_impedance(
+        self,
+        freq_x: NumpyArray | CupyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        hist_step: float | None = None,
+    ) -> NumpyArray | CupyArray:
+        """
+        Return the analytically calculated impedance in the frequency domain.
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis, in [Hz].
+        simulation
+            Simulation object containing turn index and RF info. Unused
+            for this static source (part of the `FreqDomain` API).
+        beam
+            Simulation `Beam` object. Unused for this static source.
+        hist_step
+            Bin width of the time-domain signal, in [s]. Unused for this
+            analytic source (part of the `FreqDomain` API).
+
+        Returns
+        -------
+        impedance
+            Complex impedance array, in [Ω].
+        """
+        # Recalculate only if `freq_x` is changed
+        hash_ = hash_linspace(freq_x)
+        if hash_ == self._cache_impedance_hash:
+            return self._cache_impedance
+
+        freq_x = backend.array(freq_x, dtype=backend.float)
+        is_dc = freq_x == 0
+        # dummy |f| at DC avoids the division by zero; masked below
+        abs_freq = backend.where(is_dc, 1.0, backend.abs(freq_x))
+        impedance_of_vacuum = mu_0 * c
+        skin_depth_term = (
+            (1.0 - 1j * backend.sign(freq_x))
+            * 2.0
+            * self._pipe_radius
+            * c
+            * backend.sqrt(
+                self._conductivity
+                * impedance_of_vacuum
+                * c
+                / (4.0 * np.pi * abs_freq)
+            )
+        )
+        capacitive_term = 2j * np.pi * self._pipe_radius**2 * freq_x
+        impedance = (
+            impedance_of_vacuum
+            * c
+            * self._pipe_length
+            / (np.pi * (skin_depth_term + capacitive_term))
+        )
+        impedance = backend.where(is_dc, 0.0, impedance).astype(
+            backend.complex
+        )
+
+        self._cache_impedance_hash = hash_
+        self._cache_impedance = impedance
         return impedance

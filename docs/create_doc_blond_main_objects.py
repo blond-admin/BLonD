@@ -50,6 +50,7 @@ ASSIGNED_CATEGORIES = {
     "InductiveImpedance": Categories.WAKE.value,
     "PeriodicFreqSolver": Categories.WAKE.value,
     "Resonators": Categories.WAKE.value,
+    "ResistiveWall": Categories.WAKE.value,
     "InductiveImpedanceSolver": Categories.WAKE.value,
     "ImpedanceTableFreq": Categories.WAKE.value,
     "TimeDomainFftSolver": Categories.WAKE.value,

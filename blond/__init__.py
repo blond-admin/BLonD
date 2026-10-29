@@ -52,6 +52,7 @@ __all__ = [
     "MultiPoleSparseSolve",
     "ImpedanceTableFreq",
     "InductiveImpedance",
+    "ResistiveWall",
     "Resonators",
     "BoxLosses",
     "DynamicProfileConstNBins",
@@ -159,6 +160,7 @@ from blond.physics.impedances.sources import (
     ImpedanceTableFreq,
     ImpedanceTableTime,
     InductiveImpedance,
+    ResistiveWall,
     Resonators,
     TravelingWaveCavity,
 )

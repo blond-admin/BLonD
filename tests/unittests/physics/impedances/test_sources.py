@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 from numpy import ndarray as NumpyArray
-from scipy.constants import pi
+from scipy.constants import mu_0, pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
@@ -26,6 +26,7 @@ from blond.physics.impedances.sources import (
     ImpedanceTableFreq,
     ImpedanceTableTime,
     InductiveImpedance,
+    ResistiveWall,
     Resonators,
     TravelingWaveCavity,
     fit_poles,
@@ -1393,6 +1394,167 @@ class TestTravelingWaveCavity(BLonDTestCase):
                 plt.show()
             self.assertAlmostEqual(pinned_values[i].real, impedance[0].real)
             self.assertAlmostEqual(pinned_values[i].imag, impedance[0].imag)
+
+
+class TestResistiveWall(BLonDTestCase):
+    def setUp(self):
+        self.pipe_radius = 13.5e-3  # [m]
+        self.pipe_length = 515.57  # [m]
+        self.conductivity = 3.125e7  # [S/m]
+        self.resistive_wall = ResistiveWall(
+            pipe_radius=self.pipe_radius,
+            pipe_length=self.pipe_length,
+            conductivity=self.conductivity,
+        )
+
+    def _impedance(self, freq):
+        return copy_to_cpu(
+            self.resistive_wall.get_impedance(
+                backend.array(freq, dtype=backend.float),
+                simulation=None,
+                beam=None,
+            )
+        )
+
+    def test_from_resistivity_equals_conductivity(self):
+        from_resistivity = ResistiveWall.from_resistivity(
+            pipe_radius=self.pipe_radius,
+            pipe_length=self.pipe_length,
+            resistivity=1 / self.conductivity,
+        )
+        self.assertAlmostEqual(
+            from_resistivity.conductivity, self.conductivity
+        )
+        freq = np.array([1e3, 1e9, 1e12])
+        np.testing.assert_allclose(
+            copy_to_cpu(
+                from_resistivity.get_impedance(
+                    backend.array(freq), simulation=None, beam=None
+                )
+            ),
+            self._impedance(freq),
+            rtol=1e-12,
+        )
+
+    def test_resistivity_is_inverse_conductivity(self):
+        self.assertAlmostEqual(
+            self.resistive_wall.resistivity * self.conductivity, 1.0
+        )
+
+    def test_conductivity_is_required(self):
+        with self.assertRaises(TypeError):
+            ResistiveWall(
+                pipe_radius=self.pipe_radius, pipe_length=self.pipe_length
+            )
+
+    def test_parameters_are_read_only(self):
+        # The impedance is cached, so a changed parameter would go unseen.
+        for name in ("pipe_radius", "pipe_length", "conductivity"):
+            with self.subTest(name=name), self.assertRaises(AttributeError):
+                setattr(self.resistive_wall, name, 1.0)
+
+    def test_rejects_non_positive_parameters(self):
+        valid = dict(
+            pipe_radius=self.pipe_radius,
+            pipe_length=self.pipe_length,
+            conductivity=self.conductivity,
+        )
+        for name in valid:
+            for value in (0.0, -1.0):
+                with (
+                    self.subTest(name=name, value=value),
+                    self.assertRaises(ValueError),
+                ):
+                    ResistiveWall(**{**valid, name: value})
+
+    def test_rejects_non_positive_resistivity(self):
+        with self.assertRaises(ValueError):
+            ResistiveWall.from_resistivity(
+                pipe_radius=self.pipe_radius,
+                pipe_length=self.pipe_length,
+                resistivity=0.0,
+            )
+
+    def test_zero_at_dc(self):
+        impedance = self._impedance(np.array([0.0, 1e6]))
+        self.assertEqual(impedance[0], 0.0)
+        self.assertFalse(np.any(np.isnan(impedance)))
+
+    def test_thick_wall_limit(self):
+        # Z = (1 + i) L / (2 pi b sigma delta), skin depth delta, with
+        # BLonD's sign convention (Im Z > 0 is inductive).
+        freq = np.array([1e3, 1e6, 1e8])
+        skin_depth = np.sqrt(2 / (mu_0 * self.conductivity * 2 * pi * freq))
+        expected = (
+            (1 + 1j)
+            * self.pipe_length
+            / (2 * pi * self.pipe_radius * self.conductivity * skin_depth)
+        )
+        np.testing.assert_allclose(self._impedance(freq), expected, rtol=1e-4)
+
+    def test_high_frequency_limit_is_capacitive(self):
+        # Z = -i Z0 c L / (2 pi^2 b^2 f), the wake's W(0+) = Z0 c L / (pi b^2)
+        freq = np.array([1e16, 1e17])
+        z0 = mu_0 * c0
+        expected = (
+            -1j
+            * z0
+            * c0
+            * self.pipe_length
+            / (2 * pi**2 * self.pipe_radius**2 * freq)
+        )
+        np.testing.assert_allclose(self._impedance(freq), expected, rtol=1e-3)
+
+    def test_matches_bane_sands_round_pipe(self):
+        # Bane & Sands, SLAC-PUB-95-7074, Z/L = Z0 / (2 pi b)
+        # / (lambda / k - i k b / 2) in the exp(-i omega t) convention,
+        # complex-conjugated to BLonD's. Spans the crossover frequency.
+        freq = np.logspace(3, 15, 25)
+        z0 = mu_0 * c0
+        wave_number = 2 * pi * freq / c0
+        lambda_over_k = (1 + 1j) * np.sqrt(
+            z0 * self.conductivity / (2 * wave_number)
+        )
+        expected = np.conj(
+            z0
+            / (2 * pi * self.pipe_radius)
+            / (lambda_over_k - 1j * wave_number * self.pipe_radius / 2)
+            * self.pipe_length
+        )
+        np.testing.assert_allclose(self._impedance(freq), expected, rtol=1e-6)
+
+    def test_hermitian_in_frequency(self):
+        freq = np.array([1e6, 1e9, 1e12])
+        np.testing.assert_allclose(
+            self._impedance(-freq), np.conj(self._impedance(freq)), rtol=1e-12
+        )
+
+    @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
+    @pytest.mark.backend_mutation
+    def test_returns_backend_complex_array(self):
+        impedance = self.resistive_wall.get_impedance(
+            backend.linspace(0, 1e10, 11, dtype=backend.float),
+            simulation=None,
+            beam=None,
+        )
+        self.assertEqual(impedance.dtype, backend.complex)
+        self.assertEqual(type(impedance), type(backend.zeros(1)))
+
+    def test_caches_per_frequency_axis(self):
+        freq = backend.linspace(0, 1e10, 11, dtype=backend.float)
+        first = self.resistive_wall.get_impedance(freq, None, None)
+        self.assertIs(
+            self.resistive_wall.get_impedance(freq, None, None), first
+        )
+        other = backend.linspace(0, 2e10, 11, dtype=backend.float)
+        self.assertIsNot(
+            self.resistive_wall.get_impedance(other, None, None), first
+        )
+
+    def test_exported_at_top_level(self):
+        import blond
+
+        self.assertIs(blond.ResistiveWall, ResistiveWall)
 
 
 if __name__ == "__main__":
