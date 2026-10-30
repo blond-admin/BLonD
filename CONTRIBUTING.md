@@ -40,7 +40,7 @@ blond/                        BLonD beam dynamics software.
 ├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
 ├──── noise_generators/       Module for noise generators.
 ├── examples/                 Overview of BLonD input files as a starting point for new simulations..
-├──── notebooks/              Helpful marimo notebooks that are presented on the website.
+├──── notebooks/              Helpful marimo/jupyter notebooks that are presented on the website.
 ├──── scripts/                Overview of BLonD input files as a starting point for new simulations..
 ├── experimental/             Untested/unstable code that might be changed in the future.
 ├──── acc_math/               Helpers for math to deal with the output of simulations.
