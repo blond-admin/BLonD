@@ -1230,10 +1230,10 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
     .. math::
 
         Z(f) = \frac{Z_0 c L}{\pi}
-        \frac{1}{(1 - i\,\mathrm{sgn} f)\, 2 b c
-        \sqrt{\frac{\sigma_c Z_0 c}{4 \pi |f|}} + i\, 2 \pi b^2 f}
+        \frac{1}{(1 - i)\, 2 b c
+        \sqrt{\frac{\sigma_c Z_0 c}{4 \pi f}} + i\, 2 \pi b^2 f}
 
-    with :math:`Z(0) = 0`. At low frequency this is the thick-wall
+    for :math:`f > 0`, with :math:`Z(0) = 0`. At low frequency this is the thick-wall
     impedance :math:`(1 + i) L / (2 \pi b \sigma_c \delta)` with skin
     depth :math:`\delta`; the second term in the denominator makes it
     capacitive above the crossover frequency
@@ -1261,6 +1261,10 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
 
     Notes
     -----
+    Assumes an ultra-relativistic beam (:math:`\beta = 1`) and a good
+    conductor, :math:`\sigma_c \gg 2 \pi f \epsilon_0`, i.e. the
+    displacement current in the wall is neglected. Neither is checked.
+
     Ported from BLonD 2's ``ResistiveWall``, whose code divides only the
     skin-depth term by :math:`\pi` and so overestimates the capacitive
     term by a factor :math:`\pi`; this class follows the BLonD 2
@@ -1304,7 +1308,7 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         pipe_length
             Beam pipe length, in [m].
         resistivity
-            Wall resistivity, in [Ω m].
+            Wall resistivity, in [Ohm m].
 
         Returns
         -------
@@ -1365,12 +1369,12 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
     @property
     def resistivity(self) -> float:
         """
-        Wall resistivity, in [Ω m].
+        Wall resistivity, in [Ohm m].
 
         Returns
         -------
         resistivity
-            Wall resistivity, in [Ω m].
+            Wall resistivity, in [Ohm m].
         """
         return 1.0 / self._conductivity
 
@@ -1387,7 +1391,8 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         Parameters
         ----------
         freq_x
-            Frequency axis, in [Hz].
+            One-sided (`rfft`) frequency axis, in [Hz]. Must be
+            non-negative.
         simulation
             Simulation object containing turn index and RF info. Unused
             for this static source (part of the `FreqDomain` API).
@@ -1408,12 +1413,13 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
             return self._cache_impedance
 
         freq_x = backend.array(freq_x, dtype=backend.float)
+        assert freq_x.min() >= 0, "`freq_x` must be one-sided (f >= 0)."
         is_dc = freq_x == 0
-        # dummy |f| at DC avoids the division by zero; masked below
-        abs_freq = backend.where(is_dc, 1.0, backend.abs(freq_x))
+        # dummy f at DC avoids the division by zero; masked below
+        safe_freq = backend.where(is_dc, 1.0, freq_x)
         impedance_of_vacuum = mu_0 * c
         skin_depth_term = (
-            (1.0 - 1j * backend.sign(freq_x))
+            (1.0 - 1j)
             * 2.0
             * self._pipe_radius
             * c
@@ -1421,7 +1427,7 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
                 self._conductivity
                 * impedance_of_vacuum
                 * c
-                / (4.0 * np.pi * abs_freq)
+                / (4.0 * np.pi * safe_freq)
             )
         )
         capacitive_term = 2j * np.pi * self._pipe_radius**2 * freq_x
@@ -1431,6 +1437,8 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
             * self._pipe_length
             / (np.pi * (skin_depth_term + capacitive_term))
         )
+        # Z -> 0 as sqrt(f) for f -> 0, but the dummy f above gives a
+        # finite value at DC, so the DC bin is set explicitly
         impedance = backend.where(is_dc, 0.0, impedance).astype(
             backend.complex
         )

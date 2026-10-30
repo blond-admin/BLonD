@@ -1436,6 +1436,10 @@ class TestResistiveWall(BLonDTestCase):
             rtol=1e-12,
         )
 
+    def test_exposes_geometry(self):
+        self.assertEqual(self.resistive_wall.pipe_radius, self.pipe_radius)
+        self.assertEqual(self.resistive_wall.pipe_length, self.pipe_length)
+
     def test_resistivity_is_inverse_conductivity(self):
         self.assertAlmostEqual(
             self.resistive_wall.resistivity * self.conductivity, 1.0
@@ -1523,11 +1527,10 @@ class TestResistiveWall(BLonDTestCase):
         )
         np.testing.assert_allclose(self._impedance(freq), expected, rtol=1e-6)
 
-    def test_hermitian_in_frequency(self):
-        freq = np.array([1e6, 1e9, 1e12])
-        np.testing.assert_allclose(
-            self._impedance(-freq), np.conj(self._impedance(freq)), rtol=1e-12
-        )
+    def test_rejects_negative_frequencies(self):
+        # One-sided (rfft) axis only
+        with self.assertRaises(AssertionError):
+            self._impedance(np.array([-1e6, 0.0, 1e6]))
 
     @multi_backend_testcase("Numpy64Bit", "Cupy64Bit")
     @pytest.mark.backend_mutation
