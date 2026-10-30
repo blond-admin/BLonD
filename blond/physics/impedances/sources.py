@@ -1225,7 +1225,7 @@ class TravelingWaveCavity(
 
 class ResistiveWall(WakeFieldSource, FreqDomain):
     r"""
-    Longitudinal resistive-wall impedance of a round beam pipe.
+    Longitudinal resistive-wall impedance of a circular beam pipe.
 
     .. math::
 
