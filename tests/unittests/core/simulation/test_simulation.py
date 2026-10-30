@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import gc
 import unittest
 import warnings
+import weakref
 from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
@@ -12,11 +14,24 @@ import pytest
 
 from blond import (
     Beam,
+    BeamStatisticsOncePerTurn,
+    BiGaussian,
+    ConstantMagneticCycle,
+    ContinuousMultiTurnTimeDomainSolver,
     Cupy64Bit,
     DriftSimple,
+    InductiveImpedance,
+    InductiveImpedanceSolver,
+    MultiPassResonatorSolver,
+    PeriodicFreqSolver,
+    Resonators,
     Ring,
     Simulation,
+    SimulationObservation,
     SingleHarmonicRFStation,
+    SingleTurnResonatorConvolutionSolver,
+    StaticProfile,
+    TimeDomainFftSolver,
     WakeField,
     backend,
     momentum_compaction_factor,
@@ -24,6 +39,7 @@ from blond import (
     mu_plus,
     proton,
 )
+from blond.acc_math.analytic.conversions import momentum_to_total_energy
 from blond.core.backends.backend import Numpy64Bit, NumpyBackend
 from blond.core.beam.base import BeamBaseClass
 from blond.core.ring.beam_physics_relevant_elements import (
@@ -42,6 +58,9 @@ from blond.handle_results.observables import (
 )
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
+)
+from blond.physics.feedbacks.accelerators.lhc.beam_feedback import (
+    LHCBeamControl,
 )
 from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.mocks import beam_mock
@@ -79,7 +98,9 @@ class TestSimulation(BLonDTestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=450e9,
+            reference_total_energy=momentum_to_total_energy(
+                450e9, proton.mass
+            ),
         )
         self.simulation = Simulation.from_locals(locals())
         self.simulation._beams = (beam1,)
@@ -130,7 +151,8 @@ class TestSimulation(BLonDTestCase):
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
-            reference_total_energy=63e9,
+            # The cycle below is given as kinetic energy.
+            reference_total_energy=63e9 + mu_plus.mass,
         )
         beam_CR = Beam(
             intensity=1e9, particle_type=mu_minus, is_counter_rotating=True
@@ -139,7 +161,8 @@ class TestSimulation(BLonDTestCase):
             dt=np.linspace(-1e-9, 1e-9, 100),
             dE=np.linspace(-10e9, 10e8, 100),
             reference_time=0,
-            reference_total_energy=63e9,
+            # The cycle below is given as kinetic energy.
+            reference_total_energy=63e9 + mu_minus.mass,
         )
         n_cavities = 2
 
@@ -378,10 +401,15 @@ class TestSimulation(BLonDTestCase):
             observe=(observation,),
             common_name="newname",
         )
-        self.simulation.load_results(
-            **kwargs,
-            common_name="newname",
-        )
+        # FIXME: load_results() calls finalize(), which resets the
+        # caller's ramped beam to the initial cycle energy just to load
+        # files. Like the profiling() side effect fixed upstream, this
+        # warning should go away once that is fixed.
+        with self.assertWarns(UserWarning):
+            self.simulation.load_results(
+                **kwargs,
+                common_name="newname",
+            )
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
@@ -511,6 +539,18 @@ class TestSimulation(BLonDTestCase):
         self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
         self.assertEqual(self.simulation.turn_counter.value, 2)
 
+    def test_get_potential_well_empiric_raises_on_too_few_dt(self):
+        # The well is integrated over the len(dt) - 1 intervals between the
+        # sample points, so fewer than two points cannot define a well.
+        for dt in (np.array([]), np.array([1e-9])):
+            with self.subTest(n_points=len(dt)):
+                with self.assertRaisesRegex(
+                    ValueError, "dt must contain at least two values"
+                ):
+                    self.simulation.get_potential_well_empiric(
+                        dt, particle_type=proton
+                    )
+
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
             SingleHarmonicRFStation, recursive=False
@@ -563,6 +603,64 @@ class TestSimulation(BLonDTestCase):
             ),
             copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
+        )
+
+    def _potential_well_over_rf_period(self, n_points):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicRFStation, recursive=False
+        )
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                particle_type=proton,
+            )
+            / cavity.harmonic,
+            n_points,
+        )
+        potential_well, factor, _ = self.simulation.get_potential_well_empiric(
+            ts, particle_type=proton
+        )
+        phis = ts * cavity.calc_omega_rf_design(
+            beam_beta=self.beam.reference.beta,
+            ring_circumference=self.simulation.ring.circumference,
+        )
+        return copy_to_cpu(potential_well), factor, phis, cavity
+
+    def test_get_potential_well_empiric_amplitude_on_coarse_grid(self):
+        # Over one RF period, -integral(kick dt) / (dt[-1] - dt[0]) is
+        # q V / (2 pi) (cos(phi) + 1) above transition (phi_s = pi). Not
+        # normalised, unlike `test_get_potential_well_empiric_shape`, so that
+        # dividing the integral by len(dt) instead of the len(dt) - 1
+        # intervals shows up, as 2 % on 51 points.
+        potential_well, _, phis, cavity = self._potential_well_over_rf_period(
+            n_points=51
+        )
+        potential_well_analytic = (
+            proton.charge * cavity.voltage / (2 * np.pi) * (np.cos(phis) + 1)
+        )
+        np.testing.assert_allclose(
+            potential_well,
+            copy_to_cpu(potential_well_analytic),
+            rtol=0,
+            atol=1e-4 * float(potential_well_analytic.max()),
+        )
+
+    def test_get_potential_well_empiric_independent_of_sampling(self):
+        # `potential_well * factor` is the well per turn, which the
+        # `SemiEmpiricMatcher` uses, so it must not depend on the number of
+        # points the well is sampled at.
+        coarse_well, coarse_factor, _, _ = self._potential_well_over_rf_period(
+            n_points=21
+        )
+        fine_well, fine_factor, _, _ = self._potential_well_over_rf_period(
+            n_points=201
+        )
+        np.testing.assert_allclose(
+            coarse_well * coarse_factor,
+            fine_well[::10] * fine_factor,
+            rtol=0,
+            atol=1e-3 * float(fine_well.max() * fine_factor),
         )
 
     def test_get_potential_well_empiric_charge(self):
@@ -892,6 +990,152 @@ class TestSimulation(BLonDTestCase):
         np.testing.assert_allclose(dE_rev_sim, dE_rev_effective)
         if DEV_PLOT:
             plt.show()
+
+
+class TestSimulationFreedWithoutCyclicGC(BLonDTestCase):
+    """A dropped simulation and its beam must be freed right away.
+
+    Reference counting frees an object as soon as its last reference
+    goes, but objects in a reference cycle wait for a full cyclic garbage
+    collection. Loops creating simulations (benchmarks, parameter scans)
+    rarely trigger one, so beams with GBs of arrays pile up. Every element
+    holding a back-reference to the simulation that owns it forms such a
+    cycle.
+    """
+
+    harmonic = 35640
+    circumference = 26658.883
+
+    def _profile(self, length=None):
+        t_rf = 1 / 400.79e6
+        if length is None:
+            length = 4 * t_rf
+        return StaticProfile(
+            cut_left=-1.5 * t_rf, cut_right=length - 1.5 * t_rf, n_bins=64
+        )
+
+    def _wakefield(self, solver, sources=None, profile=None):
+        if sources is None:
+            sources = (Resonators(1e6, 1e9, 10),)
+        if profile is None:
+            profile = self._profile()
+        return WakeField(sources=sources, solver=solver, profile=profile)
+
+    def _beam_control(self, rf_station):
+        t_rev = self.circumference / 299792458
+        beam_control = LHCBeamControl(
+            pl_gain=1 / (5 * t_rev),
+            sl_gain=1 / (5 * t_rev) / 10,
+            profile=self._profile(),
+        )
+        rf_station.attach_beam_feedback(beam_control)
+        return [beam_control.profile, beam_control]
+
+    def _cases(self):
+        """Map each case to a factory of (extra elements, observables)."""
+        return {
+            "plain": lambda rf: ([], []),
+            "InductiveImpedanceSolver": lambda rf: (
+                [
+                    self._wakefield(
+                        InductiveImpedanceSolver(),
+                        sources=(InductiveImpedance(Z_over_n=1.0),),
+                    )
+                ],
+                [],
+            ),
+            "PeriodicFreqSolver": lambda rf: (
+                [self._wakefield(PeriodicFreqSolver())],
+                [],
+            ),
+            "TimeDomainFftSolver": lambda rf: (
+                [self._wakefield(TimeDomainFftSolver())],
+                [],
+            ),
+            "SingleTurnResonatorConvolutionSolver": lambda rf: (
+                [self._wakefield(SingleTurnResonatorConvolutionSolver())],
+                [],
+            ),
+            "MultiPassResonatorSolver": lambda rf: (
+                [self._wakefield(MultiPassResonatorSolver())],
+                [],
+            ),
+            "ContinuousMultiTurnTimeDomainSolver": lambda rf: (
+                [
+                    self._wakefield(
+                        ContinuousMultiTurnTimeDomainSolver(2),
+                        # this solver needs a profile of one revolution
+                        profile=self._profile(length=8.892465516509709e-05),
+                    )
+                ],
+                [],
+            ),
+            "LHCBeamControl": lambda rf: (self._beam_control(rf), []),
+            "BeamStatisticsOncePerTurn": lambda rf: (
+                [],
+                [BeamStatisticsOncePerTurn(each_turn_i=1)],
+            ),
+            "SimulationObservation": lambda rf: (
+                [],
+                [SimulationObservation(each_turn_i=1)],
+            ),
+        }
+
+    def _run_and_drop(self, make_extras):
+        """Run a simulation, drop it, and return weakrefs to its parts."""
+        rf_station = SingleHarmonicRFStation(
+            harmonic=self.harmonic, voltage=6e6, phi_rf=0
+        )
+        elements, observables = make_extras(rf_station)
+        ring = Ring(self.circumference)
+        ring.add_elements(
+            [
+                rf_station,
+                DriftSimple(
+                    orbit_length=self.circumference,
+                    momentum_compaction_factor=momentum_compaction_factor(
+                        transition_gamma=55.759505
+                    ),
+                ),
+                *elements,
+            ],
+            reorder=True,
+        )
+        beam = Beam(intensity=1e9, particle_type=proton)
+        simulation = Simulation(
+            ring=ring,
+            magnetic_cycle=ConstantMagneticCycle(
+                value=450e9, reference_particle=proton
+            ),
+        )
+        simulation.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                sigma_dt=0.1e-9, n_macroparticles=1000, seed=1
+            ),
+        )
+        simulation.run_simulation(
+            beams=(beam,),
+            n_turns=2,
+            observe=tuple(observables),
+            show_progressbar=False,
+        )
+        refs = {"simulation": simulation, "beam": beam, "ring": ring}
+        for element in ring.elements.elements:
+            refs[type(element).__name__] = element
+        return {name: weakref.ref(obj) for name, obj in refs.items()}
+
+    def test_simulation_and_its_parts_freed_without_cyclic_gc(self):
+        for case, make_extras in self._cases().items():
+            with self.subTest(case=case):
+                gc.collect()
+                gc.disable()
+                try:
+                    refs = self._run_and_drop(make_extras)
+                    alive = [name for name, ref in refs.items() if ref()]
+                    self.assertEqual(alive, [])
+                finally:
+                    gc.enable()
 
 
 if __name__ == "__main__":

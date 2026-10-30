@@ -64,9 +64,11 @@ class TestBackendTesting(BLonDTestCase):
     def test_backend_selection(self):
         bend_test.FORCE_ALL_BACKENDS = False
 
-        available_list = bend_test._backend_selection(
-            *backend.ALL_BACKENDS.keys()
-        )
+        # `InvalidBackend` is registered but unavailable, which warns.
+        with self.assertWarns(UserWarning):
+            available_list = bend_test._backend_selection(
+                *backend.ALL_BACKENDS.keys()
+            )
 
         bend_test.FORCE_ALL_BACKENDS = True
         all_list = bend_test._backend_selection(*backend.ALL_BACKENDS.keys())
@@ -83,9 +85,10 @@ class TestBackendTesting(BLonDTestCase):
     @unittest.skipIf(not cupy_available, "Cupy not found")
     def test_backend_validity(self):
         bend_test.FORCE_ALL_BACKENDS = False
-        available_list = bend_test._backend_selection(
-            *backend.ALL_BACKENDS.keys()
-        )
+        with self.assertWarns(UserWarning):
+            available_list = bend_test._backend_selection(
+                *backend.ALL_BACKENDS.keys()
+            )
 
         for b_end in available_list:
             b_end()

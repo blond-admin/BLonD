@@ -526,10 +526,10 @@ class Specials(ABC):
             "is not implemented."
         )
 
-    # The MuSiC kernel is intentionally *not* abstract: BLonD2 only shipped
-    # it for the ``python`` and ``cpp`` backends, so those two override the
-    # method below while ``numba`` and ``cuda`` raise by default.
+    # BLonD2 only shipped MuSiC for the ``python`` and ``cpp`` backends;
+    # ``numba`` and ``cuda`` override it to raise NotImplementedError.
     @staticmethod
+    @abstractmethod  # pragma: no cover
     def music_track(
         beam_dt: NumpyArray | CupyArray,
         beam_dE: NumpyArray | CupyArray,
@@ -712,6 +712,7 @@ class BackendBaseClass(ABC):
         self.arctan2: Callable = None  # type: ignore
         self.sinc: Callable = None  # type: ignore
         self.exp: Callable = None  # type: ignore
+        self.expm1: Callable = None  # type: ignore
         self.any: Callable = None  # type: ignore
         self.abs: Callable = None  # type: ignore
         self.convolve: Callable = None  # type: ignore
@@ -927,11 +928,15 @@ class BackendBaseClass(ABC):
         self, arr: NumpyArray | CupyArray, dtype: type
     ) -> NumpyArray | CupyArray:
         if arr.dtype != dtype:
-            warnings.warn(
-                f"Automatically casting dtype from {arr.dtype} to {dtype}",
-                stacklevel=3,
-                category=PrecisionWarning,
-            )
+            # Only warn when values can change, e.g. complex -> float or
+            # float64 -> float32; int -> float is exact for usual inputs.
+            # stacklevel 4: the caller of `cast_arr_*_if_needed`.
+            if not np.can_cast(arr.dtype, dtype, casting="safe"):
+                warnings.warn(
+                    f"Automatically casting dtype from {arr.dtype} to {dtype}",
+                    stacklevel=4,
+                    category=PrecisionWarning,
+                )
             try:
                 # Casting numpy complex array -> float is smooth and
                 # includes an automatic ComplexWarning.  Trying to cast
@@ -1096,6 +1101,7 @@ class NumpyBackend(BackendBaseClass):
         self.arctan2 = np.arctan2
         self.sinc = np.sinc
         self.exp = np.exp
+        self.expm1 = np.expm1
         self.any = np.any
         self.abs = np.abs
         self.convolve = np.convolve
@@ -1245,6 +1251,7 @@ class CupyBackend(BackendBaseClass):
         self.arctan2 = cp.arctan2
         self.sinc = cp.sinc
         self.exp = cp.exp
+        self.expm1 = cp.expm1
         self.any = cp.any
         self.abs = cp.abs
         self.convolve = cp.convolve

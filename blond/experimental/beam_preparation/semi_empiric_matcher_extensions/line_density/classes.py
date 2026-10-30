@@ -94,11 +94,15 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         If True, displays an animation showing how the beam profile is
         matched to the histogram (`hist_y`). Useful for debugging and
         tuning `maxiter`, `smoothness`, and `atol`.
+    animate_fitting_pause_time : float
+        Time to pause after each frame of the fitting animation, in [s].
     plot_result : bool
         If True, generates a plot after the matching process is complete.
     plot_result_blocking : bool
         If True, the plot will be displayed immediately by calling
         `plt.show()`.
+    plot_result_pause_time : float
+        Time to pause after drawing the non-blocking result plot, in [s].
 
     Examples
     --------
@@ -147,7 +151,8 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         self.smoothness = 0.05  # from 0 to 1
         self.atol = 1e-3
         self._animation_fignumber = None
-        self._animation_pause = 1e-3
+        self.animate_fitting_pause_time = 1e-3
+        self.plot_result_pause_time = 0.1
         self._result_fignumber = None
 
     def hamilton_to_density_function(
@@ -203,7 +208,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
                 plt.show()
             else:
                 plt.draw()
-                plt.pause(0.1)
+                plt.pause(self.plot_result_pause_time)
 
         return density
 
@@ -461,7 +466,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         plt.ylabel("Occupation per equipotential line")
         plt.tight_layout()
         plt.draw()
-        plt.pause(self._animation_pause)
+        plt.pause(self.animate_fitting_pause_time)
 
     def _plot_result(
         self,

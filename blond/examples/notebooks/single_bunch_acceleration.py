@@ -277,6 +277,7 @@ def _(bunch_observation, plt):
         bunch_observation.dEs[0, :],
         bins=256,
         range=[[0, 2.5e-9], [-8e8, 8e8]],
+        cmap="turbo",
     )
     plt.subplot(1, 2, 2, sharex=ax)
     plt.title("After Simulation")
@@ -285,6 +286,7 @@ def _(bunch_observation, plt):
         bunch_observation.dEs[-1, :],
         bins=256,
         range=[[0, 2.5e-9], [-8e8, 8e8]],
+        cmap="turbo",
     )
 
     plt.show()

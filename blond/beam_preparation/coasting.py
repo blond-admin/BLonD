@@ -86,28 +86,32 @@ class Coasting(base.BeamPreparationRoutine):
             warning_hint="n_macroparticles",
         )
 
-        self.energy_bins = energy_bins
-
-        # Automatically cast energy profile to numpy array, delay moving
-        # to CPU until calling setup_beam.
-        energy_profile = np.array(no_cupy_import.copy_to_cpu(energy_profile))
-        profile_sum = np.sum(energy_profile)
-
-        if profile_sum != 1:
-            warnings.warn(
-                "Energy profile does not sum to 1 and will be"
-                " automatically normalised.",
-                stacklevel=2,
-            )
-            energy_profile /= profile_sum
-
-        self.energy_profile = energy_profile
-
         if (stop_time is not None) and (stop_time < start_time):
             raise ValueError(
                 "`start_time` must be less than `stop_time`,"
                 f" but got {start_time=} and {stop_time=}."
             )
+
+        self.energy_bins = energy_bins
+
+        # Automatically cast energy profile to numpy array, delay moving
+        # to CPU until calling setup_beam.
+        energy_profile = np.array(
+            no_cupy_import.copy_to_cpu(energy_profile), dtype=float
+        )
+        profile_sum = np.sum(energy_profile)
+
+        if not np.isclose(profile_sum, 1):
+            warnings.warn(
+                "Energy profile does not sum to 1 and will be"
+                " automatically normalised.",
+                stacklevel=2,
+            )
+        # Normalise even a profile that is close to 1: `Generator.choice`
+        # accepts a much smaller deviation than `np.isclose`. In place is
+        # safe, `np.array` above made a float copy.
+        energy_profile /= profile_sum
+        self.energy_profile = energy_profile
 
         self.start_time = start_time
         self.stop_time = stop_time

@@ -26,6 +26,7 @@ from blond import (
 )
 from blond.core.backends.backend import backend
 from blond.core.beam.base import BeamBaseClass
+from blond.core.offenders import hold_strongly
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.warnings_ import PerformanceWarning
@@ -66,7 +67,10 @@ class TestTimeDomainFftSolver(BLonDTestCase):
             endpoint=True,
         )
 
-        self.time_domain_fft_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.time_domain_fft_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.time_domain_fft_solver, "_parent_wakefield")
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
@@ -127,7 +131,7 @@ class TestTimeDomainFftSolver(BLonDTestCase):
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
 
         with self.assertRaisesRegex(
-            Exception, "Can only accept impedance that support"
+            TypeError, "Can only accept impedance that support"
         ):
             local_solver._update_impedance_sources(beam=self.beam)
 
@@ -292,6 +296,10 @@ class TestInductiveImpedanceSolver(BLonDTestCase):
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.inductive_impedance_solver, "_parent_wakefield", "_simulation"
+        )
         _parent_wakefield.profile.gradient_hist_y = backend.linspace(1, 3)
 
     def test___init__(self):
@@ -373,6 +381,29 @@ class TestInductiveImpedanceSolver(BLonDTestCase):
         )
 
 
+class TestInductiveImpedanceSolverSourceCheck(BLonDTestCase):
+    def test_rejects_a_non_inductive_source_with_a_type_error(self):
+        """A wrong source must be named, and not vanish under ``python -O``.
+
+        The check used to be a bare ``assert`` without a message, which
+        ``python -O`` strips, letting e.g. a resonator through.
+        """
+        parent_wakefield = Mock(WakeField)
+        parent_wakefield.sources = (
+            InductiveImpedance(Z_over_n=1.0),
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([1e9]),
+                quality_factors=np.array([1.0]),
+            ),
+        )
+
+        with self.assertRaisesRegex(TypeError, "Resonators"):
+            InductiveImpedanceSolver().on_wakefield_init_simulation(
+                simulation=Mock(Simulation), parent_wakefield=parent_wakefield
+            )
+
+
 class TestPeriodicFreqSolver(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
@@ -385,7 +416,10 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         )
         self.periodic_freq_solver = PeriodicFreqSolver(t_periodicity=10)
 
-        self.periodic_freq_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.periodic_freq_solver._parent_wakefield = self.parent_wakefield
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.periodic_freq_solver, "_parent_wakefield")
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 6
         )
@@ -495,7 +529,7 @@ class TestPeriodicFreqSolver(BLonDTestCase):
         # we are on _freq_y_needs_update == False, it skips
         self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(TypeError, "support `FreqDomain`"):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
@@ -687,8 +721,13 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e3)
 
-        self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
-            WakeField
+        self.parent_wakefield = Mock(WakeField)
+        self.single_turn_resonator_convolution_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(
+            self.single_turn_resonator_convolution_solver, "_parent_wakefield"
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
@@ -749,7 +788,8 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         initial_voltage = analy_solver.calc_induced_voltage(beam=self.beam)
 
         td_fft_solver = TimeDomainFftSolver()
-        td_fft_solver._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        td_fft_solver._parent_wakefield = parent_wakefield
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
@@ -1056,7 +1096,8 @@ class TestAnalyticSingleTurnResonatorSolver(BLonDTestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        analy._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        analy._parent_wakefield = parent_wakefield
         analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
@@ -1174,7 +1215,12 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             backend.arange(-1e-9, 1e-9 + 1e-10, 1e-10, dtype=backend.float),
         )
 
-        self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
+        self.parent_wakefield = Mock(WakeField)
+        self.multi_pass_resonator_solver._parent_wakefield = (
+            self.parent_wakefield
+        )
+        # Stand-in owned by nothing else, as in `WakeField.headless`
+        hold_strongly(self.multi_pass_resonator_solver, "_parent_wakefield")
         self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
             StaticProfile
         )
@@ -2089,7 +2135,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
         )
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        local_res._parent_wakefield = Mock(WakeField)
+        parent_wakefield = Mock(WakeField)
+        local_res._parent_wakefield = parent_wakefield
         local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
         local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
@@ -2194,7 +2241,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
                 decay_fraction_threshold=0.999
             )
 
-            local_res._parent_wakefield = Mock(WakeField)
+            parent_wakefield = Mock(WakeField)
+            local_res._parent_wakefield = parent_wakefield
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
@@ -2217,7 +2265,8 @@ class TestMultiPassResonatorSolver(BLonDTestCase):
             )
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
-            local_res_analy._parent_wakefield = Mock(WakeField)
+            parent_wakefield_analy = Mock(WakeField)
+            local_res_analy._parent_wakefield = parent_wakefield_analy
             local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
@@ -3388,7 +3437,7 @@ class TestContinuousMultiTurnTimeDomainSolver(BLonDTestCase):
                 return
 
         with self.assertRaisesRegex(
-            AttributeError, "should implement `TimeDomain.get_wake`"
+            TypeError, "should implement `TimeDomain.get_wake`"
         ):
             wf_mutli = WakeField.headless(
                 sources=(FaultyResonators2(),),

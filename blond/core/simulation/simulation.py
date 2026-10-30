@@ -139,6 +139,9 @@ class Simulation(Preparable):
     >>> sim = Simulation.from_locals(locals())
     """
 
+    # Deprecated alias; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["turn_i"]
+
     def __init__(
         self,
         ring: Ring,
@@ -172,7 +175,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         return self.turn_counter
 
@@ -181,7 +184,7 @@ class Simulation(Preparable):
         warnings.warn(
             "`turn_i` will be removed in future, use `turn_counter` instead!",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         self.turn_counter = value
 
@@ -590,6 +593,11 @@ class Simulation(Preparable):
         >>> plt.title('RF Potential Well')
         >>> plt.show()
         """
+        if len(dt) == 0 or len(dt) == 1:
+            raise ValueError(
+                f"dt must contain at least two values, but was {dt}."
+            )
+
         from blond.core.beam.beams import ProbeBeam  # prevent circular import
 
         probe_bunch = ProbeBeam(
@@ -632,7 +640,8 @@ class Simulation(Preparable):
             if backend.specials_mode != "cuda"
             else probe_bunch.read_partial_dE().get(),
             initial=0,
-        ) / len(dt)
+        ) / (len(dt) - 1)
+        # -1: number of edges being different from number of bins
 
         if self.ring.is_below_transition(beam=probe_bunch):
             # peaks and troughs are flipped when below transition

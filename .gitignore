@@ -378,3 +378,6 @@ last_*.npy
 
 # marimo notebook cache
 __marimo__/
+
+# coverage.py data file
+/.coverage
