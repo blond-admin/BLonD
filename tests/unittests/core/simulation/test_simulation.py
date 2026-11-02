@@ -539,6 +539,18 @@ class TestSimulation(BLonDTestCase):
         self.simulation.run_simulation(beams=(self.beam,), n_turns=2)
         self.assertEqual(self.simulation.turn_counter.value, 2)
 
+    def test_get_potential_well_empiric_raises_on_too_few_dt(self):
+        # The well is integrated over the len(dt) - 1 intervals between the
+        # sample points, so fewer than two points cannot define a well.
+        for dt in (np.array([]), np.array([1e-9])):
+            with self.subTest(n_points=len(dt)):
+                with self.assertRaisesRegex(
+                    ValueError, "dt must contain at least two values"
+                ):
+                    self.simulation.get_potential_well_empiric(
+                        dt, particle_type=proton
+                    )
+
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
             SingleHarmonicRFStation, recursive=False
@@ -591,6 +603,64 @@ class TestSimulation(BLonDTestCase):
             ),
             copy_to_cpu(potential_well / potential_well.max() + 1),
             rtol=1e-4,
+        )
+
+    def _potential_well_over_rf_period(self, n_points):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicRFStation, recursive=False
+        )
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                particle_type=proton,
+            )
+            / cavity.harmonic,
+            n_points,
+        )
+        potential_well, factor, _ = self.simulation.get_potential_well_empiric(
+            ts, particle_type=proton
+        )
+        phis = ts * cavity.calc_omega_rf_design(
+            beam_beta=self.beam.reference.beta,
+            ring_circumference=self.simulation.ring.circumference,
+        )
+        return copy_to_cpu(potential_well), factor, phis, cavity
+
+    def test_get_potential_well_empiric_amplitude_on_coarse_grid(self):
+        # Over one RF period, -integral(kick dt) / (dt[-1] - dt[0]) is
+        # q V / (2 pi) (cos(phi) + 1) above transition (phi_s = pi). Not
+        # normalised, unlike `test_get_potential_well_empiric_shape`, so that
+        # dividing the integral by len(dt) instead of the len(dt) - 1
+        # intervals shows up, as 2 % on 51 points.
+        potential_well, _, phis, cavity = self._potential_well_over_rf_period(
+            n_points=51
+        )
+        potential_well_analytic = (
+            proton.charge * cavity.voltage / (2 * np.pi) * (np.cos(phis) + 1)
+        )
+        np.testing.assert_allclose(
+            potential_well,
+            copy_to_cpu(potential_well_analytic),
+            rtol=0,
+            atol=1e-4 * float(potential_well_analytic.max()),
+        )
+
+    def test_get_potential_well_empiric_independent_of_sampling(self):
+        # `potential_well * factor` is the well per turn, which the
+        # `SemiEmpiricMatcher` uses, so it must not depend on the number of
+        # points the well is sampled at.
+        coarse_well, coarse_factor, _, _ = self._potential_well_over_rf_period(
+            n_points=21
+        )
+        fine_well, fine_factor, _, _ = self._potential_well_over_rf_period(
+            n_points=201
+        )
+        np.testing.assert_allclose(
+            coarse_well * coarse_factor,
+            fine_well[::10] * fine_factor,
+            rtol=0,
+            atol=1e-3 * float(fine_well.max() * fine_factor),
         )
 
     def test_get_potential_well_empiric_charge(self):

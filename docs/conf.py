@@ -182,7 +182,13 @@ extensions = [
     "sphinx.ext.intersphinx",
     "nbsphinx",
     "sphinx_copybutton",  # add copy button to code cells
+    # renders the `.. plot::` figures in docstrings, from docs/plots/
+    "matplotlib.sphinxext.plot_directive",
 ]
+plot_include_source = False
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_formats = ["svg"]
 # From https://nbsphinx.readthedocs.io/en/0.8.9/custom-css.html#For-a-Single-Notebook
 # Hide the [1], [2], etc. displays at
 # the left side of the Jupyter-Notebook cells.
@@ -278,7 +284,6 @@ exclude_patterns = [
     "*/blond.generals._hashing*",
     "*vari_noise*",
     "*/blond.testing.*",
-    "*/blond.interfaces.xsuite.*",
     "*/blond.specifics.cern.*",  # empty at the moment
 ]
 # callables are only importable with cupy compiled
@@ -463,7 +468,10 @@ nitpick_ignore_regex = [
     # public API still references their base classes in type hints / inheritance
     # diagrams, but they have no documented page to link to.
     (r"py:.*", r"blond\.experimental\..*"),
-    (r"py:.*", r"blond\.interfaces\.xsuite\..*"),
+    # The xsuite packages are not in the intersphinx mapping, so type-hint
+    # references into them from the blond.interfaces.xsuite wrappers cannot
+    # be resolved to a target.
+    (r"py:.*", r"x(track|part|objects)(\..*)?"),
 ]
 
 
