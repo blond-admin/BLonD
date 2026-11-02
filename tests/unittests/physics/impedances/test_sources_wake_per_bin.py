@@ -214,7 +214,7 @@ class TestImpedanceTableTimeWakePerBin(BLonDTestCase):
         near the query. Evaluating the whole table cost 12.6 GB and 28 s
         per call for an 81-million-point table queried over 1000 bins.
         """
-        from blond.physics.impedances.wake_per_bin import sources
+        from blond.physics.impedances import sources
 
         knots = np.arange(200_000) * 1e-12
         table = ImpedanceTableTime(
@@ -411,7 +411,7 @@ class TestImpedanceTableTimeWakePerBin(BLonDTestCase):
         """``from_file`` builds the same table as the constructor."""
         loaded = ImpedanceTableTime.from_file(
             filepath=callers_relative_path(
-                "../resources/example_impedance_table.csv", stacklevel=1
+                "resources/example_impedance_table.csv", stacklevel=1
             ),
             reader=CsvReader(delimiter=","),
         )

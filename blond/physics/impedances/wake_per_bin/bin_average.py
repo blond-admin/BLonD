@@ -86,8 +86,11 @@ import numbers
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
+from blond.generals.hashing_ import hash_linspace
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
+
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
@@ -760,3 +763,92 @@ def quadratic_bspline(x: float) -> float:
     if abs_x <= 0.5:  # NOQA PLR2004
         return 0.75 - x * x
     return 0.5 * (1.5 - abs_x) ** 2
+
+
+def bspline_stencil(
+    wake: NumpyArray | CupyArray,
+) -> NumpyArray | CupyArray:
+    """
+    Average a piecewise-linear wake with the quadratic B-spline of one bin.
+
+    On a uniform grid that is the stencil
+    ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384``; the
+    edges repeat the boundary sample.
+
+    Parameters
+    ----------
+    wake
+        Wake sampled on a uniform grid, in [V].
+
+    Returns
+    -------
+    wake_per_bin
+        Bin-averaged wake, in [V].
+    """
+    previous_1 = backend.concatenate((wake[:1], wake[:-1]))
+    previous_2 = backend.concatenate((wake[:1], wake[:1], wake[:-2]))
+    next_1 = backend.concatenate((wake[1:], wake[-1:]))
+    next_2 = backend.concatenate((wake[2:], wake[-1:], wake[-1:]))
+    return (
+        previous_2 + 76.0 * previous_1 + 230.0 * wake + 76.0 * next_1 + next_2
+    ) / 384.0
+
+
+def impedance_from_wake_per_bin(
+    source: object,
+    wake_per_bin: Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray],
+    time: NumpyArray | CupyArray,
+    n_fft: int | None,
+    cache_name: str,
+    salt: object = None,
+) -> NumpyArray | CupyArray:
+    """
+    FFT of a bin-averaged wake, with the non-causal tap included.
+
+    The bin-averaged wake reaches one bin before the charge, so it is
+    sampled from ``time - dt`` and the spectrum is advanced by that one
+    sample again to put lag zero where the caller expects it. One sample
+    more than ``time`` holds is taken when the transform has room for it,
+    so that the lags 0 to ``len(time) - 1`` are all kept next to lag -1.
+    The result is cached on ``source`` under ``cache_name`` (and
+    ``cache_name + "_hash"``) until ``time``, ``n_fft`` or ``salt``
+    changes.
+
+    Parameters
+    ----------
+    source
+        The wake source the cache lives on.
+    wake_per_bin
+        Function returning the bin-averaged wake at given times, in [V].
+    time
+        Time array to get the wake for, in [s].
+    n_fft
+        Number of points of the FFT; ``None`` transforms the wake as is.
+    cache_name
+        Attribute name of the cached impedance on ``source``.
+    salt
+        Hashable summary of the source parameters the wake depends on.
+
+    Returns
+    -------
+    impedance_from_wake
+        Impedance array.
+    """
+    hash_ = hash_linspace(time, salt=(n_fft, salt))
+    if hash_ == getattr(source, cache_name + "_hash", None):
+        return getattr(source, cache_name)
+    n_transform = len(time) if n_fft is None else n_fft
+    n_samples = min(len(time) + 1, n_transform)
+    bin_step = time[1] - time[0]
+    lags = backend.arange(-1, n_samples - 1, dtype=backend.float)
+    wake = wake_per_bin(time[0] + lags * bin_step)
+    advance = backend.exp(
+        1j
+        * backend.twopi
+        * backend.arange(n_transform // 2 + 1, dtype=backend.float)
+        / n_transform
+    )
+    impedance_from_wake = backend.fft.rfft(wake, n=n_transform) * advance
+    setattr(source, cache_name + "_hash", hash_)
+    setattr(source, cache_name, impedance_from_wake)
+    return impedance_from_wake

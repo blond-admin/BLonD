@@ -44,9 +44,6 @@ from blond.physics.impedances.multipole.solver import (  # noqa: F401
     MultiPoleSparseSolve,
 )
 from blond.physics.impedances.sources import InductiveImpedance, Resonators
-from blond.physics.impedances.wake_per_bin.time_domain import (
-    provides_wake_per_bin,
-)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -1094,6 +1091,42 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 * convolve_result
             )
         return wake_sum
+
+
+def provides_wake_per_bin(source: object) -> bool:
+    """
+    Whether ``source`` can return a bin-averaged wake.
+
+    Every :class:`~blond.physics.impedances.base.TimeDomain` source inherits
+    the generic
+    :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`,
+    but that one
+    only works on top of a point wake ``get_wake``.
+
+    Parameters
+    ----------
+    source
+        The wake source to check.
+
+    Returns
+    -------
+    provides_wake_per_bin
+        ``True`` if ``source`` overrides ``get_wake_per_bin``, or keeps the
+        generic one and implements ``get_wake``.
+    """
+    wake_per_bin = getattr(source, "get_wake_per_bin", None)
+    if wake_per_bin is None:
+        return False
+    if (
+        getattr(wake_per_bin, "__func__", None)
+        is not TimeDomain.get_wake_per_bin
+    ):
+        return True
+    wake = getattr(source, "get_wake", None)
+    return (
+        wake is not None
+        and getattr(wake, "__func__", None) is not TimeDomain.get_wake
+    )
 
 
 class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):

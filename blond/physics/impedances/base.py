@@ -22,9 +22,9 @@ from blond.core.ordering import requires
 from blond.experimental.physics.kick_pooling import (
     SupportsPooledInterpolationKickMixIn,
 )
-from blond.physics.impedances.wake_per_bin.time_domain import (
-    TimeDomainCounterRotationWakePerBin,
-    TimeDomainWakePerBin,
+from blond.physics.impedances.wake_per_bin.bin_average import (
+    bspline_stencil,
+    impedance_from_wake_per_bin,
 )
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 
@@ -128,7 +128,7 @@ class WakeFieldSource(ABC):
         self.is_dynamic = is_dynamic
 
 
-class TimeDomain(TimeDomainWakePerBin, ABC):
+class TimeDomain(ABC):
     """
     Indication of a source is defined in time domain.
 
@@ -173,8 +173,103 @@ class TimeDomain(TimeDomainWakePerBin, ABC):
         """
         pass
 
+    def _wake_parameters_salt(self) -> object:
+        """
+        Hashable summary of the parameters the wake depends on.
 
-class TimeDomainCounterRotation(TimeDomainCounterRotationWakePerBin, ABC):
+        The cached impedance of
+        :func:`~blond.physics.impedances.wake_per_bin.bin_average.impedance_from_wake_per_bin` is
+        recomputed whenever this changes. Sources whose parameters can be
+        changed after construction override it.
+
+        Returns
+        -------
+        salt
+            ``None``: the wake is fixed once the source is built.
+        """
+        return None
+
+    def get_wake(self, time: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
+        """
+        Point-charge wake sampled at ``time``, in [V].
+
+        Parameters
+        ----------
+        time
+            Time array at which the wake is evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Point-charge wake, in [V].
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide a point-charge wake."
+        )
+
+    def get_wake_per_bin(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Wake averaged with the quadratic B-spline of one bin width, in [V].
+
+        Time-domain solvers apply this instead of :meth:`get_wake`: the
+        induced voltage of a histogram is the wake integrated over the bin,
+        and averaging with ``box * box * box`` keeps a resonance above the
+        profile's Nyquist frequency from aliasing onto the bunch spectrum
+        (see :mod:`blond.physics.impedances.wake_per_bin.bin_average`). The kernel is
+        non-zero from ``-1.5 * dt``, so callers sample from one bin before
+        the profile.
+
+        This default only samples :meth:`get_wake` at the bin width and
+        treats it as piecewise linear between those samples, so it is
+        second order in the bin width for a wake the bins resolve, but
+        cannot suppress the aliasing of one they do not: that takes the
+        exact averages of the overriding sources (``Resonators``,
+        ``TravelingWaveCavity``, ``ImpedanceTableTime``).
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced) at which the wake is
+            evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        return bspline_stencil(self.get_wake(time))
+
+    def _impedance_from_wake_per_bin(
+        self, time: NumpyArray | CupyArray, n_fft: int | None
+    ) -> NumpyArray | CupyArray:
+        """
+        Impedance equivalent to the bin-averaged wake.
+
+        Parameters
+        ----------
+        time
+            Time array to get the wake for, in [s].
+        n_fft
+            Number of points of the FFT; ``None`` transforms the wake as is.
+
+        Returns
+        -------
+        impedance_from_wake
+            ``rfft`` of :meth:`get_wake_per_bin`, non-causal tap included.
+        """
+        return impedance_from_wake_per_bin(
+            self,
+            self.get_wake_per_bin,
+            time,
+            n_fft,
+            "_cache_impedance_from_wake",
+            salt=self._wake_parameters_salt(),
+        )
+
+
+class TimeDomainCounterRotation(ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
 
     @abstractmethod  # pragma: no cover
@@ -245,6 +340,72 @@ class TimeDomainCounterRotation(TimeDomainCounterRotationWakePerBin, ABC):
         ``self._impedance_from_wake_per_bin_counter_rotation(time, n_fft)``.
         """
         pass
+
+    def _wake_parameters_salt(self) -> object:
+        """
+        Hashable summary of the parameters the wake depends on.
+
+        The cached impedance of
+        :func:`~blond.physics.impedances.wake_per_bin.bin_average.impedance_from_wake_per_bin` is
+        recomputed whenever this changes. Sources whose parameters can be
+        changed after construction override it.
+
+        Returns
+        -------
+        salt
+            ``None``: the wake is fixed once the source is built.
+        """
+        return None
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_per_bin_counter_rotation(
+        self, time: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """
+        Bin-averaged wake for the counter-rotating case, in [V].
+
+        See
+        :meth:`~blond.physics.impedances.base.TimeDomain.get_wake_per_bin`.
+
+        Parameters
+        ----------
+        time
+            Time array (bin centres, uniformly spaced) at which the wake is
+            evaluated, in [s].
+
+        Returns
+        -------
+        wake
+            Bin-averaged wake, in [V].
+        """
+        pass
+
+    def _impedance_from_wake_per_bin_counter_rotation(
+        self, time: NumpyArray | CupyArray, n_fft: int | None
+    ) -> NumpyArray | CupyArray:
+        """
+        Impedance equivalent to the counter-rotating bin-averaged wake.
+
+        Parameters
+        ----------
+        time
+            Time array to get the wake for, in [s].
+        n_fft
+            Number of points of the FFT; ``None`` transforms the wake as is.
+
+        Returns
+        -------
+        impedance_from_wake
+            ``rfft`` of :meth:`get_wake_per_bin_counter_rotation`.
+        """
+        return impedance_from_wake_per_bin(
+            self,
+            self.get_wake_per_bin_counter_rotation,
+            time,
+            n_fft,
+            "_cache_impedance_from_wake_counter_rotation",
+            salt=self._wake_parameters_salt(),
+        )
 
 
 class FreqDomain(ABC):
