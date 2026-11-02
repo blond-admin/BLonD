@@ -308,11 +308,15 @@ extern "C" __global__ void __launch_bounds__(POLE_THREADS)
         const int n_bins, const int n_poles, const int chunk_length,
         const int n_chunks, const real_t *__restrict__ chunk_maps,
         const real_t *__restrict__ wake, const real_t state_lag_dt,
-        real_t *__restrict__ states, real_t *__restrict__ voltage) {
+        const real_t *__restrict__ states_in, real_t *__restrict__ states,
+        real_t *__restrict__ voltage) {
   __shared__ PoleTileShared sh;
   const int first_pole = blockIdx.x * POLE_BLOCK;
   const int chunk = blockIdx.y;
-  pole_tile_load(sh, poles, residues, signs, states, is_cr, carried_cr,
+  // The incoming state comes from `states_in`, a copy: the last chunk
+  // overwrites `states` with the hand-over, and CUDA does not order the
+  // blocks, so a chunk starting after it would read the outgoing state.
+  pole_tile_load(sh, poles, residues, signs, states_in, is_cr, carried_cr,
                  carried_charge[0], carried_lag_dt, state_lag_dt, bin_dt,
                  first_pole, n_poles, true);
   const int j = threadIdx.x;

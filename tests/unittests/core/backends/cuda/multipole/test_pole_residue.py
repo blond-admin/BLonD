@@ -135,6 +135,58 @@ class TestChunkedPoleKernel(BLonDTestCase):
                     err_msg=f"states {grid=} {n_chunks=}",
                 )
 
+    def test_incoming_state_is_read_from_a_buffer_the_kernel_does_not_write(
+        self,
+    ) -> None:
+        """Every chunk reads the incoming state; the last overwrites it.
+
+        CUDA does not order the blocks of a grid, so a chunk whose block
+        starts after the last chunk's has finished would fold the outgoing
+        state into its read-outs. Timing-dependent, hence checked on the
+        launch arguments: the incoming state must reach the read-out kernel
+        in a buffer other than the ``states`` it writes the hand-over to.
+        """
+        cp = self.cp
+        rng = np.random.default_rng(5)
+        n_poles = 37
+        poles = -rng.uniform(5e6, 5e8, n_poles) + 1j * rng.uniform(
+            1e8, 3e9, n_poles
+        )
+        residues = rng.normal(size=n_poles) + 1j * rng.normal(size=n_poles)
+        states_in = rng.normal(size=n_poles) + 1j * rng.normal(size=n_poles)
+        signs = np.ones(n_poles)
+        kernel = self.pole_residue._wake_from_pole_residue
+        launches = []
+
+        def recording_kernel(*, args, block, grid) -> None:
+            arrays = [arg for arg in args if isinstance(arg, cp.ndarray)]
+            before = [cp.asnumpy(arg) for arg in arrays]
+            kernel(args=args, block=block, grid=grid)
+            after = [cp.asnumpy(arg) for arg in arrays]
+            launches.append(list(zip(before, after, strict=True)))
+
+        self.pole_residue._wake_from_pole_residue = recording_kernel
+        try:
+            self._run(7, states_in, poles, residues, signs, "dense")
+        finally:
+            self.pole_residue._wake_from_pole_residue = kernel
+        self.assertEqual(len(launches), 1)
+        incoming = states_in.view(np.float64)
+        holds_incoming = [
+            np.array_equal(after, incoming)
+            for before, after in launches[0]
+            if before.shape == incoming.shape
+            and np.array_equal(before, incoming)
+        ]
+        # The `states` buffer holds the incoming state too, until the
+        # hand-over overwrites it; an untouched copy has to be read.
+        self.assertEqual(len(holds_incoming), 2)
+        self.assertTrue(
+            any(holds_incoming),
+            "the read-out kernel reads the incoming state only from the "
+            "buffer it writes the hand-over to",
+        )
+
     def test_single_pass_matches_python_reference(self) -> None:
         from blond.core.backends.python.callables import PythonSpecials
 

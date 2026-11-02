@@ -162,6 +162,9 @@ def wake_from_pole_residue_in_chunks(
             *shared_args,
             wake,
             FLOAT(state_lag_dt),
+            # read: a copy, since the last chunk overwrites `states`
+            # while blocks of the other chunks may still have to read it
+            states.copy().view(FLOAT),
             states.view(FLOAT),
             voltage,
         ),
