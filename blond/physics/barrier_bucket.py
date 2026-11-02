@@ -17,7 +17,7 @@ import scipy.constants as cont
 
 from blond.core.backends.backend import backend
 from blond.generals.exceptions_ import ArrayShapeError
-from blond.generals.late_init import SetBy, ToBeDefined
+from blond.generals.late_init import SetBy, LateUserInput
 from blond.physics.rf_station import RFManipulationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -68,10 +68,10 @@ class BarrierRF(RFManipulationBaseClass):
     CERN PS", https://cds.cern.ch/record/2694233/files/mopts107.pdf
     """
 
-    t_center: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
-    t_width: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
-    peak_voltage: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
-    n_bins: ToBeDefined[int] = ToBeDefined(SetBy.ARGUMENT)
+    t_center: LateUserInput[float] = LateUserInput(SetBy.ARGUMENT_OR_SCHEDULE)
+    t_width: LateUserInput[float] = LateUserInput(SetBy.ARGUMENT_OR_SCHEDULE)
+    peak_voltage: LateUserInput[float] = LateUserInput(SetBy.ARGUMENT_OR_SCHEDULE)
+    n_bins: LateUserInput[int] = LateUserInput(SetBy.ARGUMENT)
 
     def __init__(
         self,

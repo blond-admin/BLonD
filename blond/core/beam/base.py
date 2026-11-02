@@ -23,7 +23,7 @@ from blond.core.base import Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.late_init import SetBy, ToBeDefined, check_filled
+from blond.generals.late_init import SetBy, LateUserInput, check_filled
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
@@ -55,10 +55,10 @@ class BeamBaseClass(Preparable, ABC):
         Developer option to allow distributed computing.
     """
 
-    _dE: ToBeDefined[DistributedArray] = ToBeDefined(SetBy.SETUP_BEAM)
-    _dt: ToBeDefined[DistributedArray] = ToBeDefined(SetBy.SETUP_BEAM)
-    _flags: ToBeDefined[DistributedArray] = ToBeDefined(SetBy.SETUP_BEAM)
-    _ids: ToBeDefined[DistributedArray] = ToBeDefined(SetBy.SETUP_BEAM)
+    _dE: LateUserInput[DistributedArray] = LateUserInput(SetBy.SETUP_BEAM)
+    _dt: LateUserInput[DistributedArray] = LateUserInput(SetBy.SETUP_BEAM)
+    _flags: LateUserInput[DistributedArray] = LateUserInput(SetBy.SETUP_BEAM)
+    _ids: LateUserInput[DistributedArray] = LateUserInput(SetBy.SETUP_BEAM)
 
     def __init__(
         self,

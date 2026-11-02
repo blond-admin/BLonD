@@ -6,7 +6,7 @@ from blond.generals.late_init import (
     AssignedDuringTracking,
     InitialisedInternally,
     SetBy,
-    ToBeDefined,
+    LateUserInput,
     _LateInit,
     check_filled,
     late_init_attributes,
@@ -66,7 +66,7 @@ class _Categorised:
     by_tracking: AssignedDuringTracking[float] = AssignedDuringTracking(
         "`track()`"
     )
-    by_user: ToBeDefined[float] = ToBeDefined("the user")
+    by_user: LateUserInput[float] = LateUserInput("the user")
 
 
 class _ExplodingLateInit(_LateInit):
@@ -195,7 +195,7 @@ class TestLateInitSubclasses(BLonDTestCase):
         for category in (
             InitialisedInternally,
             AssignedDuringTracking,
-            ToBeDefined,
+            LateUserInput,
         ):
             with self.subTest(category=category.__name__):
                 self.assertTrue(issubclass(category, _LateInit))
@@ -224,9 +224,9 @@ class TestLateInitSubclasses(BLonDTestCase):
 
 
 class _Routed:
-    by_argument: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT)
-    by_schedule: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
-    by_update: ToBeDefined[float] = ToBeDefined(SetBy.UPDATE_ATTRIBUTES)
+    by_argument: LateUserInput[float] = LateUserInput(SetBy.ARGUMENT)
+    by_schedule: LateUserInput[float] = LateUserInput(SetBy.ARGUMENT_OR_SCHEDULE)
+    by_update: LateUserInput[float] = LateUserInput(SetBy.UPDATE_ATTRIBUTES)
     by_run: InitialisedInternally[float] = InitialisedInternally(
         SetBy.RUN_SIMULATION
     )
@@ -246,7 +246,7 @@ def _message_for(route: SetBy | str) -> str:
     str
         The resulting error message.
     """
-    owner = type("_Probe", (), {"attr": ToBeDefined(route)})
+    owner = type("_Probe", (), {"attr": LateUserInput(route)})
     try:
         owner().attr
     except NotInitialisedError as exc:
@@ -309,7 +309,7 @@ class TestSetBy(BLonDTestCase):
 
 
 class _BrokenProperty:
-    late: ToBeDefined[float] = ToBeDefined("the user")
+    late: LateUserInput[float] = LateUserInput("the user")
 
     @property
     def broken(self) -> float:
@@ -346,14 +346,14 @@ class TestUnfilled(BLonDTestCase):
         self.assertEqual(unfilled(_Shadower()), ())
 
     def test_filters_to_one_category(self):
-        self.assertEqual(unfilled(_Categorised(), ToBeDefined), ("by_user",))
+        self.assertEqual(unfilled(_Categorised(), LateUserInput), ("by_user",))
 
     def test_each_category_selects_its_own(self):
         owner = _Categorised()
         for category, expected in (
             (InitialisedInternally, ("by_framework",)),
             (AssignedDuringTracking, ("by_tracking",)),
-            (ToBeDefined, ("by_user",)),
+            (LateUserInput, ("by_user",)),
         ):
             with self.subTest(category=category.__name__):
                 self.assertEqual(unfilled(owner, category), expected)
@@ -367,7 +367,7 @@ class TestUnfilled(BLonDTestCase):
     def test_a_filled_name_is_excluded_from_its_category(self):
         owner = _Categorised()
         owner.by_user = 1.0
-        self.assertEqual(unfilled(owner, ToBeDefined), ())
+        self.assertEqual(unfilled(owner, LateUserInput), ())
 
     def test_resolves_a_category_declared_on_a_base_class(self):
         self.assertEqual(

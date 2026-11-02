@@ -219,7 +219,7 @@ class AssignedDuringTracking(_LateInit[_T]):
         )
 
 
-class ToBeDefined(_LateInit[_T]):
+class LateUserInput(_LateInit[_T]):
     """
     Attribute supplied from the input script.
 

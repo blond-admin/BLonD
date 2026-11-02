@@ -28,7 +28,7 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 from blond.core.base import Schedulable
 from blond.core.beam.base import BeamBaseClass
 from blond.core.scheduling import ScheduledBaseClass
-from blond.generals.late_init import ToBeDefined
+from blond.generals.late_init import LateUserInput
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
@@ -96,9 +96,9 @@ class SynchrotronRadiationMaster(Schedulable):
 
     # Diagnostics, computed on demand rather than by a lifecycle
     # hook; this class has none.
-    _natural_energy_spread: ToBeDefined[NumpyArray] = ToBeDefined(_BY_COMPUTE)
-    _energy_loss_per_turn: ToBeDefined[NumpyArray] = ToBeDefined(_BY_COMPUTE)
-    _longitudinal_damping_time: ToBeDefined[NumpyArray] = ToBeDefined(
+    _natural_energy_spread: LateUserInput[NumpyArray] = LateUserInput(_BY_COMPUTE)
+    _energy_loss_per_turn: LateUserInput[NumpyArray] = LateUserInput(_BY_COMPUTE)
+    _longitudinal_damping_time: LateUserInput[NumpyArray] = LateUserInput(
         _BY_COMPUTE
     )
 

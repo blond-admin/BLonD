@@ -19,7 +19,7 @@ from blond.core.base import (
 )
 from blond.core.beam.base import BeamBaseClass
 from blond.core.scheduling import ScheduledArray, ScheduledInterpolation
-from blond.generals.late_init import SetBy, ToBeDefined
+from blond.generals.late_init import SetBy, LateUserInput
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -236,7 +236,7 @@ class TestPreparable(BLonDTestCase):
 
 
 class _LateVoltage(Schedulable):
-    voltage: ToBeDefined[float] = ToBeDefined(SetBy.ARGUMENT_OR_SCHEDULE)
+    voltage: LateUserInput[float] = LateUserInput(SetBy.ARGUMENT_OR_SCHEDULE)
 
 
 class TestSchedulableOnInitSimulation(BLonDTestCase):

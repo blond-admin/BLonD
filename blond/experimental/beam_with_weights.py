@@ -19,14 +19,14 @@ from blond.core.backends.mpi_distributed.distributed_array import (
 )
 from blond.core.beam.beams import Beam
 from blond.core.beam.particle_types import ParticleType
-from blond.generals.late_init import ToBeDefined
+from blond.generals.late_init import LateUserInput
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
 
 
 class WeightenedBeam(Beam):
-    _weights: ToBeDefined[DistributedArray] = ToBeDefined(
+    _weights: LateUserInput[DistributedArray] = LateUserInput(
         "the `weights` argument of `WeightenedBeam.setup_beam(...)`"
     )
 

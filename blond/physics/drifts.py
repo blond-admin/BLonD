@@ -29,7 +29,7 @@ from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.late_init import (
     AssignedDuringTracking,
     SetBy,
-    ToBeDefined,
+    LateUserInput,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -195,7 +195,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
     _last_eta_0: AssignedDuringTracking[float] = AssignedDuringTracking(
         SetBy.RUN_SIMULATION
     )
-    momentum_compaction_factor: ToBeDefined[float] = ToBeDefined(
+    momentum_compaction_factor: LateUserInput[float] = LateUserInput(
         SetBy.ARGUMENT_OR_SCHEDULE
     )
 

@@ -20,7 +20,7 @@ import numpy as np
 from blond.core.offenders import WeakBackReference
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
 from blond.generals.formatting_ import pretty_string
-from blond.generals.late_init import ToBeDefined, unfilled
+from blond.generals.late_init import LateUserInput, unfilled
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -305,7 +305,7 @@ class Schedulable(Preparable):
         """
         missing = [
             attribute
-            for attribute in unfilled(self, ToBeDefined)
+            for attribute in unfilled(self, LateUserInput)
             if attribute not in self.schedules
         ]
         if len(missing) > 0:

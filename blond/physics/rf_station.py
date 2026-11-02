@@ -45,7 +45,7 @@ from blond.generals.late_init import (
     AssignedDuringTracking,
     InitialisedInternally,
     SetBy,
-    ToBeDefined,
+    LateUserInput,
 )
 from blond.physics.feedbacks.base import LocalFeedback
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -291,13 +291,13 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
     omega_rf_design: InitialisedInternally[NumpyArray | float] = (
         InitialisedInternally(SetBy.SIMULATION)
     )
-    voltage: ToBeDefined[NumpyArray | float] = ToBeDefined(
+    voltage: LateUserInput[NumpyArray | float] = LateUserInput(
         SetBy.ARGUMENT_OR_SCHEDULE
     )
-    phi_rf_design: ToBeDefined[NumpyArray | float] = ToBeDefined(
+    phi_rf_design: LateUserInput[NumpyArray | float] = LateUserInput(
         SetBy.ARGUMENT_OR_SCHEDULE
     )
-    harmonic: ToBeDefined[NumpyArray | float] = ToBeDefined(
+    harmonic: LateUserInput[NumpyArray | float] = LateUserInput(
         SetBy.ARGUMENT_OR_SCHEDULE
     )
     # Reference-energy change from the most recent ``_track`` call,
@@ -1153,9 +1153,9 @@ class SingleHarmonicRFStation(
 
     # Narrow the inherited descriptors: one harmonic, so scalars. No
     # value, so the base's descriptor still serves the read.
-    voltage: ToBeDefined[float]
-    phi_rf_design: ToBeDefined[float]
-    harmonic: ToBeDefined[float]
+    voltage: LateUserInput[float]
+    phi_rf_design: LateUserInput[float]
+    harmonic: LateUserInput[float]
 
     def __init__(
         self,
@@ -1664,9 +1664,9 @@ class MultiHarmonicRFStation(
 
     # Narrow the inherited descriptors: one entry per harmonic, so
     # arrays. No value, so the base's descriptor still serves the read.
-    voltage: ToBeDefined[NumpyArray]
-    phi_rf_design: ToBeDefined[NumpyArray]
-    harmonic: ToBeDefined[NumpyArray]
+    voltage: LateUserInput[NumpyArray]
+    phi_rf_design: LateUserInput[NumpyArray]
+    harmonic: LateUserInput[NumpyArray]
 
     def __init__(
         self,
