@@ -38,6 +38,27 @@ class TestEquidistantMultiProfile(BLonDTestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_hist_step_is_the_shared_bin_width(self):
+        self.assertAlmostEqual(
+            self.multiprofile_equidistant.hist_step,
+            self.multiprofile_equidistant.profiles[0].hist_step,
+        )
+
+    def test_hist_step_rejects_profiles_with_different_bin_widths(self):
+        """One step for all profiles only holds if they share it.
+
+        They do by construction; a profile set that breaks this must not
+        silently report the first profile's step.
+        """
+        from blond import StaticProfile
+
+        self.multiprofile_equidistant.profiles = (
+            StaticProfile(cut_left=0.0, cut_right=1.0, n_bins=4),
+            StaticProfile(cut_left=1.0, cut_right=2.0, n_bins=8),
+        )
+        with self.assertRaises(AssertionError):
+            self.multiprofile_equidistant.hist_step
+
     def test_init_from_padded_filling_pattern(self):
         sparse_profile = (
             EquidistantMultiProfile.init_from_padded_filling_pattern(

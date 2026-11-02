@@ -234,12 +234,20 @@ class EquidistantMultiProfile(MultiProfile):
         """
         Size of a single histogram bin, shared by all profiles.
 
+        All profiles are built with the same width and number of bins, so
+        they share one step; the pole-residue solver relies on that.
+
         Returns
         -------
         hist_step
             Size of a single histogram bin, in [s].
         """
-        return self.profiles[0].hist_step
+        hist_step = self.profiles[0].hist_step
+        assert all(
+            np.isclose(profile.hist_step, hist_step, rtol=1e-9, atol=0.0)
+            for profile in self.profiles
+        ), "The profiles of an EquidistantMultiProfile must share one step."
+        return hist_step
 
     @property
     def n_bins(self):
