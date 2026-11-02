@@ -18,8 +18,11 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 """
 
 import datetime
+import json
 import os
+import re
 import shutil
+import subprocess
 import sys
 from importlib.metadata import version as get_version
 
@@ -72,6 +75,82 @@ def check_system_dependencies():
 
 
 check_system_dependencies()
+
+
+# Hides the code cells of a notebook page; outputs and their layout stay.
+HIDE_CODE_STYLE = (
+    "<style>div.nbinput.container { display: none; }\n"
+    "div.nboutput.container div.prompt { display: none; }</style>"
+)
+
+
+def export_marimo_notebooks(notebooks):
+    r"""
+    Export marimo notebooks to executed ``.ipynb`` files for nbsphinx.
+
+    marimo wraps math as ``<marimo-tex>||[ ... ||]</marimo-tex>``, which
+    only its own frontend renders, so the tags are rewritten to the
+    ``\[ ... \]`` / ``\( ... \)`` delimiters MathJax picks up.
+
+    Parameters
+    ----------
+    notebooks : dict of str to bool
+        Maps the path of each marimo ``.py`` notebook, relative to
+        ``docs/``, to ``hide_code``: if True, the page shows only the
+        cell outputs, not the code that produced them.
+
+    Raises
+    ------
+    RuntimeError
+        If a ``<marimo-tex>`` tag survives the rewrite, i.e. marimo
+        changed its output format.
+    """
+    docs_dir = os.path.dirname(os.path.abspath(__file__))
+    for notebook, hide_code in notebooks.items():
+        source = os.path.join(docs_dir, notebook)
+        target = os.path.splitext(source)[0] + ".ipynb"
+        subprocess.run(
+            [sys.executable, "-m", "marimo", "export", "ipynb", source,
+             "-o", target, "--include-outputs", "--force"],
+            check=True,
+        )  # fmt: skip
+        with open(target, encoding="utf-8") as f:
+            text = f.read()
+        text = re.sub(
+            r'<marimo-tex class=\\"arithmatex\\">\|\|([\[(])(.*?)'
+            r"\|\|[\])]</marimo-tex>",
+            lambda m: rf"\\{m[1]}{m[2]}\\{']' if m[1] == '[' else ')'}",
+            text,
+        )
+        if "marimo-tex" in text:
+            raise RuntimeError(
+                f"Unconverted <marimo-tex> left in {target}; marimo "
+                "changed its math output, update export_marimo_notebooks."
+            )
+        if hide_code:
+            # nbsphinx can only hide whole cells (output included), so
+            # the code is hidden with page-local CSS instead
+            exported = json.loads(text)
+            exported["cells"].insert(
+                0,
+                {
+                    "cell_type": "raw",
+                    "metadata": {"raw_mimetype": "text/html"},
+                    "source": HIDE_CODE_STYLE,
+                },
+            )
+            text = json.dumps(exported, indent=1, ensure_ascii=False)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(text)
+
+
+# notebook path (relative to docs/) -> hide_code
+export_marimo_notebooks(
+    {
+        "models_new/pole-residue/bin_averaged_wake_derivation.py": True,
+        "models_new/pole-residue/explain_nearfield_farfield_model.py": False,
+    }
+)
 
 sys.path.insert(0, os.path.abspath(".."))
 

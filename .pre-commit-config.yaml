@@ -1,4 +1,4 @@
-exclude: ^(legacy|blond/legacy/|builds)
+exclude: ^(legacy|blond/legacy/|builds|docs/models_new/pole-residue/)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
