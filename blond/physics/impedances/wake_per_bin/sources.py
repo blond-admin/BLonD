@@ -133,57 +133,19 @@ class ResonatorsWakePerBin:
 
 
 class ImpedanceTableTimeWakePerBin:
-    """
+    r"""
     Bin-averaged wake of :class:`~blond.physics.impedances.sources.ImpedanceTableTime`.
 
-    The ``first_sample_is_half_jump`` constructor argument of
-    ``ImpedanceTableTime`` sets how ``wake_y[0]`` is read where the table
-    starts with a causal jump, i.e. where the wake is zero below
-    ``wake_x[0]`` and non-zero at it. The table itself records no such
-    convention, so it cannot be inferred from the data -- but
-    :meth:`get_wake_per_bin` integrates the jump exactly and therefore
-    needs its size.
-
-    ``True`` -- ``wake_y[0]`` is *half* the jump, and the
-    wake rises to ``2 * wake_y[0]`` immediately above ``wake_x[0]``.
-    This is what a table sampled from a BLonD wake at its own onset
-    holds:
-    :meth:`~blond.physics.impedances.sources.Resonators.heaviside_eps_at_0`
-    returns ``sign(t) + 1``, which is 2 above ``t = 0`` but 1 *at* it (the
-    beam-loading theorem -- a particle sees half of its own wake), so
-    point-sampling
-    at the onset stores the midpoint of the jump. For a bin *integral*
-    that midpoint is a measure-zero artefact of point sampling, and
-    doubling recovers the true right limit.
-
-    ``False`` (default) -- ``wake_y[0]`` is read literally, as the right
-    limit ``W(wake_x[0]^+)``. Use this for tables produced by an external
-    wake solver (CST, ABCI, a measurement), which record the wake value
-    itself; doubling those would overstate the onset by a factor of two.
-
-    The setting is irrelevant whenever ``wake_y[0]`` is zero -- there is
-    no jump to interpret then, which is the common case for external
-    tables that start at or below ``t = 0``.
+    ``wake_y[0]`` is the wake value just above ``wake_x[0]``, the right
+    limit :math:`W(\mathrm{wake\_x}[0]^+)`, as an external wake solver
+    (CST, ABCI, a measurement) records it. Below ``wake_x[0]`` the wake is
+    zero, so a non-zero ``wake_y[0]`` is a causal jump of that height. A
+    jump elsewhere is spelled as a repeated time, ``wake_x = [..., x, x,
+    ...]``. A table point-sampled from a BLonD wake at ``t = 0`` holds
+    half the jump there (see
+    :meth:`~blond.physics.impedances.sources.Resonators.heaviside_eps_at_0`);
+    store the right limit instead.
     """
-
-    @property
-    def _onset_jump(self) -> float:
-        """
-        Size of the causal jump at ``wake_x[0]``, in [V].
-
-        Reads ``wake_y[0]`` under the convention selected by
-        ``first_sample_is_half_jump`` (see the class docstring).
-
-        Returns
-        -------
-        onset_jump
-            Height the wake rises to immediately above ``wake_x[0]``,
-            in [V].
-        """
-        first_sample = float(self._wake_y[0])
-        if self._first_sample_is_half_jump:
-            return 2.0 * first_sample
-        return first_sample
 
     def _warn_if_outside_table(self, time: NumpyArray | CupyArray) -> None:
         """
@@ -228,22 +190,14 @@ class ImpedanceTableTimeWakePerBin:
         Exactly at ``wake_x[0]`` the tabulated wake jumps, and a particle
         sitting on the discontinuity sees the midpoint of that jump -- the
         beam-loading theorem, the same statement
-        :meth:`~blond.physics.impedances.sources.Resonators.heaviside_eps_at_0` makes by returning 1 rather
-        than 2 at ``t = 0``. *Which* tabulated number that midpoint is
-        depends on ``first_sample_is_half_jump`` (see the class docstring):
-
-        * ``True`` -- ``wake_y[0]`` already *is* the midpoint, so
-          it is returned verbatim and this reduces to plain causal
-          interpolation.
-        * ``False`` (default) -- ``wake_y[0]`` is the right limit
-          :math:`W(\mathrm{wake\_x}[0]^+)`, so the onset sample returns
-          ``0.5 * wake_y[0]`` instead. Strictly above the onset the
-          interpolant is untouched, strictly below it the wake stays zero.
+        :meth:`~blond.physics.impedances.sources.Resonators.heaviside_eps_at_0`
+        makes by returning 1 rather than 2 at ``t = 0``. So the onset sample
+        returns ``0.5 * wake_y[0]``. Strictly above the onset the
+        interpolant is untouched, strictly below it the wake stays zero.
 
         "Exactly at the onset" is a comparison within
         ``_ONSET_TOLERANCE_EPS`` of the table's own first spacing, not a
-        float equality. A table whose first sample is zero carries no jump,
-        and both settings then agree. The bin-averaged version,
+        float equality. The bin-averaged version,
         :meth:`get_wake_per_bin`, integrates the *function* that sampling
         represents and so resolves the jump over a whole bin.
 
@@ -261,13 +215,9 @@ class ImpedanceTableTimeWakePerBin:
         # `left=0.0` enforces causality below the table; the right side keeps
         # the interpolator's default clamp, guarded by the warning above.
         wake = backend.interp(time, self._wake_x, self._wake_y, left=0.0)
-        if self._first_sample_is_half_jump:
-            # `wake_y[0]` is the jump midpoint already, so the point sample
-            # of the table is what a particle at the onset sees.
-            return wake
-        return self._halve_literal_onset_sample(time, wake)
+        return self._halve_onset_sample(time, wake)
 
-    def _halve_literal_onset_sample(
+    def _halve_onset_sample(
         self,
         time: NumpyArray | CupyArray,
         wake: NumpyArray | CupyArray,
@@ -275,7 +225,6 @@ class ImpedanceTableTimeWakePerBin:
         """
         Put the jump midpoint on the samples sitting at the causal onset.
 
-        Only reached for ``first_sample_is_half_jump=False``, where
         ``wake_y[0]`` is the right limit rather than the midpoint of the
         jump (see :meth:`get_wake`). The tolerance comes from
         the table's first spacing rather than from ``time``, so it is
@@ -322,9 +271,8 @@ class ImpedanceTableTimeWakePerBin:
         out.
 
         What is integrated here is the model the table represents, at its
-        own resolution: zero below ``wake_x[0]``, a causal jump there (of
-        the height ``_onset_jump`` reads under the
-        ``first_sample_is_half_jump`` convention), piecewise linear through
+        own resolution: zero below ``wake_x[0]``, a causal jump there to
+        ``wake_y[0]``, piecewise linear through
         the samples, a jump at any repeated ``wake_x`` and clamped past the
         end. Writing it as a continuous piecewise-linear part :math:`g`,
         steps :math:`J_k \Theta(t - x_k)` and kinks
@@ -363,13 +311,6 @@ class ImpedanceTableTimeWakePerBin:
         first, stop = self._knot_window(time, bin_step)
         knots = self._wake_x[first:stop]
         values = self._wake_y[first:stop]
-        if first == 0:
-            values = backend.concatenate(
-                (
-                    backend.array([self._onset_jump], dtype=backend.float),
-                    values[1:],
-                )
-            )
         knot_spacing = knots[1:] - knots[:-1]
         value_change = values[1:] - values[:-1]
         has_length = knot_spacing > 0.0
@@ -476,10 +417,7 @@ class ImpedanceTableTimeWakePerBin:
         jumps = backend.sum(
             self._wake_y[repeated] - self._wake_y[repeated - 1]
         )
-        # The jump at index 1 starts from the onset, not from `wake_y[0]`.
-        if bool(self._wake_x[1] == self._wake_x[0]):
-            jumps += float(self._wake_y[0]) - self._onset_jump
-        return self._onset_jump + float(jumps)
+        return float(self._wake_y[0]) + float(jumps)
 
     @staticmethod
     def _local_corrections(

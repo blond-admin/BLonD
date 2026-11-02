@@ -1317,8 +1317,9 @@ def _(mo):
     two. The reference is therefore evaluated spectrally,
     $\widetilde V = Z\tilde\lambda$ with the analytic Gaussian spectrum,
     where no such convention exists. The same trap is why
-    `ImpedanceTableTime` must be *told* how its first tabulated sample is
-    meant (`first_sample_is_half_jump`).
+    `ImpedanceTableTime` reads its first tabulated sample as the right
+    limit $W(0^+)$: a table point-sampled from a BLonD wake at $t = 0$
+    holds only half the jump there, and has to store the right limit.
 
     The two cells below measure the total residual. First the broadband
     resonator of section 3 at 7.2 bins per $\sigma$, against the spectral

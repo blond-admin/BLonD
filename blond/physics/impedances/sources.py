@@ -917,25 +917,16 @@ class ImpedanceTableTime(
         Wake time axis, in [s].
     wake_y
         Wake amplitude, in [V].
-    first_sample_is_half_jump
-        How ``wake_y[0]`` is read where the table starts with a causal
-        jump. ``False`` (default): it is the wake value itself, as in a
-        table from an external wake solver (CST, ABCI, a measurement).
-        ``True``: it is half the jump, as in a table sampled from a BLonD
-        wake at its onset. Irrelevant when ``wake_y[0]`` is zero; see
-        ``ImpedanceTableTimeWakePerBin`` for the details.
     """
 
     def __init__(
         self,
         wake_x: NumpyArray,
         wake_y: NumpyArray,
-        first_sample_is_half_jump: bool = False,
     ):
         super().__init__(is_dynamic=False)
         self._wake_x = backend.array(wake_x)
         self._wake_y = backend.array(wake_y)
-        self._first_sample_is_half_jump = bool(first_sample_is_half_jump)
 
         self._cache_impedance_from_wake: NumpyArray | CupyArray | None = None
         self._cache_impedance_from_wake_hash: int | None = None
@@ -944,7 +935,6 @@ class ImpedanceTableTime(
     def from_file(
         filepath: PathLike | str,
         reader: ImpedanceReader,
-        first_sample_is_half_jump: bool = False,
     ) -> ImpedanceTableTime:
         """
         Instance table from a file on the disk.
@@ -955,11 +945,6 @@ class ImpedanceTableTime(
             Path of the file to lead.
         reader
             `ImpedanceReader` to interpret what's written in the file.
-        first_sample_is_half_jump
-            How the first tabulated wake value is interpreted where the
-            table starts with a causal jump; see the class docstring. Keep
-            the default for a table from an external wake solver, pass
-            ``True`` for one written out by BLonD.
 
         Returns
         -------
@@ -970,7 +955,6 @@ class ImpedanceTableTime(
         return ImpedanceTableTime(
             wake_x=x_array,
             wake_y=y_array,
-            first_sample_is_half_jump=first_sample_is_half_jump,
         )
 
     def get_impedance_from_wake(
