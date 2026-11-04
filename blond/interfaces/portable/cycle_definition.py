@@ -34,7 +34,6 @@ from blond.core.ring.ring import Ring
 from blond.core.scheduling import ScheduledInterpolation
 from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
-    MagneticCycleBase,
     MagneticCycleByTime,
 )
 from blond.generals.interpolators import DerivativeInterpolator
@@ -45,12 +44,13 @@ from blond.physics.rf_station import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Sequence
     from typing import Self
 
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.base import Schedulable
+    from blond.cycles.magnetic_cycle import MagneticCycleBase
 
 SCHEMA_VERSION = 1
 
@@ -185,7 +185,7 @@ def _interpolate_programme(
 
 def _to_scheduled_interpolation(
     attribute: str,
-    programmes: list[Programme],
+    programmes: Sequence[Programme],
     main_idx: int,
 ) -> ScheduledInterpolation:
     """
@@ -382,7 +382,7 @@ class Programme(_FrozenModel):
     )
 
     @pyd.model_validator(mode="after")
-    def _check_points(self) -> Programme:
+    def _check_points(self) -> Self:
         """
         Check that `time` and `value` match and `time` increases.
 
@@ -408,7 +408,7 @@ class Programme(_FrozenModel):
         return self
 
     @pyd.model_validator(mode="after")
-    def _check_interpolator_kwargs(self) -> Programme:
+    def _check_interpolator_kwargs(self) -> Self:
         """
         Check that `interpolator_kwargs` are accepted by `interpolator`.
 
@@ -570,7 +570,7 @@ class MagneticProgramme(Programme):
     bending_radius: Float | None = pyd.Field(default=None, gt=0)
 
     @pyd.model_validator(mode="after")
-    def _check_bending_radius(self) -> MagneticProgramme:
+    def _check_bending_radius(self) -> Self:
         """
         Check that `bending_radius` is given for 'bending field'.
 
@@ -591,7 +591,7 @@ class MagneticProgramme(Programme):
         return self
 
     @pyd.model_validator(mode="after")
-    def _check_positive(self) -> MagneticProgramme:
+    def _check_positive(self) -> Self:
         """
         Check that all values are positive.
 
@@ -613,7 +613,7 @@ class MagneticProgramme(Programme):
         return self
 
     @pyd.model_validator(mode="after")
-    def _check_total_energy(self) -> MagneticProgramme:
+    def _check_total_energy(self) -> Self:
         """
         Check that a 'total energy' programme exceeds the rest mass.
 
@@ -635,7 +635,9 @@ class MagneticProgramme(Programme):
             )
         return self
 
-    def to_magnetic_cycle(self) -> ConstantMagneticCycle | MagneticCycleByTime:
+    def to_magnetic_cycle(
+        self,
+    ) -> ConstantMagneticCycle | MagneticCycleByTime:
         """
         Convert to a BLonD magnetic cycle.
 
@@ -738,7 +740,7 @@ class RFHarmonicDefinition(_FrozenModel):
     phi_rf_design: Programme
 
     @pyd.model_validator(mode="after")
-    def _check_ranges(self) -> RFHarmonicDefinition:
+    def _check_ranges(self) -> Self:
         """
         Check that `harmonic` is positive and `voltage` non-negative.
 
@@ -783,7 +785,7 @@ class RFStationDefinition(_FrozenModel):
     name: str | None = None
 
     @pyd.model_validator(mode="after")
-    def _check_main_harmonic_idx(self) -> RFStationDefinition:
+    def _check_main_harmonic_idx(self) -> Self:
         """
         Check that `main_harmonic_idx` indexes `harmonics`.
 
@@ -1097,7 +1099,7 @@ class CycleDefinition(_FrozenModel):
     schema_version: Literal[1] = SCHEMA_VERSION
 
     @pyd.model_validator(mode="after")
-    def _check_one_rf_station_per_section(self) -> CycleDefinition:
+    def _check_one_rf_station_per_section(self) -> Self:
         """
         Check that no section holds several RF stations.
 
@@ -1121,7 +1123,7 @@ class CycleDefinition(_FrozenModel):
         return self
 
     @pyd.model_validator(mode="after")
-    def _check_circumference(self) -> CycleDefinition:
+    def _check_circumference(self) -> Self:
         """
         Check that the drift orbit lengths add up to the circumference.
 
