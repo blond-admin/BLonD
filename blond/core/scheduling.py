@@ -151,7 +151,61 @@ class ScheduledInterpolation(ScheduledBaseClass):
         **kwargs,
     ) -> None:
         super().__init__()
-        self.interpolator = interpolator(times, values, **kwargs)
+        self._times = np.array(times)
+        self._values = np.array(values)
+        self._interpolator_type = interpolator
+        self._interpolator_kwargs = {**kwargs}
+        self.interpolator = interpolator(
+            self._times, self._values, **self._interpolator_kwargs
+        )
+
+    @property
+    def times(self) -> NumpyArray:
+        """
+        The times of the scheduled values.
+
+        Returns
+        -------
+        times
+            Times, in [s].
+        """
+        return self._times
+
+    @property
+    def values(self) -> NumpyArray:
+        """
+        Scheduled values at `times`.
+
+        Returns
+        -------
+        values
+            Values along the first axis of `times`.
+        """
+        return self._values
+
+    @property
+    def interpolator_type(self) -> type:
+        """
+        Interpolation class used between the scheduled values.
+
+        Returns
+        -------
+        interpolator_type
+            Class that was called with `times` and `values`.
+        """
+        return self._interpolator_type
+
+    @property
+    def interpolator_kwargs(self) -> dict[str, Any]:
+        """
+        Keyword arguments given to the interpolator.
+
+        Returns
+        -------
+        interpolator_kwargs
+            Keyword arguments of `interpolator_type`.
+        """
+        return self._interpolator_kwargs
 
     def get_scheduled(
         self,

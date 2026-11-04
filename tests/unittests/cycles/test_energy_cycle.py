@@ -7,6 +7,11 @@ from unittest.mock import Mock
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.constants import speed_of_light as c0
+from scipy.interpolate import (
+    Akima1DInterpolator,
+    PchipInterpolator,
+    interp1d,
+)
 
 from blond import (
     ConstantMagneticCycle,
@@ -205,6 +210,22 @@ class TestConstantEnergyCycle(BLonDTestCase):
             cec.get_target_total_energy(111, 111, 111, proton),
         )
 
+    def test_properties(self):
+        self.assertEqual(self.constant_magnetic_cycle.value, 2000e6)
+        self.assertEqual(self.constant_magnetic_cycle.in_unit, "total energy")
+        self.assertIsNone(self.constant_magnetic_cycle.bending_radius)
+
+    def test_properties_bending_field(self):
+        cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=1.5,
+            in_unit="bending field",
+            bending_radius=10.0,
+        )
+        self.assertEqual(cycle.value, 1.5)
+        self.assertEqual(cycle.in_unit, "bending field")
+        self.assertEqual(cycle.bending_radius, 10.0)
+
     def test_get_target_total_energy(self):
         e_tot_1 = self.constant_magnetic_cycle.get_target_total_energy(
             turn_i=0,
@@ -308,6 +329,58 @@ class TestEnergyCycleByTime(BLonDTestCase):
         self.assertEqual(
             ebt.get_total_energy_init(particle_type=uranium_29), 1e12
         )
+
+    def test_properties_defaults(self):
+        cycle = self.magnetic_cycle_by_time
+        assert_allclose(cycle.reference_time, np.linspace(1, 12, 12))
+        assert_allclose(cycle.reference_values, np.linspace(1e9, 5e9, 12))
+        self.assertEqual(cycle.in_unit, "momentum")
+        self.assertIsNone(cycle.bending_radius)
+        self.assertIs(cycle.interpolator_type, interp1d)
+        self.assertEqual(cycle.interpolator_kwargs, {})
+
+    def test_properties_keep_given_unit(self):
+        values = np.linspace(1.0, 2.0, 5)
+        cycle = MagneticCycleByTime(
+            reference_particle=proton,
+            reference_time=np.linspace(0.0, 4.0, 5),
+            reference_values=values,
+            in_unit="bending field",
+            bending_radius=10.0,
+        )
+        assert_allclose(cycle.reference_values, values)
+        self.assertEqual(cycle.in_unit, "bending field")
+        self.assertEqual(cycle.bending_radius, 10.0)
+
+    def test_properties_interpolator(self):
+        for interpolator, kwargs in (
+            (Akima1DInterpolator, {"method": "makima"}),
+            (PchipInterpolator, {"extrapolate": False}),
+            (interp1d, {"kind": "linear", "assume_sorted": True}),
+        ):
+            with self.subTest(interpolator=interpolator.__name__):
+                cycle = MagneticCycleByTime(
+                    reference_particle=proton,
+                    reference_time=np.linspace(0.0, 4.0, 5),
+                    reference_values=np.linspace(1e9, 2e9, 5),
+                    interpolator=interpolator,
+                    **kwargs,
+                )
+                self.assertIs(cycle.interpolator_type, interpolator)
+                self.assertEqual(cycle.interpolator_kwargs, kwargs)
+
+    def test_properties_are_copies_of_input(self):
+        times = np.linspace(0.0, 4.0, 5)
+        values = np.linspace(1e9, 2e9, 5)
+        cycle = MagneticCycleByTime(
+            reference_particle=proton,
+            reference_time=times,
+            reference_values=values,
+        )
+        times[:] = -1.0
+        values[:] = -1.0
+        assert_allclose(cycle.reference_time, np.linspace(0.0, 4.0, 5))
+        assert_allclose(cycle.reference_values, np.linspace(1e9, 2e9, 5))
 
     def test_get_target_total_energy(self):
         cycle = MagneticCycleByTime.headless(
