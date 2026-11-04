@@ -299,7 +299,7 @@ class Music(BeamPhysicsRelevant):
         """
         Mean induced voltage of the most recent turn per bin, in [V].
 
-        Puts the per-particle :attr:`induced_voltage` on the bins of a
+        Puts the per-particle ``induced_voltage`` on the bins of a
         profile, to compare it with a profile-based solver's induced
         voltage. Each bin averages the voltage of the particles whose
         ``dt`` at the time of the kick lies in ``[center - bin_width / 2,
