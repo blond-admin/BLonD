@@ -382,6 +382,42 @@ class ConstantMagneticCycle(MagneticCycleBase):
 
         self._total_energy_cache: dict[int, float] | None = {}
 
+    @property
+    def value(self) -> float:
+        """
+        Constant value of the magnetic cycle.
+
+        Returns
+        -------
+        value
+            Constant value, in the unit given by `in_unit`.
+        """
+        return self._value
+
+    @property
+    def in_unit(self) -> SynchronousDataTypes:
+        """
+        Quantity of `value`.
+
+        Returns
+        -------
+        in_unit
+            'momentum', 'total energy', 'kinetic energy' or 'bending field'.
+        """
+        return self._in_unit
+
+    @property
+    def bending_radius(self) -> float | None:
+        """
+        Bending radius associated with a 'bending field'.
+
+        Returns
+        -------
+        bending_radius
+            Bending radius, in [m], or None.
+        """
+        return self._bending_radius
+
     def on_init_simulation(
         self,
         simulation: Simulation,
@@ -1078,6 +1114,85 @@ class MagneticCycleByTime(MagneticCycleBase):
             **kwargs,
         )
         self._t_max = reference_time.max()
+
+        self._reference_time = reference_time.copy()
+        self._reference_values = reference_values.copy()
+        self._in_unit = in_unit
+        self._bending_radius = bending_radius
+        self._interpolator_type = interpolator
+        self._interpolator_kwargs = {**kwargs}
+
+    @property
+    def reference_time(self) -> NumpyArray:
+        """
+        The times of the reference values.
+
+        Returns
+        -------
+        reference_time
+            Times, in [s].
+        """
+        return self._reference_time
+
+    @property
+    def reference_values(self) -> NumpyArray:
+        """
+        Reference values as given at construction.
+
+        Returns
+        -------
+        reference_values
+            Values at `reference_time`, in the unit given by `in_unit`.
+        """
+        return self._reference_values
+
+    @property
+    def in_unit(self) -> SynchronousDataTypes:
+        """
+        Quantity of `reference_values`.
+
+        Returns
+        -------
+        in_unit
+            'momentum', 'total energy', 'kinetic energy' or 'bending field'.
+        """
+        return self._in_unit
+
+    @property
+    def bending_radius(self) -> float | None:
+        """
+        Bending radius associated with a 'bending field'.
+
+        Returns
+        -------
+        bending_radius
+            Bending radius, in [m], or None.
+        """
+        return self._bending_radius
+
+    @property
+    def interpolator_type(self) -> type:
+        """
+        Interpolation class used between the reference values.
+
+        Returns
+        -------
+        interpolator_type
+            Class that was called with the reference data.
+        """
+        return self._interpolator_type
+
+    @property
+    def interpolator_kwargs(self) -> dict[str, Any]:
+        """
+        Keyword arguments given to the interpolator.
+
+        Returns
+        -------
+        interpolator_kwargs
+            Keyword arguments of `interpolator_type`.
+        """
+        return self._interpolator_kwargs
 
     @requires(
         [

@@ -65,6 +65,46 @@ class TestScheduledInterpolation(unittest.TestCase):
         )
         scheduler.get_scheduled(5, 1.0)  # should not crash
 
+    def test_stores_input(self):
+        t_arr = np.linspace(0, 10, 5)
+        vals = np.linspace(-10, 0, 5)
+        scheduler = ScheduledInterpolation(
+            times=t_arr,
+            values=vals,
+            interpolator=scipy.interpolate.Akima1DInterpolator,
+            method="makima",
+        )
+        np.testing.assert_array_equal(scheduler.times, t_arr)
+        np.testing.assert_array_equal(scheduler.values, vals)
+        self.assertIs(
+            scheduler.interpolator_type, scipy.interpolate.Akima1DInterpolator
+        )
+        self.assertEqual(scheduler.interpolator_kwargs, {"method": "makima"})
+
+    def test_default_interpolator_type_and_kwargs(self):
+        scheduler = ScheduledInterpolation(
+            times=np.array([0.0, 1.0]), values=np.array([1.0, 2.0])
+        )
+        self.assertIs(scheduler.interpolator_type, scipy.interpolate.interp1d)
+        self.assertEqual(scheduler.interpolator_kwargs, {})
+
+    def test_stores_copies(self):
+        t_arr = np.array([0.0, 1.0, 2.0])
+        vals = np.array([1.0, 2.0, 3.0])
+        kwargs = {"kind": "linear"}
+        scheduler = ScheduledInterpolation(times=t_arr, values=vals, **kwargs)
+        t_arr[0] = 99.0
+        vals[0] = 99.0
+        kwargs["kind"] = "cubic"
+        np.testing.assert_array_equal(scheduler.times, [0.0, 1.0, 2.0])
+        np.testing.assert_array_equal(scheduler.values, [1.0, 2.0, 3.0])
+        self.assertEqual(scheduler.interpolator_kwargs, {"kind": "linear"})
+
+    def test_stores_lists_as_arrays(self):
+        scheduler = ScheduledInterpolation(times=[0.0, 1.0], values=[1.0, 2.0])
+        self.assertIsInstance(scheduler.times, np.ndarray)
+        self.assertIsInstance(scheduler.values, np.ndarray)
+
 
 class TestScheduledFunctional(unittest.TestCase):
     def test_calls_function_with_turn_and_time(self):
