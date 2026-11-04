@@ -206,6 +206,9 @@ nbsphinx_prolog = """
 autosummary_generate = True
 autosummary_imported_members = True
 napoleon_use_param = True
+# Render "Attributes" sections as :ivar: fields; as `.. attribute::`
+# directives they duplicate the objects autodoc already documents.
+napoleon_use_ivar = True
 # Render the return type as a separate field fed from the actual annotation
 # (via sphinx_autodoc_typehints) rather than from the docstring. This stops
 # napoleon from treating a bare "Returns" entry (just a value name, no
@@ -463,7 +466,11 @@ nitpick_ignore_regex = [
     (r"py:.*", r"typing\.Union"),
     # Private (leading-underscore) classes are intentionally undocumented, so
     # references to them from type hints / inheritance diagrams cannot link.
-    (r"py:.*", r"blond\..*\._[A-Z]\w*"),
+    (r"py:.*", r"blond\..*\._\w+"),
+    # Pydantic internals leaking through inherited BaseModel signatures.
+    (r"py:.*", r"(typing(_extensions)?\.TypeForm|PydanticUndefined)"),
+    (r"py:exc", r"(pydantic\.)?ValidationError"),
+    (r"py:class", r"LocalFeedbackExp"),
     # Modules deliberately excluded from the docs build (see exclude_patterns):
     # public API still references their base classes in type hints / inheritance
     # diagrams, but they have no documented page to link to.
@@ -544,5 +551,13 @@ def setup(app):
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = get_intersphinx_mapping(
-    packages=["python", "numpy", "scipy", "sklearn", "matplotlib", "sympy"]
+    packages=[
+        "python",
+        "numpy",
+        "scipy",
+        "sklearn",
+        "matplotlib",
+        "sympy",
+        "pydantic",
+    ]
 )
