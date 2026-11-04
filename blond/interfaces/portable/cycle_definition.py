@@ -197,12 +197,56 @@ class Programme(_FrozenModel):
         return self
 
 
+class ParticleDefinition(_FrozenModel):
+    """
+    Reference particle.
+
+    Attributes
+    ----------
+    mass
+        Rest mass energy, in [eV].
+    charge
+        Number of elementary charges, in [].
+    decay_rate
+        Decay rate, in [1/s].
+    """
+
+    mass: Float = pyd.Field(gt=0)
+    charge: Annotated[Int, pyd.BeforeValidator(_to_int_if_integer)]
+    decay_rate: Float = pyd.Field(default=0.0, ge=0)
+
+    @pyd.field_validator("charge")
+    @classmethod
+    def _check_charge(cls, charge: int) -> int:
+        """
+        Check that `charge` is non-zero.
+
+        Parameters
+        ----------
+        charge
+            Number of elementary charges, in [].
+
+        Returns
+        -------
+        charge
+            The validated charge.
+
+        Raises
+        ------
+        ValueError
+            If `charge` is zero.
+        """
+        if charge == 0:
+            raise ValueError("`charge` must not be 0")
+        return charge
 class MagneticProgramme(Programme):
     """
     Magnetic cycle programmed along time.
 
     Attributes
     ----------
+    particle
+        Reference particle.
     time
         Times of the programmed points, strictly increasing, in [s].
     value
@@ -218,6 +262,7 @@ class MagneticProgramme(Programme):
         Bending radius, in [m]. Required for 'bending field'.
     """
 
+    particle: ParticleDefinition
     in_unit: Literal[
         "momentum", "total energy", "kinetic energy", "bending field"
     ] = "momentum"
@@ -266,49 +311,28 @@ class MagneticProgramme(Programme):
         )
         return self
 
-
-class ParticleDefinition(_FrozenModel):
-    """
-    Reference particle.
-
-    Attributes
-    ----------
-    mass
-        Rest mass energy, in [eV].
-    charge
-        Number of elementary charges, in [].
-    decay_rate
-        Decay rate, in [1/s].
-    """
-
-    mass: Float = pyd.Field(gt=0)
-    charge: Annotated[Int, pyd.BeforeValidator(_to_int_if_integer)]
-    decay_rate: Float = pyd.Field(default=0.0, ge=0)
-
-    @pyd.field_validator("charge")
-    @classmethod
-    def _check_charge(cls, charge: int) -> int:
+    @pyd.model_validator(mode="after")
+    def _check_total_energy(self) -> MagneticProgramme:
         """
-        Check that `charge` is non-zero.
-
-        Parameters
-        ----------
-        charge
-            Number of elementary charges, in [].
+        Check that a 'total energy' programme exceeds the rest mass.
 
         Returns
         -------
-        charge
-            The validated charge.
+        programme
+            The validated programme.
 
         Raises
         ------
         ValueError
-            If `charge` is zero.
+            If any total energy is not above `particle.mass`.
         """
-        if charge == 0:
-            raise ValueError("`charge` must not be 0")
-        return charge
+        if self.in_unit == "total energy":
+            _reject_values(
+                self.value,
+                lambda energy: energy <= self.particle.mass,
+                "'total energy' must exceed `particle.mass`",
+            )
+        return self
 
 
 class RFHarmonicDefinition(_FrozenModel):
@@ -429,8 +453,6 @@ class CycleDefinition(_FrozenModel):
 
     Attributes
     ----------
-    particle
-        Reference particle.
     circumference
         Ring circumference, in [m].
     magnetic_cycle
@@ -445,33 +467,9 @@ class CycleDefinition(_FrozenModel):
         Version of this schema; other versions are rejected.
     """
 
-    particle: ParticleDefinition
     circumference: Float = pyd.Field(gt=0)
     magnetic_cycle: MagneticProgramme
     rf_stations: tuple[RFStationDefinition, ...] = ()
     drifts: tuple[DriftDefinition, ...] = ()
     name: str | None = None
     schema_version: Literal[1] = SCHEMA_VERSION
-
-    @pyd.model_validator(mode="after")
-    def _check_total_energy(self) -> CycleDefinition:
-        """
-        Check that a 'total energy' programme exceeds the rest mass.
-
-        Returns
-        -------
-        cycle
-            The validated cycle.
-
-        Raises
-        ------
-        ValueError
-            If any total energy is not above `particle.mass`.
-        """
-        if self.magnetic_cycle.in_unit == "total energy":
-            _reject_values(
-                self.magnetic_cycle.value,
-                lambda energy: energy <= self.particle.mass,
-                "'total energy' must exceed `particle.mass`",
-            )
-        return self

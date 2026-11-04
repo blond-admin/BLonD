@@ -34,6 +34,14 @@ def _programme(value=(1.0, 2.0), **kwargs):
     return Programme(time=tuple(range(len(value))), value=value, **kwargs)
 
 
+def _particle(**kwargs):
+    return ParticleDefinition(**{"mass": 938.272e6, "charge": 1, **kwargs})
+
+
+def _magnetic(**kwargs):
+    return MagneticProgramme(**{"particle": _particle(), **kwargs})
+
+
 def _constant(value):
     return Programme(time=(0.0,), value=(value,))
 
@@ -48,9 +56,8 @@ def _harmonic(harmonic=1.0, voltage=1e6, phi_rf_design=0.0):
 
 def _cycle(**kwargs):
     arguments = {
-        "particle": ParticleDefinition(mass=938.272e6, charge=1),
         "circumference": 100.0,
-        "magnetic_cycle": MagneticProgramme(
+        "magnetic_cycle": _magnetic(
             time=(0.0, 1.0), value=(1e9, 2e9)
         ),
         "rf_stations": (RFStationDefinition(harmonics=(_harmonic(),)),),
@@ -178,18 +185,18 @@ class TestProgramme(BLonDTestCase):
 
 class TestMagneticProgramme(BLonDTestCase):
     def test_default_unit_is_momentum(self):
-        programme = MagneticProgramme(time=(0.0,), value=(1e9,))
+        programme = _magnetic(time=(0.0,), value=(1e9,))
         self.assertEqual(programme.in_unit, "momentum")
         self.assertIsNone(programme.bending_radius)
 
     def test_bending_field_requires_radius(self):
         with self.assertRaisesRegex(pyd.ValidationError, "bending_radius"):
-            MagneticProgramme(
+            _magnetic(
                 time=(0.0,), value=(1.0,), in_unit="bending field"
             )
 
     def test_bending_field_with_radius(self):
-        programme = MagneticProgramme(
+        programme = _magnetic(
             time=(0.0,),
             value=(1.0,),
             in_unit="bending field",
@@ -201,7 +208,7 @@ class TestMagneticProgramme(BLonDTestCase):
         for radius in (0.0, -1.0):
             with self.subTest(radius=radius):
                 with self.assertRaises(pyd.ValidationError):
-                    MagneticProgramme(
+                    _magnetic(
                         time=(0.0,),
                         value=(1.0,),
                         in_unit="bending field",
@@ -210,7 +217,7 @@ class TestMagneticProgramme(BLonDTestCase):
 
     def test_unknown_unit_rejected(self):
         with self.assertRaises(pyd.ValidationError):
-            MagneticProgramme(time=(0.0,), value=(1.0,), in_unit="speed")
+            _magnetic(time=(0.0,), value=(1.0,), in_unit="speed")
 
     def test_values_must_be_positive(self):
         for unit in (
@@ -224,7 +231,7 @@ class TestMagneticProgramme(BLonDTestCase):
                     with self.assertRaisesRegex(
                         pyd.ValidationError, "must be > 0"
                     ):
-                        MagneticProgramme(
+                        _magnetic(
                             time=(0.0, 1.0),
                             value=(1.0, bad_value),
                             in_unit=unit,
@@ -237,11 +244,37 @@ class TestMagneticProgramme(BLonDTestCase):
         for bad_value in (math.nan, math.inf, -math.inf):
             with self.subTest(bad_value=bad_value):
                 with self.assertRaises(pyd.ValidationError):
-                    MagneticProgramme(time=(0.0, 1.0), value=(1.0, bad_value))
+                    _magnetic(time=(0.0, 1.0), value=(1.0, bad_value))
+
+    def test_particle_required(self):
+        with self.assertRaises(pyd.ValidationError):
+            MagneticProgramme(time=(0.0,), value=(1.0,))
+
+    def test_total_energy_must_exceed_mass(self):
+        for energy in (938.272e6, 1e6):
+            with self.subTest(energy=energy):
+                with self.assertRaisesRegex(
+                    pyd.ValidationError, "must exceed"
+                ):
+                    _magnetic(
+                        time=(0.0,), value=(energy,), in_unit="total energy"
+                    )
+
+    def test_total_energy_above_mass_accepted(self):
+        programme = _magnetic(
+            time=(0.0,), value=(1e9,), in_unit="total energy"
+        )
+        self.assertEqual(programme.in_unit, "total energy")
+
+    def test_mass_not_checked_for_other_units(self):
+        programme = _magnetic(
+            particle=_particle(mass=1e12), time=(0.0,), value=(1e9,)
+        )
+        self.assertEqual(programme.value, (1e9,))
 
     def test_inherits_programme_checks(self):
         with self.assertRaisesRegex(pyd.ValidationError, "strictly"):
-            MagneticProgramme(time=(1.0, 0.0), value=(1.0, 2.0))
+            _magnetic(time=(1.0, 0.0), value=(1.0, 2.0))
 
 
 class TestParticleDefinition(BLonDTestCase):
