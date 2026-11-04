@@ -71,6 +71,7 @@ doc = [
   "marimo",                      # marimo notebooks exported for the docs
   "nbformat",                    # needed by `marimo export ipynb`
   "xsuite",                      # document the xsuite interface glue
+  "pydantic>=2.12",              # document the portable interface models
 ]
 mpi = [
   # Distributed computing. Optional: the wheel needs an MPI runtime
@@ -111,9 +112,10 @@ xsuite = [
   # regression is fixed upstream.
   "xpart>=0.23.9, !=0.23.16", # particle objects
 ]
-all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
-all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
-all_cuda13 = ["blond[dev,doc,xsuite,mpi,gpu_cuda13]"]
+portable = ["pydantic>=2.12"]
+all_no_cuda = ["blond[dev,doc,xsuite,mpi,portable]"]
+all_cuda12 = ["blond[dev,doc,xsuite,mpi,portable,gpu_cuda12]"]
+all_cuda13 = ["blond[dev,doc,xsuite,mpi,portable,gpu_cuda13]"]
 
 [tool.setuptools]
 packages = { find = {} }
