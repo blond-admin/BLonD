@@ -1458,11 +1458,11 @@ class TestResistiveWall(BLonDTestCase):
                 setattr(self.resistive_wall, name, 1.0)
 
     def test_rejects_non_positive_parameters(self):
-        valid = dict(
-            pipe_radius=self.pipe_radius,
-            pipe_length=self.pipe_length,
-            conductivity=self.conductivity,
-        )
+        valid = {
+            "pipe_radius": self.pipe_radius,
+            "pipe_length": self.pipe_length,
+            "conductivity": self.conductivity,
+        }
         for name in valid:
             for value in (0.0, -1.0):
                 with (
