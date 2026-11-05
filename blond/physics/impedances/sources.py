@@ -1381,10 +1381,11 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
 
         freq_x = backend.array(freq_x, dtype=backend.float)
         assert freq_x.min() >= 0, "`freq_x` must be one-sided (f >= 0)."
-        is_dc = freq_x == 0
-        # dummy f at DC avoids the division by zero; masked below
-        safe_freq = backend.where(is_dc, 1.0, freq_x)
         impedance_of_vacuum = mu_0 * c
+        # Z(0) = 0; the formula divides by f, so it skips the DC bin
+        impedance = backend.zeros_like(freq_x, dtype=backend.complex)
+        nonzero = freq_x != 0
+        freq = freq_x[nonzero]
         skin_depth_term = (
             (1.0 - 1j)
             * 2.0
@@ -1394,20 +1395,15 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
                 self.conductivity
                 * impedance_of_vacuum
                 * c
-                / (4.0 * np.pi * safe_freq)
+                / (4.0 * np.pi * freq)
             )
         )
-        capacitive_term = 2j * np.pi * self.pipe_radius**2 * freq_x
-        impedance = (
+        capacitive_term = 2j * np.pi * self.pipe_radius**2 * freq
+        impedance[nonzero] = (
             impedance_of_vacuum
             * c
             * self.pipe_length
             / (np.pi * (skin_depth_term + capacitive_term))
-        )
-        # Z -> 0 as sqrt(f) for f -> 0, but the dummy f above gives a
-        # finite value at DC, so the DC bin is set explicitly
-        impedance = backend.where(is_dc, 0.0, impedance).astype(
-            backend.complex
         )
 
         self._cache_impedance_hash = hash_
