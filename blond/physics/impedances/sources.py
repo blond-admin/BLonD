@@ -1291,6 +1291,7 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         self.pipe_length = float(pipe_length)
         self.conductivity = float(conductivity)
 
+        # TODO: Port to _LateInit
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
 
