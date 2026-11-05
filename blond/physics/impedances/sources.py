@@ -1287,9 +1287,9 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         ):
             if not value > 0:
                 raise ValueError(f"`{name}` must be positive, got {value}.")
-        self._pipe_radius = float(pipe_radius)
-        self._pipe_length = float(pipe_length)
-        self._conductivity = float(conductivity)
+        self.pipe_radius = float(pipe_radius)
+        self.pipe_length = float(pipe_length)
+        self.conductivity = float(conductivity)
 
         self._cache_impedance: NumpyArray | CupyArray | None = None
         self._cache_impedance_hash: int | None = None
@@ -1331,42 +1331,6 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         )
 
     @property
-    def pipe_radius(self) -> float:
-        """
-        Beam pipe radius, in [m].
-
-        Returns
-        -------
-        pipe_radius
-            Beam pipe radius, in [m].
-        """
-        return self._pipe_radius
-
-    @property
-    def pipe_length(self) -> float:
-        """
-        Beam pipe length, in [m].
-
-        Returns
-        -------
-        pipe_length
-            Beam pipe length, in [m].
-        """
-        return self._pipe_length
-
-    @property
-    def conductivity(self) -> float:
-        """
-        Wall conductivity, in [S/m].
-
-        Returns
-        -------
-        conductivity
-            Wall conductivity, in [S/m].
-        """
-        return self._conductivity
-
-    @property
     def resistivity(self) -> float:
         """
         Wall resistivity, in [Ohm m].
@@ -1376,7 +1340,7 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         resistivity
             Wall resistivity, in [Ohm m].
         """
-        return 1.0 / self._conductivity
+        return 1.0 / self.conductivity
 
     def get_impedance(
         self,
@@ -1407,8 +1371,11 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         impedance
             Complex impedance array, in [Ω].
         """
-        # Recalculate only if `freq_x` is changed
-        hash_ = hash_linspace(freq_x)
+        # Recalculate only if `freq_x` or a parameter is changed
+        hash_ = hash_linspace(
+            freq_x,
+            salt=(self.pipe_radius, self.pipe_length, self.conductivity),
+        )
         if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
@@ -1421,20 +1388,20 @@ class ResistiveWall(WakeFieldSource, FreqDomain):
         skin_depth_term = (
             (1.0 - 1j)
             * 2.0
-            * self._pipe_radius
+            * self.pipe_radius
             * c
             * backend.sqrt(
-                self._conductivity
+                self.conductivity
                 * impedance_of_vacuum
                 * c
                 / (4.0 * np.pi * safe_freq)
             )
         )
-        capacitive_term = 2j * np.pi * self._pipe_radius**2 * freq_x
+        capacitive_term = 2j * np.pi * self.pipe_radius**2 * freq_x
         impedance = (
             impedance_of_vacuum
             * c
-            * self._pipe_length
+            * self.pipe_length
             / (np.pi * (skin_depth_term + capacitive_term))
         )
         # Z -> 0 as sqrt(f) for f -> 0, but the dummy f above gives a

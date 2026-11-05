@@ -1451,11 +1451,35 @@ class TestResistiveWall(BLonDTestCase):
                 pipe_radius=self.pipe_radius, pipe_length=self.pipe_length
             )
 
-    def test_parameters_are_read_only(self):
-        # The impedance is cached, so a changed parameter would go unseen.
+    def test_changed_parameter_invalidates_cache(self):
+        freq = np.array([1e3, 1e9, 1e12])
         for name in ("pipe_radius", "pipe_length", "conductivity"):
-            with self.subTest(name=name), self.assertRaises(AttributeError):
-                setattr(self.resistive_wall, name, 1.0)
+            with self.subTest(name=name):
+                self.setUp()
+                cached = self._impedance(freq)
+                setattr(
+                    self.resistive_wall,
+                    name,
+                    2 * getattr(self.resistive_wall, name),
+                )
+                fresh = ResistiveWall(
+                    pipe_radius=self.resistive_wall.pipe_radius,
+                    pipe_length=self.resistive_wall.pipe_length,
+                    conductivity=self.resistive_wall.conductivity,
+                )
+                updated = self._impedance(freq)
+                self.assertFalse(np.allclose(updated, cached))
+                np.testing.assert_allclose(
+                    updated,
+                    copy_to_cpu(
+                        fresh.get_impedance(
+                            backend.array(freq, dtype=backend.float),
+                            simulation=None,
+                            beam=None,
+                        )
+                    ),
+                    rtol=1e-12,
+                )
 
     def test_rejects_non_positive_parameters(self):
         valid = dict(
