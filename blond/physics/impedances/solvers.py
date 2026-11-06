@@ -428,7 +428,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             : self._parent_wakefield.profile.n_bins
         ]
 
-    def _plot_debug_internal_state(self):
+    def _plot_debug_internal_state(self):  # pragma: no cover
         plt.subplot(2, 1, 1)
         plt.ylabel("Impedance")
         plt.xlabel("Frequency")
