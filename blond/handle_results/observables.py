@@ -36,6 +36,7 @@ from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Sequence
     from typing import Any
 
     from blond.core.beam.base import BeamBaseClass
@@ -122,6 +123,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     **kwargs
         Additional keyword arguments.
     """
+
+    _NOT_A_RECORDER: set[str] = set()
 
     def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
@@ -217,6 +220,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     def assert_lateinit(self):
         """Check that DenseArrays are already initialized."""
         for parameter, value in self.__dict__.items():
+            if parameter in self._NOT_A_RECORDER:
+                continue
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
 
@@ -237,6 +242,12 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         Additional keyword arguments.
     """
 
+    _NOT_A_RECORDER = ObservablesBaseClass._NOT_A_RECORDER | {
+        "_turns_array",
+        "_n_turns",
+        "each_turn_i",
+    }
+
     def __init__(
         self,
         each_turn_i: int,
@@ -256,7 +267,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._simulation: Simulation | None = None
 
     @property  # as readonly attributes
-    def turns_array(self) -> NumpyArray | None:
+    def turns_array(self) -> NumpyArray:
         """
         Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
@@ -268,6 +279,17 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         turns_array
             Array with turn numbers for observations.
         """
+        if self._turns_array is None:
+            assert self._n_turns is not None
+            self._turns_array = np.arange(
+                0, self._n_turns, self.each_turn_i, dtype=int
+            )
+
+            assert self._turns_array is not None
+
+            assert len(self._turns_array) == self._calc_n_entries(
+                n_turns=self._n_turns
+            )
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -308,9 +330,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             Additional keyword arguments.
         """
         self._n_turns = int(n_turns)
-
-        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
-        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
 
         self._simulation = simulation
 
@@ -1525,7 +1544,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        profiles: list[StaticProfile],
+        profiles: Sequence[StaticProfile],
         folder: str = "",
         sort_profiles_by_section=True,
     ):
@@ -1565,6 +1584,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
+
         n_turns_observation = self._calc_n_entries(n_turns)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)
