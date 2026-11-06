@@ -69,6 +69,8 @@ doc = [
   "ipython>5",                   # interactive Python shell
   "notebook>=7",                 # for jupyter-notebooks in the examples
   "sphinx-copybutton",           # for the copy button of code on the website
+  "marimo",                      # marimo notebooks exported for the docs
+  "nbformat",                    # needed by `marimo export ipynb`
   "xsuite",                      # document the xsuite interface glue
 ]
 mpi = [
