@@ -23,6 +23,7 @@ from blond import (
     StaticProfile,
     proton,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.lhc import (
     LHCCavityFeedback,
     LHCCavityFeedbackCommissioning,
@@ -667,7 +668,9 @@ class TestLHCCavityFeedbackFineGrid(unittest.TestCase):
         hist_step = cavity_feedback.profile.hist_step
         samples_fine = 2 * np.pi * small_f_rf * hist_step
         self.assertAlmostEqual(cavity_feedback.samples_fine, samples_fine)
-        t_at_init = cavity_feedback.profile.hist_x[0] - hist_step
+        # The profile grid lives on the device for GPU backends
+        hist_x = copy_to_cpu(cavity_feedback.profile.hist_x)
+        t_at_init = hist_x[0] - hist_step
         t_first = (
             cavity_feedback.rf_centers[0] - cavity_feedback.T_s * n_coarse
         )
@@ -710,7 +713,8 @@ class TestLHCCavityFeedbackFineGrid(unittest.TestCase):
 
         # The generator current is still resampled onto the fine grid, but
         # the fine-grid antenna voltage is left untouched
-        hist_x = cavity_feedback.profile.hist_x
+        # The profile grid lives on the device for GPU backends
+        hist_x = copy_to_cpu(cavity_feedback.profile.hist_x)
         hist_step = cavity_feedback.profile.hist_step
         expected_i_gen_fine = np.interp(
             np.concatenate(([hist_x[0] - hist_step], hist_x)),
