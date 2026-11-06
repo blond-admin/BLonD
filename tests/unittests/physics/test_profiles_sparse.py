@@ -9,9 +9,10 @@ from blond import EmptyBeam, uranium_29
 from blond.core.beam.beams import ProbeBeam
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEquidistantMultiProfile(unittest.TestCase):
+class TestEquidistantMultiProfile(BLonDTestCase):
     def setUp(self):
         self.multiprofile_equidistant = EquidistantMultiProfile.headless(
             t_rev=5 * 10.0,
@@ -148,6 +149,16 @@ class TestEquidistantMultiProfile(unittest.TestCase):
             copy_to_cpu(meta["bucket_index_to_memory_index"]),
             np.array([0, 0, 0, 4]),
         )
+
+
+class TestEquidistantMultiProfileUnknownKwargs(BLonDTestCase):
+    def test___init___rejects_unknown_kwargs(self):
+        with self.assertRaises(TypeError):
+            EquidistantMultiProfile(
+                filling_pattern=np.ones(2, dtype=bool),
+                bins_per_profile=8,
+                not_a_parameter=0,
+            )
 
 
 if __name__ == "__main__":

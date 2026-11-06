@@ -6,9 +6,10 @@ from blond.experimental.beam_preparation.metric_functions import (
     q_percent_emittance,
     rms_emittance,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestMetricFunctions(unittest.TestCase):
+class TestMetricFunctions(BLonDTestCase):
     def test_q_percent_emittance(self):
         density = np.array(
             [[1, 2], [3, 4]]

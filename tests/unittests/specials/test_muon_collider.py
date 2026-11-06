@@ -3,15 +3,16 @@ import unittest
 
 import numpy as np
 
-from blond import Beam, proton
+from blond import Beam, copy_to_cpu, proton
 from blond.specifics.muon_collider.beam_preparation import (
     copy_beam_data_from_other_beam,
     load_beam_coordinates_counterrot_from_file,
     load_beam_coordinates_from_file,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestBeamPreparationMuCol(unittest.TestCase):
+class TestBeamPreparationMuCol(BLonDTestCase):
     def test_load_beam_coordinates_counterrot_from_file(self):
         beam = Beam(
             intensity=1, particle_type=proton, is_counter_rotating=True
@@ -54,12 +55,10 @@ class TestBeamPreparationMuCol(unittest.TestCase):
         beam = Beam(
             intensity=1, particle_type=proton, is_counter_rotating=True
         )
-
-        filename = "testfile.npz"
-        beam._dt = np.linspace(-50e-9, 50e-9, num=100)
-        beam._dE = np.linspace(-50e9, 50e9, num=100)
-        beam._flags = np.ones_like(beam._dE)
-        beam._ids = np.arange(len(beam._dE))
+        beam.setup_beam(
+            dt=np.linspace(-50e-9, 50e-9, num=100),
+            dE=np.linspace(-50e9, 50e9, num=100),
+        )
 
         beam_CR = Beam(
             intensity=2, particle_type=proton, is_counter_rotating=False
@@ -67,10 +66,22 @@ class TestBeamPreparationMuCol(unittest.TestCase):
 
         copy_beam_data_from_other_beam(beam_CR, beam)
 
-        assert np.allclose(beam._dE, beam_CR._dE)
-        assert np.allclose(beam._flags, beam_CR._flags)
-        assert np.allclose(beam._ids, beam_CR._ids)
-        assert np.allclose(beam._dt, beam_CR._dt)
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.dE.array_local),
+            copy_to_cpu(beam_CR.dE.array_local),
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.flags.array_local),
+            copy_to_cpu(beam_CR.flags.array_local),
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.ids.array_local),
+            copy_to_cpu(beam_CR.ids.array_local),
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.dt.array_local),
+            copy_to_cpu(beam_CR.dt.array_local),
+        )
         assert beam.intensity == beam_CR.intensity
 
         beam._is_distributed = True

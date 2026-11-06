@@ -21,6 +21,7 @@ from blond import (
     DriftSimple,
     MultiHarmonicRFStation,
     Ring,
+    ScheduledInterpolation,
     Simulation,
     StaticProfile,
     StaticProfileObservation,
@@ -29,7 +30,6 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.core.base import ScheduledInterpolation
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )

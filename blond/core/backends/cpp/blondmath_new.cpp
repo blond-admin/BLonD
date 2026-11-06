@@ -15,26 +15,26 @@ C++ Math library
 #include "openmp.h"
 
 extern "C" real_t sum_1d_array(const real_t *__restrict__ array_1,
-                               const int n) {
-    real_t acc = 0.0;
+                               const index_t n) {
+  real_t acc = 0.0;
 
 #pragma omp parallel for reduction(+ : acc)
-    for (int idx = 0; idx < n; ++idx) {
-        acc += array_1[idx];
-    }
+  for (index_t idx = 0; idx < n; ++idx) {
+    acc += array_1[idx];
+  }
 
-    return acc;
+  return acc;
 }
 
 extern "C" real_t dot_product_1d_array(const real_t *__restrict__ array_1,
                                        const real_t *__restrict__ array_2,
-                                       const int n) {
-    real_t acc = 0.0;
+                                       const index_t n) {
+  real_t acc = 0.0;
 
 #pragma omp parallel for reduction(+ : acc)
-    for (int idx = 0; idx < n; ++idx) {
-        acc += array_1[idx] * array_2[idx];
-    }
+  for (index_t idx = 0; idx < n; ++idx) {
+    acc += array_1[idx] * array_2[idx];
+  }
 
-    return acc;
+  return acc;
 }

@@ -10,7 +10,7 @@
 RF phase-noise generator backed by CERN's external ``VariNoise`` library.
 
 This is a thin wrapper around the ``rf-noise-cpp`` ctypes binding (see
-:mod:`blond.interfaces.rf_noise_cpp.wrap_rf_noise`) exposed through the
+``blond.interfaces.rf_noise_cpp.wrap_rf_noise``) exposed through the
 :class:`~blond.cycles.noise_generators.base.NoiseGenerator` interface.
 
 Author: Simon Lauber

@@ -25,6 +25,7 @@ from blond import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.testing.backend_testing import BLonDTestCase
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -40,7 +41,7 @@ f_res = resonator_data[:, 0] * 10**9
 Q_factor = resonator_data[:, 1]
 
 
-class TestSparseProfileIntegration(unittest.TestCase):
+class TestSparseProfileIntegration(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_compare_both_profiles(self):
         backend.change_backend(Numpy64Bit)
@@ -62,7 +63,7 @@ class TestSparseProfileIntegration(unittest.TestCase):
         if DEV_DRAW:
             plt.figure("compare")
             ax1 = plt.subplot(3, 1, 1)
-            plt.plot(profile_wanted._hist_x, profile_wanted._hist_y, "x")
+            plt.plot(profile_wanted.hist_x, profile_wanted.hist_y, "x")
             plt.xlim(4e-8, 6e-8)
             plt.axvline(4.9940e-8)
             plt.show()
@@ -70,8 +71,8 @@ class TestSparseProfileIntegration(unittest.TestCase):
 
     def _test_both_results_equal(self, profile, profile_wanted):
         # from plot, see `axvline`
-        start_idx = np.argmax(profile_wanted._hist_x > 4.9940e-8)
-        second_peak_wanted = profile_wanted._hist_y[
+        start_idx = np.argmax(profile_wanted.hist_x > 4.9940e-8)
+        second_peak_wanted = profile_wanted.hist_y[
             start_idx : start_idx + 2**8
         ]
         second_peak_actual = profile.profiles[1].hist_y
@@ -174,9 +175,8 @@ class TestSparseProfileIntegration(unittest.TestCase):
         # one with a genuine internal gap (fill/fill/empty/empty, repeated,
         # not merely a shorter contiguous run followed by trailing zeros),
         # attach a real resonator impedance, then run
-        # `WakeField._track()` and confirm it completes without the
-        # `ValueError` raised by `kick_interpolated`'s uniform-spacing
-        # guard, and that a non-zero kick was actually applied.
+        # `WakeField._track()` and confirm it completes and that a
+        # non-zero kick was actually applied.
         backend.change_backend(Numpy64Bit)
 
         ring = Ring(

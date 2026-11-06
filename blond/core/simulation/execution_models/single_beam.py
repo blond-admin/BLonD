@@ -28,8 +28,8 @@ from tqdm import tqdm  # type: ignore
 from blond.core.simulation.execution_models.base import ExecutionModel
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]

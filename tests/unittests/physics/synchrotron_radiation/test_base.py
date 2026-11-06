@@ -16,17 +16,20 @@ from blond import (
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import INDEX_DTYPE, backend
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import DynamicParameter, SimulationElementBase
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.physics.synchrotron_radiation.base import (
     SynchrotronRadiationBaseClass,
 )
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     _SynchrotronRadiationTracker,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -61,7 +64,7 @@ class BeamBaseClassTester(BeamBaseClass):
         )  # delta t
         # in s
         self._flags = backend.zeros(10, dtype=np.int32)
-        self._ids = backend.arange(10, dtype=np.int32)
+        self._ids = backend.arange(10, dtype=INDEX_DTYPE)
 
     @cached_property
     def ratio(self) -> float:
@@ -134,7 +137,7 @@ class BeamBaseClassTester(BeamBaseClass):
         pass
 
 
-class TestSynchrotronRadiationBaseClass(unittest.TestCase):
+class TestSynchrotronRadiationBaseClass(BLonDTestCase):
     def setUp(self) -> None:
         self.radiation_integrals = np.array(
             [
@@ -159,12 +162,11 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
             disable_quantum_excitation=True,
         )
         # To test the tracking methods
-        self.SRB._simulation = Mock(SimulationElementBase)
-        self.SRB._simulation.turn_counter = 0
-        self.SRD._simulation = Mock(SimulationElementBase)
-        self.SRD._simulation.turn_counter = 0
-        self.SRS._simulation = Mock(SimulationElementBase)
-        self.SRS._simulation.turn_counter = 0
+        self.tracking_simulation = Mock(SimulationElementBase)
+        self.tracking_simulation.turn_counter = 0
+        self.SRB._simulation = self.tracking_simulation
+        self.SRD._simulation = self.tracking_simulation
+        self.SRS._simulation = self.tracking_simulation
 
         self.beam = BeamBaseClassTester(
             intensity=1e12,
@@ -352,7 +354,7 @@ class TestSynchrotronRadiationBaseClass(unittest.TestCase):
 
 
 class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
-    unittest.TestCase
+    BLonDTestCase
 ):
     def setUp(self) -> None:
         self.number_of_turns = 100
@@ -381,8 +383,6 @@ class TestSynchrotronRadiationBaseClassSchedulableRadiationIntegrals(
 
         # To test the tracking methods
         self.simulation = Mock(Simulation)
-        self.simulation.turn_i = Mock(DynamicParameter)
-        self.simulation.turn_i.value = 0
         self.simulation.turn_counter = DynamicParameter(0)
 
         self.beam = BeamBaseClassTester(

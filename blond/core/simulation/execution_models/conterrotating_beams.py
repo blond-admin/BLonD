@@ -25,8 +25,8 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
-from blond import Simulation
 from blond.core.simulation.execution_models.base import ExecutionModel
+from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import NotTestedWarning
 
 if TYPE_CHECKING:  # pragma: no cover

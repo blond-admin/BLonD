@@ -3,9 +3,10 @@ import unittest
 import pytest
 
 from blond import setup_backend
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_setup_backend(self):
         for option in [

@@ -38,8 +38,10 @@ from scipy.constants import (
     speed_of_light,
 )
 
+from blond.testing.backend_testing import BLonDTestCase
 
-class TestScipyConstants(unittest.TestCase):
+
+class TestScipyConstants(BLonDTestCase):
     """Pin the values of scipy constants used across ``blond/``."""
 
     def test_speed_of_light(self):

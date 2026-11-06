@@ -19,7 +19,7 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
                  const real_t first_left_cut, const real_t left_cut_distance,
                  const real_t cut_width, const int bins_per_profile,
                  const int n_active_profiles, const int n_buckets,
-                 const int n_macroparticles,
+                 const index_t n_macroparticles,
                  const bool *__restrict__ filling_pattern,
                  const int *__restrict__ bucket_index_to_memory_index) {
   const real_t cut_left0 = first_left_cut;
@@ -58,12 +58,16 @@ histogram_sparse(const real_t *__restrict__ input, real_t *__restrict__ output,
 // Particle loop (into the private histogram, no atomics)
 // ---------------------------------
 #pragma omp for schedule(static)
-    for (int i = 0; i < n_macroparticles; ++i) {
+    for (index_t i = 0; i < n_macroparticles; ++i) {
       const real_t dt = input[i];
 
-      const int bucket_i = (int)((dt - cut_left0) * inv_hist_dist);
-      if (bucket_i >= n_buckets || bucket_i < 0)
+      // Range-check in floating point *before* the conversion:
+      // converting an out-of-range value to `int` is undefined
+      // behaviour.
+      const real_t bucket_real = (dt - cut_left0) * inv_hist_dist;
+      if (bucket_real < real_t(0) || bucket_real >= real_t(n_buckets))
         continue;
+      const int bucket_i = (int)bucket_real;
       if (!filling_pattern[bucket_i]) {
         continue;
       }

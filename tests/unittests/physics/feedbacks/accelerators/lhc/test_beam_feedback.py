@@ -23,6 +23,7 @@ from blond.physics.feedbacks.base import (
     LocalFeedback,
 )
 from blond.physics.feedbacks.buffers import BufferBase, TwoTurnArray
+from blond.testing.backend_testing import BLonDTestCase
 
 circumference = 26658.8832  # [m]
 momentum = 450e9
@@ -39,7 +40,7 @@ injection_offset_phase = 20
 reference = -20
 
 
-class TestLHCBeamFeedback(unittest.TestCase):
+class TestLHCBeamFeedback(BLonDTestCase):
     def create_scenario(
         self,
         open_synchro: bool = False,
@@ -440,7 +441,7 @@ class TestLHCBeamFeedback(unittest.TestCase):
         )
 
         # Track the next turn
-        self.simulation.turn_i.value = 1
+        self.simulation.turn_counter.value = 1
         self.beam_control.track(self.beam)
 
         self.assertAlmostEqual(

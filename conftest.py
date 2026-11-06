@@ -27,3 +27,21 @@ from blond.testing.backend_testing import pin_fast_test_backends
 def _pin_fast_test_backends():
     """Reset the numeric backends to a fast default before each test."""
     pin_fast_test_backends()
+
+
+@pytest.fixture(autouse=True)
+def _close_matplotlib_figures():
+    """
+    Close figures a test left open, so they do not pile up.
+
+    Yields
+    ------
+    None
+        Control returns to the test; figures are closed afterwards.
+    """
+    yield
+    import sys
+
+    pyplot = sys.modules.get("matplotlib.pyplot")
+    if pyplot is not None:
+        pyplot.close("all")

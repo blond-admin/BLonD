@@ -14,19 +14,19 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import (
-    ConstantMagneticCycle,
-    DriftSimple,
-    MultiHarmonicRFStation,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    StaticProfile,
-    WakeField,
-)
-from blond.core.base import ScheduledBaseClass
+from blond.core.ring.ring import Ring
+from blond.core.scheduling import ScheduledBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import (
+    ConstantMagneticCycle,
     MagneticCyclePerTurn,
+)
+from blond.physics.drifts import DriftSimple
+from blond.physics.impedances.base import WakeField
+from blond.physics.profiles import StaticProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -41,7 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def single_section_simulation(  # noqa: PLR0912
     ring_circumference: float,
-    cycle_values: float | NumpyArray,
+    cycle_values: int | float | NumpyArray,
     cycle_unit: SynchronousDataTypes,
     particle_type: ParticleType,
     ring_momentum_compaction_factor: float | ScheduledBaseClass,
@@ -107,7 +107,7 @@ def single_section_simulation(  # noqa: PLR0912
     >>>
     >>> from blond import Resonators, TimeDomainFftSolver, proton
     >>> from blond.convenience.single_section_setup import single_section_simulation
-    >>> from blond.core.base import ScheduledArray
+    >>> from blond.core.scheduling import ScheduledArray
     >>>
     >>> simulation = single_section_simulation(
     ...     ring_circumference=26658.883,
@@ -125,7 +125,7 @@ def single_section_simulation(  # noqa: PLR0912
     ... )
     """
     assert cavity_n_harmonics > 0, f"{cavity_n_harmonics=}"
-    if isinstance(cycle_values, float):
+    if isinstance(cycle_values, (int, float)):
         _cycle = ConstantMagneticCycle(
             reference_particle=particle_type,
             value=cycle_values,
@@ -192,7 +192,7 @@ def single_section_simulation(  # noqa: PLR0912
             cut_right=_cycle.get_t_rev_init(
                 circumference=ring_circumference, particle_type=particle_type
             )
-            / rf_station.harmonic,
+            / rf_station.get_main_harmonic(),
             cutoff_frequency=wakefield_cutoff_frequency,
         )
         wakefield = WakeField(

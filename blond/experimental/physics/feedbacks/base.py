@@ -12,17 +12,17 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         RFStationBaseClass,
         SingleHarmonicRFStation,
     )
-    from blond.physics.profiles import ProfileBaseClass
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):

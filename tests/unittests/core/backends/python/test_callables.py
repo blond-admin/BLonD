@@ -3,9 +3,10 @@ import unittest
 import numpy as np
 
 from blond.core.backends.python.callables import PythonSpecials
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestPythonSpecials(unittest.TestCase):
+class TestPythonSpecials(BLonDTestCase):
     def test_kick_interpolated(self):
         kick_interpolated = PythonSpecials().kick_interpolated
 
