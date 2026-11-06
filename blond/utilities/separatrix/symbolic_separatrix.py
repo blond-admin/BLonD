@@ -145,7 +145,7 @@ class SymbolicSeparatrixHelper:
         self,
         beam: BeamBaseClass,
         dt: NumpyArray,
-    ) -> tuple[NumpyArray, NumpyArray]:
+    ) -> NumpyArray:
         r"""
         Compute the separatrix boundary in longitudinal phase space.
 
