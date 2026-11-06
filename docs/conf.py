@@ -461,6 +461,42 @@ def skip_specific_functions(app, what, name, obj, skip, options):
     return skip
 
 
+def unwrap_tagged_displaymath(app, doctree):
+    r"""
+    Keep ``\tag`` usable in multi-line display math.
+
+    Sphinx's MathJax writer wraps every display-math block that contains
+    ``\\`` in ``\begin{split}``, and MathJax rejects ``\tag`` inside
+    ``split`` ("\tag not allowed in split environment"). Such blocks are
+    switched to ``no-wrap`` and put into an ``equation*`` environment
+    instead, which accepts both the line breaks of nested environments
+    (``cases``, ``aligned``) and the tag.
+
+    Parameters
+    ----------
+    app : sphinx.application.Sphinx
+        The Sphinx application object.
+    doctree : docutils.nodes.document
+        The freshly read document.
+
+    Returns
+    -------
+    None
+    """
+    from docutils import nodes
+
+    for node in doctree.findall(nodes.math_block):
+        if node.get("no-wrap", node.get("nowrap", False)):
+            continue
+        tex = node.astext()
+        if r"\tag" not in tex or "\\\\" not in tex:
+            continue
+        node["nowrap"] = node["no-wrap"] = True
+        node[:] = [
+            nodes.Text("\\begin{equation*}\n" + tex + "\n\\end{equation*}")
+        ]
+
+
 def setup(app):
     """
     Register Sphinx event handlers for this extension.
@@ -475,6 +511,7 @@ def setup(app):
     None
     """
     app.connect("autodoc-skip-member", skip_specific_functions)
+    app.connect("doctree-read", unwrap_tagged_displaymath)
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
