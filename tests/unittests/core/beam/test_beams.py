@@ -42,7 +42,7 @@ class TestBeam(BLonDTestCase):
         self.assertEqual(self.beam.reference.time, 11.0)
         self.assertEqual(self.beam.reference.total_energy, 1e12)
 
-    def test_setup_beam(self) -> None:
+    def test_setup_beam_unknown_mpi_mode(self) -> None:
         with self.assertRaisesRegex(NameError, "Unknown"):
             self.beam.setup_beam(
                 dE=np.linspace(1, 10, 10),

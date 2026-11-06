@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
+from blond.core.offenders import WeakBackReference
 from blond.core.scheduling import ScheduledBaseClass, get_scheduler
 from blond.generals.formatting_ import pretty_string
 
@@ -30,12 +31,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-    from blond.core.scheduling import (
-        ScheduledArray,
-        ScheduledFunctional,
-        ScheduledInterpolation,
-    )
     from blond.core.simulation.simulation import Simulation
+    from blond.generals.protocols import ScheduleFunction
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     T = TypeVar("T")
@@ -53,6 +50,9 @@ class Preparable(ABC):
         Additional keyword arguments for method
         resolution order of inheriting elements.
     """
+
+    # The simulation owns its elements; a strong reference would form a cycle
+    _simulation = WeakBackReference()
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -95,7 +95,7 @@ class Preparable(ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -118,12 +118,13 @@ class Preparable(ABC):
         *,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Set run-specific state for each simulation run.
 
-        Mirrors :meth:`configure` for the ``on_run_simulation`` lifecycle.
+        Mirrors :meth:`.Preparable.configure` for the ``on_run_simulation``
+        lifecycle.
         ``beam`` and ``n_turns`` are passed explicitly (as in
         ``on_run_simulation``); any values extracted from ``simulation``
         are collected in ``**kwargs`` and distributed down the MRO chain.
@@ -229,6 +230,53 @@ class Schedulable:
         self.intended_for_scheduling = set()
         self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
+        self._turn_counter: DynamicParameter | None = None
+
+    @property
+    def turn_counter(self) -> DynamicParameter | None:
+        """
+        The live turn counter consumed when applying active schedules.
+
+        Inside a BLonD ``Simulation`` this is bound automatically during
+        initialization (``configure``); when the element is driven by an
+        external loop (e.g. wrapped for xsuite), the driver provides one
+        instead and keeps its ``.value`` current.
+
+        Returns
+        -------
+        turn_counter
+            Counter whose ``.value`` is the current turn index, or ``None``
+            if none has been bound yet.
+        """
+        return self._turn_counter
+
+    @turn_counter.setter
+    def turn_counter(self, turn_counter: DynamicParameter | None) -> None:
+        self._turn_counter = turn_counter
+
+    def apply_active_schedules(self, reference_time: float) -> None:
+        """
+        Apply all schedules for the current turn, if scheduling is active.
+
+        Elements call this once per track; it is a no-op without active
+        schedules. With active schedules a bound :attr:`turn_counter` is
+        required.
+
+        Parameters
+        ----------
+        reference_time
+            Current reference time, in [s] (consumed by time-keyed
+            schedules).
+        """
+        if not self.schedule_active:
+            return
+        assert self._turn_counter is not None, (
+            "Turn counter must be set with active scheduling."
+        )
+        self.apply_schedules(
+            turn_i=self._turn_counter.value,
+            reference_time=reference_time,
+        )
 
     def _register_schedulable_variables(self, *names: str) -> None:
         """
@@ -248,12 +296,10 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
-        | ScheduledInterpolation
-        | ScheduledFunctional
+        value: ScheduledBaseClass
         | NumpyArray
         | tuple[NumpyArray, NumpyArray]
-        | Callable[..., Any],
+        | ScheduleFunction,
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -273,12 +319,24 @@ class Schedulable:
             Can be provided in one of several forms:
 
             1. **Convenient input options**:
-                - `NumpyArray`: Automatically cast to `ScheduledArray`.
-                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
 
-            2. **Explicit scheduling objects**:
-                - `ScheduledArray`: Full control over array-based scheduling.
-                - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
+               - `NumpyArray`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledArray`.
+               - `tuple[NumpyArray, NumpyArray]`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledInterpolation`.
+               - :class:`~blond.generals.protocols.ScheduleFunction`:
+                 Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledFunctional`.
+
+            2. **Explicit scheduling objects**, i.e. any
+               :class:`~blond.core.scheduling.ScheduledBaseClass`, e.g.:
+
+               - :class:`~blond.core.scheduling.ScheduledArray`:
+                 Full control over array-based scheduling.
+               - :class:`~blond.core.scheduling.ScheduledInterpolation`:
+                 Full control over interpolation-based scheduling.
+               - :class:`~blond.core.scheduling.ScheduledFunctional`:
+                 Full control over function-based scheduling.
 
         Raises
         ------
@@ -362,6 +420,8 @@ class Schedulable:
                 attribute,
                 value,
             )
+            # Lazy %-formatting: the array repr is only built when DEBUG
+            # logging is actually enabled (this runs once per turn).
             logger.debug("Wrote %s.%s = %s", self, attribute, value)
 
 
@@ -708,6 +768,40 @@ class HasPropertyCache:
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property."""
         pass
+
+
+class HasOrbitLength:
+    """
+    Base class for elements that occupy length along the ring's closed orbit.
+
+    The ring's geometry accounting (``Ring.closed_orbit_length``, per-section
+    orbit lengths, the per-section "length-bearing element present" check)
+    operates on this type. Inheriting it says *only* "this element takes up
+    ``orbit_length`` metres of the orbit" — it does not imply any particular
+    longitudinal physics. Drifts inherit it alongside their physics; black-box
+    elements (e.g. a wrapped xsuite line) inherit it without being drifts, so
+    drift-specific analytics (``eta_0`` averaging, momentum compaction,
+    synchrotron radiation) never see them.
+
+    Parameters
+    ----------
+    orbit_length
+        Length along the closed orbit, in [m].
+        Length / velocity => time of flight through the element.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
+    Attributes
+    ----------
+    orbit_length
+        Length along the closed orbit, in [m].
+        Length / velocity => time of flight through the element.
+    """
+
+    def __init__(self, orbit_length: float, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.orbit_length = orbit_length
 
 
 class AltersReference(ABC):

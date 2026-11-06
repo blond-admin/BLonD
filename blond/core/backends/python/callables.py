@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials
-from blond.core.beam.flags import BeamFlags
+from blond.core.backends.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # The function definition is recycled by the numba backend.
 def _move_flagged_elements_to_end_py(
-    flag: int,
+    flag: np.int32,
     flags: NumpyArray,  # also purged
     dt: NumpyArray,
     dE: NumpyArray,

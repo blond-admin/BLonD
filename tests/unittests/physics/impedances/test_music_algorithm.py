@@ -24,6 +24,7 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRFStation,
+    electron,
     momentum_compaction_factor,
     proton,
 )
@@ -32,6 +33,7 @@ from blond.core.beam.particle_types import uranium_29
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.sources import Resonators
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.helpers import save_blond2_reference_file
 
 # BLonD 2 only runs to rewrite the reference file, see resources/README.md.
@@ -260,18 +262,6 @@ def test_const_uses_intensity_and_macroparticles():
     np.testing.assert_allclose(music._const, expected, rtol=1e-12)
 
 
-def test_rejects_non_singly_charged_particles():
-    """MuSiC only supports singly-charged particles for now."""
-    n, intensity = 32, 3e11
-    rng = np.random.default_rng(0)
-    dt = backend.array(rng.random(n) * 1e-9, dtype=backend.float)
-    dE = backend.array(rng.standard_normal(n) * 1e6, dtype=backend.float)
-    beam = Beam(intensity=intensity, particle_type=uranium_29)
-    beam.setup_beam(dt=dt, dE=dE)
-    with pytest.raises(AssertionError):
-        Music.headless(beam=beam, source=_resonator())
-
-
 def test_each_turn_i_must_be_one():
     """Multi-turn bridging assumes consecutive turns -> each_turn_i == 1."""
     from unittest.mock import Mock
@@ -346,3 +336,117 @@ def test_matches_analytical_gaussian_resonator():
     peak = np.max(np.abs(analytical))
     rel = np.abs(binned - analytical) / peak
     assert rel.max() < 1e-2, f"max rel err {rel.max():.4f}"
+
+
+class TestBinnedInducedVoltage(BLonDTestCase):
+    """`Music.binned_induced_voltage`: the per-particle voltage on bins."""
+
+    def _tracked(self, n=2_000):
+        beam, _, _ = _beam(n=n)
+        music = Music.headless(beam=beam, source=_resonator())
+        music.track(beam=beam)
+        # headless: nothing moves dt after the kick, so the beam's dt is
+        # the dt the voltage was evaluated at
+        return (
+            beam,
+            music,
+            np.asarray(beam.read_partial_dt()).copy(),
+            np.asarray(music.induced_voltage).copy(),
+        )
+
+    @staticmethod
+    def _mean_per_bin(dt, voltage, centers, width):
+        means = np.full(len(centers), np.nan)
+        for i, center in enumerate(centers):
+            inside = (dt >= center - width / 2) & (dt < center + width / 2)
+            if inside.any():
+                means[i] = voltage[inside].mean()
+        return means
+
+    def test_mean_voltage_per_bin(self):
+        _, music, dt, voltage = self._tracked()
+        width = 0.05e-9
+        # a bin beyond the beam (which spans 0..1 ns) stays empty
+        centers = np.append(np.arange(0.025e-9, 1e-9, width), 1.5e-9)
+        binned = music.binned_induced_voltage(centers, width)
+        expected = self._mean_per_bin(dt, voltage, centers, width)
+        np.testing.assert_allclose(binned, expected, rtol=1e-9)
+        self.assertTrue(np.isnan(binned[-1]))
+
+    def test_bins_at_the_dt_of_the_kick(self):
+        beam, music, dt, voltage = self._tracked()
+        width = 0.1e-9
+        centers = np.arange(0.05e-9, 1e-9, width)
+        # a later element (e.g. a drift) moves the particles on
+        beam.write_partial_dt()[:] += 0.3e-9
+        np.testing.assert_allclose(
+            music.binned_induced_voltage(centers, width),
+            self._mean_per_bin(dt, voltage, centers, width),
+            rtol=1e-9,
+        )
+
+    def test_gapped_grid(self):
+        _, music, dt, voltage = self._tracked()
+        width = 0.02e-9
+        # two separate groups of bins, like an `EquidistantMultiProfile`
+        centers = np.concatenate(
+            (
+                np.arange(0.11e-9, 0.2e-9, width),
+                np.arange(0.71e-9, 0.8e-9, width),
+            )
+        )
+        np.testing.assert_allclose(
+            music.binned_induced_voltage(centers, width),
+            self._mean_per_bin(dt, voltage, centers, width),
+            rtol=1e-9,
+        )
+
+    def test_raises_before_the_first_track(self):
+        beam, _, _ = _beam()
+        music = Music.headless(beam=beam, source=_resonator())
+        with self.assertRaisesRegex(RuntimeError, "track"):
+            music.binned_induced_voltage(np.zeros(3), 1e-10)
+
+
+class TestParticleCharge(BLonDTestCase):
+    """MuSiC follows `WakeField`'s charge convention for any charge."""
+
+    def test_voltage_and_kick_for_any_charge(self):
+        # The voltage is linear in the charge, -q e N times the wake
+        # convolution, and the kick is q_dir * V, as in `WakeField`.
+        R_S, freq_R, Q = 1e7, 1e6, 1.0  # omega_R*sigma ~ 0.19
+        intensity, sigma, n = 1e12, 3e-8, 200_000
+        edges = np.linspace(-2.5 * sigma, 2.5 * sigma, 26)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+        unit_charge_voltage = _analytical_gaussian_resonator(
+            sigma, Q, R_S, 2 * np.pi * freq_R, centers, intensity
+        )
+        for particle_type in (proton, electron, uranium_29):
+            charge = particle_type.charge
+            with self.subTest(charge=charge):
+                rng = np.random.default_rng(1000)
+                beam = Beam(intensity=intensity, particle_type=particle_type)
+                beam.setup_beam(
+                    dt=backend.array(
+                        sigma * rng.standard_normal(n), dtype=backend.float
+                    ),
+                    dE=backend.array(np.zeros(n), dtype=backend.float),
+                )
+                music = Music.headless(
+                    beam=beam, source=Resonators(R_S, freq_R, Q)
+                )
+                music.track(beam=beam)
+                dt = np.asarray(beam.read_partial_dt())
+                voltage = np.asarray(music.induced_voltage)
+                which = np.digitize(dt, edges)
+                binned = np.array(
+                    [voltage[which == b + 1].mean() for b in range(25)]
+                )
+                expected = charge * unit_charge_voltage
+                error = np.abs(binned - expected) / np.abs(expected).max()
+                self.assertLess(error.max(), 1e-2)
+                np.testing.assert_allclose(
+                    np.asarray(beam.read_partial_dE()),
+                    beam.signed_charge_with_direction() * voltage,
+                    rtol=1e-12,
+                )

@@ -45,7 +45,6 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
-from blond.physics.drifts import DriftSimple
 from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
@@ -65,7 +64,6 @@ def _fixed_total_energy_cycle(total_energy: float):
     reject. ``headless(magnetic_cycle=...)`` only needs the
     ``get_target_total_energy`` interface.
     """
-
     return SimpleNamespace(get_target_total_energy=lambda **_: total_energy)
 
 
@@ -339,7 +337,8 @@ class TestRFStationBaseClass(BLonDTestCase):
         )
 
         mhc._turn_counter = 1
-        mhc._ring = Mock(Ring)
+        ring = Mock(Ring)
+        mhc._ring = ring
         mhc._ring.circumference = 456
 
         simulation = Mock(Simulation)
@@ -395,7 +394,8 @@ class TestRFStationBaseClass(BLonDTestCase):
         )
 
         mhc._turn_counter = 1
-        mhc._ring = Mock(Ring)
+        ring = Mock(Ring)
+        mhc._ring = ring
         mhc._ring.circumference = 456
 
         simulation = Mock(Simulation)
@@ -541,7 +541,8 @@ class TestRFStationBaseClass(BLonDTestCase):
             main_harmonic_idx=0,
             phi_rf=np.array([0, 2]),
         )
-        mhc._ring = Mock(spec=Ring)
+        ring = Mock(spec=Ring)
+        mhc._ring = ring
         mhc._ring.calc_average_eta_0.return_value = 1
 
         def phi_s(beam):
@@ -577,7 +578,8 @@ class TestRFStationBaseClass(BLonDTestCase):
             main_harmonic_idx=0,
             phi_rf=np.array([0, 2]),
         )
-        mhc._ring = Mock(spec=Ring)
+        ring = Mock(spec=Ring)
+        mhc._ring = ring
         mhc._ring.calc_average_eta_0.return_value = 1
 
         def phi_s(beam):
@@ -600,7 +602,8 @@ class TestRFStationBaseClass(BLonDTestCase):
         alpha = 1 / 55.759505**2
         gamma = 450e9 / proton.mass
         eta = alpha - (1 / (gamma**2))
-        mhc._ring = Mock(spec=Ring)
+        ring = Mock(spec=Ring)
+        mhc._ring = ring
         mhc._ring.calc_average_eta_0.return_value = eta
 
         def phi_s(beam):
@@ -663,7 +666,7 @@ class TestCallables(BLonDTestCase):
             )  # Should  raise
 
     @pytest.mark.cupy
-    def test_invalid_purely_real_or_imaginary_array(self):
+    def test_invalid_purely_real_or_imaginary_array_cupy(self):
         try:
             import cupy as cp  # type: ignore
         except ImportError as exc:
@@ -680,28 +683,13 @@ class TestCallables(BLonDTestCase):
 
 class TestMultiHarmonicCavity(BLonDTestCase):
     def setUp(self) -> None:
-        from blond.core.beam.base import BeamBaseClass
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
-        beam.particle_type = proton
-        beam._particle_type = beam.particle_type
-        beam.reference.time = 0
-        beam.reference.beta = 0.5
-        beam.reference.velocity = beam.reference.beta * c0
-        beam.reference.gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference.total_energy = 938
-        beam.reference._total_energy = beam.reference.total_energy
-        beam.dE = backend.linspace(-1e6, 1e6, 10, dtype=backend.float)
-        # delta E  in eV
-        beam.dt = backend.linspace(-1e-6, 1e-6, 10, dtype=backend.float)
-        # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
-        beam.signed_charge_with_direction.return_value = proton._charge
-
-        self.beam = beam
+        self.beam = Beam(particle_type=proton, intensity=1)
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-6, 1e-6, 10),
+            dE=np.linspace(-1e6, 1e6, 10),
+            reference_total_energy=42e9,
+            reference_time=0,
+        )
 
         self.multi_harmonic_cavity = MultiHarmonicRFStation.headless(
             section_index=0,
@@ -711,7 +699,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            magnetic_cycle=_fixed_total_energy_cycle(939),
+            magnetic_cycle=_fixed_total_energy_cycle(43e9),
             main_harmonic_idx=0,
             beam_reference_beta=1,
         )
@@ -815,7 +803,7 @@ class TestMultiHarmonicCavity(BLonDTestCase):
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(self.beam.reference.total_energy, 939)  # incremented
+        self.assertEqual(self.beam.reference.total_energy, 43e9)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         # print(self.beam.dE.tolist())
@@ -823,24 +811,24 @@ class TestMultiHarmonicCavity(BLonDTestCase):
             raise TypeError("32 bit backends have been removed.")
 
         np.testing.assert_allclose(  # changer/ test pinned to some value
-            copy_to_cpu(self.beam.dE),
+            copy_to_cpu(self.beam.dE.array_local),
             [
-                -3553222.1295187217,
-                229103.39306234661,
-                -2334151.389566862,
-                -1291443.680401674,
-                1796893.796132672,
-                -1195065.0503718334,
-                1768699.6153487992,
-                2588047.0010012407,
-                -251122.31467230315,
-                3259845.9525205432,
+                -998427874.7069353,
+                -1001709199.692548,
+                -1003250553.902445,
+                -1000077941.9734716,
+                -998756362.8558929,
+                -1000689535.1536587,
+                -999802787.7970611,
+                -997158604.9898542,
+                -998907300.7153974,
+                -1001912168.2723218,
             ],
             rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
-            copy_to_cpu(self.beam.dt),
+            copy_to_cpu(self.beam.dt.array_local),
             np.linspace(-1e-6, 1e-6, 10),
         )
 
@@ -1092,7 +1080,6 @@ class TestMultiHarmonicCavity(BLonDTestCase):
         non-zero acceleration to cover the ``Delta E_ref * dt`` term in
         the multi-harmonic Hamiltonian.
         """
-
         dt_s, q_s = sympy.symbols("dt q", real=True)
 
         for ref_energy_change in (-1e5, 0.0, 1e5):
@@ -1191,28 +1178,13 @@ class TestMultiHarmonicCavity(BLonDTestCase):
 
 class TestSingleHarmonicRFStation(BLonDTestCase):
     def setUp(self) -> None:
-        from blond.core.beam.base import BeamBaseClass
-
-        beam = Mock(BeamBaseClass)
-        beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
-        beam.particle_type = proton
-        beam.reference.time = float(0)
-        beam.reference.beta = 0.5
-        beam.reference.velocity = float(beam.reference.beta * c0)
-        beam.reference.gamma = float(np.sqrt(1 - 0.25))  # beta**2
-        beam.reference.total_energy = float(938)
-        beam.dE = backend.linspace(
-            -1e6, 1e6, 10, dtype=backend.float
-        )  # delta E in eV
-        beam.dt = backend.linspace(
-            -1e-6, 1e-6, 10, dtype=backend.float
-        )  # delta t in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
-        beam.signed_charge_with_direction.return_value = proton._charge
-
-        self.beam = beam
+        self.beam = Beam(particle_type=proton, intensity=1)
+        self.beam.setup_beam(
+            dt=np.linspace(-1e-6, 1e-6, 10),
+            dE=np.linspace(-1e6, 1e6, 10),
+            reference_total_energy=42e9,
+            reference_time=0,
+        )
 
         self.single_harmonic_cavity = SingleHarmonicRFStation.headless(
             section_index=0,
@@ -1222,8 +1194,8 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
             circumference=456,
             local_wakefield=None,
             cavity_feedback=None,
-            magnetic_cycle=_fixed_total_energy_cycle(939.0),
-            beam_reference_beta=beam.reference.beta,
+            magnetic_cycle=_fixed_total_energy_cycle(43e9),
+            beam_reference_beta=self.beam.reference.beta,
         )
         self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
@@ -1307,31 +1279,31 @@ class TestSingleHarmonicRFStation(BLonDTestCase):
     def test_track(self) -> None:
         self.single_harmonic_cavity.track(beam=self.beam)
 
-        self.assertEqual(939, self.beam.reference.total_energy)  # incremented
+        self.assertEqual(43e9, self.beam.reference.total_energy)  # incremented
         self.assertEqual(self.beam.reference.time, 0)  # unchanged
 
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")
 
         np.testing.assert_allclose(  # test pinned to some value
-            copy_to_cpu(self.beam.dE),
+            copy_to_cpu(self.beam.dE.array_local),
             [
-                -1003263.8619856804,
-                221697.39838640607,
-                -623504.6270207566,
-                -1327969.3279760184,
-                27701.968069498133,
-                1095854.844844814,
-                124356.9102684273,
-                -414301.0439499994,
-                1055852.7198949838,
-                1950042.1738763654,
+                -1001810728.4507133,
+                -1000010276.6832198,
+                -1001276020.3612214,
+                -999663480.3189315,
+                -1000727028.0066442,
+                -999329964.7671833,
+                -1000165824.2017127,
+                -999007530.7009628,
+                -999594723.8709637,
+                -998693759.0866513,
             ],
             rtol=1e-12,
         )
 
         np.testing.assert_allclose(  # unchanged
-            copy_to_cpu(self.beam.dt),
+            copy_to_cpu(self.beam.dt.array_local),
             np.linspace(-1e-6, 1e-6, 10),
         )
 
@@ -1694,6 +1666,105 @@ class TestRFStationUnknownKwargs(BLonDTestCase):
             phi_rf=np.array([0.0, np.pi]),
         )
         self.assertEqual(rf_station.main_harmonic_idx, 1)
+
+
+class TestOmegaRfDesignFollowsReference(unittest.TestCase):
+    """``omega_rf_design`` must rescale with the live reference each track.
+
+    Headless stations (``magnetic_cycle=None``) are driven by an external
+    loop (e.g. wrapped for xsuite, which feeds ``beam.reference`` from
+    ``particles.energy0``): the only energy information they receive is the
+    live reference, so ``track_reference`` refreshes the design omega from
+    it on every call. A frozen omega would silently detune the RF during
+    any ramp — the cross-code ramp comparisons run at 450 GeV where
+    delta-beta/beta is ~1e-10 and would not catch it, hence this explicit
+    low-energy pin (beta changes by ~25% between the two energies).
+    """
+
+    CIRCUMFERENCE = 2 * np.pi * 100.0
+    E_LO = 1.5e9
+    E_HI = 4.0e9
+
+    @staticmethod
+    def _beam_at(total_energy: float):
+        from blond import Beam, proton
+
+        beam = Beam(intensity=1.0, particle_type=proton)
+        beam.setup_beam(
+            dt=np.zeros(2),
+            dE=np.zeros(2),
+            reference_total_energy=total_energy,
+        )
+        return beam
+
+    @staticmethod
+    def _beta(total_energy: float) -> float:
+        from blond import proton
+
+        return float(np.sqrt(1.0 - (proton.mass / total_energy) ** 2))
+
+    def _expected_omega(self, harmonic, total_energy: float):
+        return (
+            harmonic
+            * 2.0
+            * np.pi
+            * self._beta(total_energy)
+            * c0
+            / self.CIRCUMFERENCE
+        )
+
+    def test_single_harmonic_omega_follows_reference_energy(self):
+        from blond import SingleHarmonicRFStation
+
+        rf = SingleHarmonicRFStation.headless(
+            section_index=0,
+            voltage=1e3,
+            phi_rf=0.0,
+            harmonic=7,
+            circumference=self.CIRCUMFERENCE,
+            beam_reference_beta=self._beta(self.E_LO),
+            magnetic_cycle=None,
+        )
+        omega_init = float(rf.omega_rf_design)
+        self.assertAlmostEqual(
+            omega_init / self._expected_omega(7, self.E_LO), 1.0, places=12
+        )
+
+        rf.track(beam=self._beam_at(self.E_HI))
+        omega_hi = float(rf.omega_rf_design)
+        # Guards against a frozen omega: at these energies the design
+        # frequency moves by ~25%, far beyond any tolerance.
+        self.assertGreater(abs(omega_hi - omega_init), 1e6)
+        self.assertAlmostEqual(
+            omega_hi / self._expected_omega(7, self.E_HI), 1.0, places=12
+        )
+
+        # And back down: the refresh is per-track, not one-shot.
+        rf.track(beam=self._beam_at(self.E_LO))
+        self.assertAlmostEqual(
+            float(rf.omega_rf_design) / omega_init, 1.0, places=12
+        )
+
+    def test_multi_harmonic_omega_follows_reference_energy(self):
+        from blond import MultiHarmonicRFStation, copy_to_cpu
+
+        harmonics = np.array([7.0, 14.0, 21.0])
+        rf = MultiHarmonicRFStation.headless(
+            section_index=0,
+            voltage=np.array([1e3, 0.0, 0.0]),
+            phi_rf=np.array([0.0, np.pi, 0.0]),
+            harmonic=harmonics,
+            circumference=self.CIRCUMFERENCE,
+            main_harmonic_idx=0,
+            beam_reference_beta=self._beta(self.E_LO),
+            magnetic_cycle=None,
+        )
+        rf.track(beam=self._beam_at(self.E_HI))
+        np.testing.assert_allclose(
+            copy_to_cpu(rf.omega_rf_design),
+            self._expected_omega(harmonics, self.E_HI),
+            rtol=1e-12,
+        )
 
 
 if __name__ == "__main__":

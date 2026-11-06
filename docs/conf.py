@@ -18,8 +18,11 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 """
 
 import datetime
+import json
 import os
+import re
 import shutil
+import subprocess
 import sys
 from importlib.metadata import version as get_version
 
@@ -73,6 +76,82 @@ def check_system_dependencies():
 
 check_system_dependencies()
 
+
+# Hides the code cells of a notebook page; outputs and their layout stay.
+HIDE_CODE_STYLE = (
+    "<style>div.nbinput.container { display: none; }\n"
+    "div.nboutput.container div.prompt { display: none; }</style>"
+)
+
+
+def export_marimo_notebooks(notebooks):
+    r"""
+    Export marimo notebooks to executed ``.ipynb`` files for nbsphinx.
+
+    marimo wraps math as ``<marimo-tex>||[ ... ||]</marimo-tex>``, which
+    only its own frontend renders, so the tags are rewritten to the
+    ``\[ ... \]`` / ``\( ... \)`` delimiters MathJax picks up.
+
+    Parameters
+    ----------
+    notebooks : dict of str to bool
+        Maps the path of each marimo ``.py`` notebook, relative to
+        ``docs/``, to ``hide_code``: if True, the page shows only the
+        cell outputs, not the code that produced them.
+
+    Raises
+    ------
+    RuntimeError
+        If a ``<marimo-tex>`` tag survives the rewrite, i.e. marimo
+        changed its output format.
+    """
+    docs_dir = os.path.dirname(os.path.abspath(__file__))
+    for notebook, hide_code in notebooks.items():
+        source = os.path.join(docs_dir, notebook)
+        target = os.path.splitext(source)[0] + ".ipynb"
+        subprocess.run(
+            [sys.executable, "-m", "marimo", "export", "ipynb", source,
+             "-o", target, "--include-outputs", "--force"],
+            check=True,
+        )  # fmt: skip
+        with open(target, encoding="utf-8") as f:
+            text = f.read()
+        text = re.sub(
+            r'<marimo-tex class=\\"arithmatex\\">\|\|([\[(])(.*?)'
+            r"\|\|[\])]</marimo-tex>",
+            lambda m: rf"\\{m[1]}{m[2]}\\{']' if m[1] == '[' else ')'}",
+            text,
+        )
+        if "marimo-tex" in text:
+            raise RuntimeError(
+                f"Unconverted <marimo-tex> left in {target}; marimo "
+                "changed its math output, update export_marimo_notebooks."
+            )
+        if hide_code:
+            # nbsphinx can only hide whole cells (output included), so
+            # the code is hidden with page-local CSS instead
+            exported = json.loads(text)
+            exported["cells"].insert(
+                0,
+                {
+                    "cell_type": "raw",
+                    "metadata": {"raw_mimetype": "text/html"},
+                    "source": HIDE_CODE_STYLE,
+                },
+            )
+            text = json.dumps(exported, indent=1, ensure_ascii=False)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(text)
+
+
+# notebook path (relative to docs/) -> hide_code
+export_marimo_notebooks(
+    {
+        "models_new/pole-residue/bin_averaged_wake_derivation.py": True,
+        "models_new/pole-residue/explain_nearfield_farfield_model.py": False,
+    }
+)
+
 sys.path.insert(0, os.path.abspath(".."))
 
 # -- General configuration ------------------------------------------------
@@ -103,7 +182,13 @@ extensions = [
     "sphinx.ext.intersphinx",
     "nbsphinx",
     "sphinx_copybutton",  # add copy button to code cells
+    # renders the `.. plot::` figures in docstrings, from docs/plots/
+    "matplotlib.sphinxext.plot_directive",
 ]
+plot_include_source = False
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_formats = ["svg"]
 # From https://nbsphinx.readthedocs.io/en/0.8.9/custom-css.html#For-a-Single-Notebook
 # Hide the [1], [2], etc. displays at
 # the left side of the Jupyter-Notebook cells.
@@ -199,7 +284,6 @@ exclude_patterns = [
     "*/blond.generals._hashing*",
     "*vari_noise*",
     "*/blond.testing.*",
-    "*/blond.interfaces.xsuite.*",
     "*/blond.specifics.cern.*",  # empty at the moment
 ]
 # callables are only importable with cupy compiled
@@ -364,6 +448,10 @@ nitpick_ignore_regex = [
     # (NumpyArray = numpy.typing.NDArray, CupyArray = cupy.ndarray). They are
     # spelled as bare names in annotations/docstrings and have no own page.
     (r"py:.*", r"(NumpyArray|CupyArray)"),
+    # sphinx-autodoc-typehints >= 3.17 emits a whole union of array aliases
+    # (e.g. ``numpy.typing.NDArray | cupy.ndarray[...]``) as one ``py:class``
+    # target, and NDArray is ``py:data`` in numpy's inventory, not a class.
+    (r"py:class", r"numpy\.(typing\.NDArray|ndarray\[).*"),
     # numpydoc/napoleon type-vocabulary words that are not cross-references
     # (e.g. ``x : int, optional`` or ``flag : bool, default=False``); they leak
     # in as bogus ``py:class`` targets.
@@ -380,7 +468,10 @@ nitpick_ignore_regex = [
     # public API still references their base classes in type hints / inheritance
     # diagrams, but they have no documented page to link to.
     (r"py:.*", r"blond\.experimental\..*"),
-    (r"py:.*", r"blond\.interfaces\.xsuite\..*"),
+    # The xsuite packages are not in the intersphinx mapping, so type-hint
+    # references into them from the blond.interfaces.xsuite wrappers cannot
+    # be resolved to a target.
+    (r"py:.*", r"x(track|part|objects)(\..*)?"),
 ]
 
 

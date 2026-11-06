@@ -56,3 +56,9 @@ class InvalidParticleAttributeError(BLonDException, ValueError):
     """Exception raised when attempting to create unphysical particle."""
 
     pass
+
+
+class SemiEmpiricMatcherError(BLonDException, ValueError):
+    """Exception raised when a semi-empiric matcher fails."""
+
+    pass

@@ -21,6 +21,8 @@ except ImportError:
 
 from scipy.signal import find_peaks
 
+from blond.generals.plotting_ import DEFAULT_CMAP
+
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
@@ -96,7 +98,9 @@ def calc_hamiltonian(
             plt.figure(10)
             plt.clf()
             plt.matshow(
-                np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid, fignum=0
+                np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid,
+                fignum=0,
+                cmap=DEFAULT_CMAP,
             )
             plt.colorbar()
         err1 = np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid
@@ -105,7 +109,9 @@ def calc_hamiltonian(
             plt.figure(11)
             plt.clf()
             plt.matshow(
-                np.gradient(H, pi, axis=1, edge_order=2) - dH_dx_grid, fignum=0
+                np.gradient(H, pi, axis=1, edge_order=2) - dH_dx_grid,
+                fignum=0,
+                cmap=DEFAULT_CMAP,
             )
             plt.colorbar()
         err2 = np.gradient(H, xi, axis=1, edge_order=2) - dH_dx_grid
@@ -113,7 +119,7 @@ def calc_hamiltonian(
         if DEV_PLOT:
             plt.figure(12)
             plt.clf()
-            plt.matshow(H, fignum=0)
+            plt.matshow(H, fignum=0, cmap=DEFAULT_CMAP)
             plt.colorbar()
 
             plt.draw()

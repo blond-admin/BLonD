@@ -34,6 +34,7 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
+from blond.core.offenders import WeakBackReference, hold_strongly
 from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.kick_pooling import (
@@ -64,6 +65,21 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
+class _HeadlessRing:
+    """
+    Stand-in for the `Ring` of an RF station used without simulation.
+
+    Parameters
+    ----------
+    circumference
+        Ring circumference, in [m].
+    """
+
+    def __init__(self, circumference: float) -> None:
+        self.circumference = circumference
+        self.section_lengths = np.array([circumference])
+
+
 class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """
     Base class to implement beam-rf any interactions in synchrotrons.
@@ -87,7 +103,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self,
         section_index: int,
         name: str | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         super().__init__(
             section_index=section_index,
@@ -96,9 +112,6 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
         self._ring: Ring | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
-        self._turn_counter: DynamicParameter | None = None
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -145,6 +158,21 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._turn_counter = turn_counter
         self._magnetic_cycle = magnetic_cycle
         self._ring = ring
+
+    @property
+    def magnetic_cycle(self) -> MagneticCycleBase | None:
+        """
+        The energy program driving this element's reference update, if any.
+
+        Returns
+        -------
+        magnetic_cycle
+            The attached magnetic cycle, or ``None`` when this element does
+            not advance the reference energy itself (e.g. created via
+            ``headless(magnetic_cycle=None)`` because an external code owns
+            the reference).
+        """
+        return self._magnetic_cycle
 
     def track_reference(
         self,
@@ -200,14 +228,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
-        if self.schedule_active:
-            assert self._turn_counter is not None, (
-                "Turn counter must be set with active scheduling."
-            )
-            self.apply_schedules(
-                turn_i=self._turn_counter.value,
-                reference_time=float(beam.reference.time),
-            )
+        self.apply_active_schedules(reference_time=float(beam.reference.time))
 
 
 class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
@@ -252,6 +273,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         resolution order of inheriting elements.
     """
 
+    # The ring owns this RF station and the beam feedback, which refers
+    # back to its RF stations; strong references would form cycles
+    _ring = WeakBackReference()
+    _beam_feedback = WeakBackReference()
+
     def __init__(
         self,
         n_rf: int,
@@ -266,7 +292,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         main_harmonic_idx: int = 0,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         assert n_rf > 0, f"{n_rf=}"
 
@@ -413,7 +439,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Configure parameters collected by the MRO chain.
         """
         super().on_init_simulation(simulation=simulation, **kwargs)
-
+        # Each of ``voltage``, ``phi_rf_design`` and ``harmonic`` must be set
+        # directly or via a schedule.
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
                 f"You need to define `voltage` for '{self.name}' via "
@@ -438,7 +465,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -461,7 +488,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         *,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Update design RF frequencies and phases from the beam reference.
@@ -562,7 +589,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+    def get_main_harmonic_cavity_feedback(
+        self,
+    ) -> LocalFeedback | LocalFeedbackExp | None:
         """
         Return the LocalFeedback acting on the main harmonic.
 
@@ -1143,13 +1172,14 @@ class SingleHarmonicRFStation(
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
+        | LocalFeedbackExp
+        | list[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         if voltage is not None:
             assert voltage >= 0, f"{voltage=}"
@@ -1269,7 +1299,9 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf_design
 
-    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+    def get_main_harmonic_cavity_feedback(
+        self,
+    ) -> LocalFeedback | LocalFeedbackExp | None:
         """
         Return the LocalFeedback acting on the main harmonic.
 
@@ -1496,13 +1528,12 @@ class SingleHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring
+        hold_strongly(single_harmonic_rf_station, "_ring")
         single_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
 
         single_harmonic_rf_station.configure_run(
@@ -1657,13 +1688,14 @@ class MultiHarmonicRFStation(
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
+        | LocalFeedbackExp
+        | list[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         if voltage is not None:
             assert np.all(voltage >= 0), f"{voltage=}"
@@ -1811,7 +1843,9 @@ class MultiHarmonicRFStation(
         """
         return self.omega_rf_design[self.main_harmonic_idx]
 
-    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+    def get_main_harmonic_cavity_feedback(
+        self,
+    ) -> LocalFeedback | LocalFeedbackExp | None:
         """
         Return the LocalFeedback acting on the main harmonic.
 
@@ -2063,13 +2097,13 @@ class MultiHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring and the
+        # beam feedback
+        hold_strongly(multi_harmonic_rf_station, "_ring", "_beam_feedback")
         multi_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
         multi_harmonic_rf_station.configure_run(
             beam=SimpleNamespace(

@@ -593,6 +593,11 @@ class Simulation(Preparable):
         >>> plt.title('RF Potential Well')
         >>> plt.show()
         """
+        if len(dt) == 0 or len(dt) == 1:
+            raise ValueError(
+                f"dt must contain at least two values, but was {dt}."
+            )
+
         from blond.core.beam.beams import ProbeBeam  # prevent circular import
 
         probe_bunch = ProbeBeam(
@@ -635,7 +640,8 @@ class Simulation(Preparable):
             if backend.specials_mode != "cuda"
             else probe_bunch.read_partial_dE().get(),
             initial=0,
-        ) / len(dt)
+        ) / (len(dt) - 1)
+        # -1: number of edges being different from number of bins
 
         if self.ring.is_below_transition(beam=probe_bunch):
             # peaks and troughs are flipped when below transition
@@ -998,7 +1004,8 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
         until_section_index: int = -1,
@@ -1023,7 +1030,11 @@ class Simulation(Preparable):
             called at the end of each turn.
             Useful for custom data collection or live plotting. Default is None.
 
-            The callback can be defined as follows.
+            Each callback is called as ``callback(simulation, beam)``
+            with the running
+            :class:`~blond.core.simulation.simulation.Simulation` and
+            the tracked beam, e.g. a
+            :class:`~blond.core.beam.beams.Beam`.
             The rate at with which this function is
             called can be set by `each_turn_i`.
 
@@ -1144,7 +1155,11 @@ class Simulation(Preparable):
             called at the end of each turn.
             Useful for custom data collection or live plotting. Default is None.
 
-            The callback can be defined as follows.
+            Each callback is called as ``callback(simulation, beam)``
+            with the running
+            :class:`~blond.core.simulation.simulation.Simulation` and
+            the tracked beam, e.g. a
+            :class:`~blond.core.beam.beams.Beam`.
             The rate at with which this function is
             called can be set by `each_turn_i`.
         verbose
@@ -1283,7 +1298,8 @@ class Simulation(Preparable):
         self,
         beams: BeamBaseClass | tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
-        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
+        observe: ObservablesOncePerTurnBase
+        | tuple[ObservablesOncePerTurnBase, ...] = (),
     ) -> int:
         """
         Initialize all simulation components before running or loading results.

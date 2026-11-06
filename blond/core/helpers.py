@@ -225,6 +225,10 @@ def _find(
         ],
         where=(),
     )
+    # `_walk` references itself via its closure, and that cycle kept `found`
+    # (e.g. the beam) alive until a full GC: the beam memory leak. Breaking
+    # it lets reference counting free the found instances right away.
+    _walk = None
 
     return found
 
@@ -280,7 +284,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     return found
 
 
-def find_instances_by_class(root: Any, class_: type[T]) -> T:
+def find_instances_by_class(root: Any, class_: type[T]) -> set[T]:
     """
     Find all instances within root that are ``isinstance`` of `class_`.
 
