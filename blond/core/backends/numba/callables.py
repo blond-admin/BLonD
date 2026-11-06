@@ -33,10 +33,10 @@ import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
+from blond.core.backends.flags import BeamFlags
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
-from blond.core.beam.flags import BeamFlags
 
 from .fastmath import fast_sin
 

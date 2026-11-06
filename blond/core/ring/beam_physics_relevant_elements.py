@@ -82,7 +82,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from blond.physics.drifts import DriftBaseClass
+        from blond.core.base import HasOrbitLength
         from blond.physics.rf_station import RFStationBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
@@ -101,24 +101,21 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in rf_stations]}"
             )
+        # One RF station anywhere in the ring is enough (a section may have
+        # none, e.g. when the cavity lives in another section or inside a
+        # black-box element); every section must occupy length, though.
         unique_section_indices = np.unique(elem_section_indices)
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
-                rf_stations = self.get_elements(
-                    RFStationBaseClass,
+                segments = self.get_elements(
+                    HasOrbitLength,
                     section_i=section_index,  # type: ignore
                     recursive=False,
                 )
-                drifts = self.get_elements(
-                    DriftBaseClass, section_i=section_index, recursive=False
-                )
-                if len(rf_stations) == 0:
+                if len(segments) == 0:
                     raise RuntimeError(
-                        f"Missing RF station in section {section_index}"
-                    )
-                if len(drifts) == 0:
-                    raise RuntimeError(
-                        f"Missing drift in section {section_index}"
+                        f"Missing length-bearing element (drift or black-box "
+                        f"wrapper) in section {section_index}."
                     )
 
     def get_sections_indices(self) -> tuple[int, ...]:
@@ -148,16 +145,16 @@ class BeamPhysicsRelevantElements(Preparable):
         -----
         This is different from per-drift listing
         """
-        from blond.physics.drifts import DriftBaseClass
+        from blond.core.base import HasOrbitLength
 
         sections = self.get_sections_indices()
         result = np.empty(len(sections))
         for section_i in sections:
-            drifts = self.get_elements(
-                DriftBaseClass, section_i=section_i, recursive=False
+            segments = self.get_elements(
+                HasOrbitLength, section_i=section_i, recursive=False
             )
-            if len(drifts) > 0:
-                result[section_i] = sum([d.orbit_length for d in drifts])
+            if len(segments) > 0:
+                result[section_i] = sum([s.orbit_length for s in segments])
             else:
                 result[section_i] = 0
         return result
@@ -441,6 +438,7 @@ class BeamPhysicsRelevantElements(Preparable):
             "forbidden!"
         )
         assert isinstance(section_index, int)
+        from blond.core.base import HasOrbitLength
         from blond.physics.drifts import DriftBaseClass
         from blond.physics.feedbacks.base import FeedbackBaseClass
         from blond.physics.impedances.base import ImpedanceBaseClass
@@ -448,6 +446,9 @@ class BeamPhysicsRelevantElements(Preparable):
         from blond.physics.profiles import ProfileBaseClass
         from blond.physics.rf_station import RFStationBaseClass
 
+        # ``HasOrbitLength`` comes last so black-box length-bearing elements
+        # (e.g. a wrapped xsuite line) order like drifts; real drifts match
+        # ``DriftBaseClass`` first.
         natural_order = (
             LossesBaseClass,
             ProfileBaseClass,
@@ -455,11 +456,14 @@ class BeamPhysicsRelevantElements(Preparable):
             ImpedanceBaseClass,
             RFStationBaseClass,
             DriftBaseClass,
+            HasOrbitLength,
         )
-        assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
+        # One RF station anywhere in the ring is enough; per section there
+        # must not be more than one.
+        n_rf_stations = self.count(RFStationBaseClass, section_i=section_index)
+        assert n_rf_stations <= 1, (
             f"Only one RF station per section allowed, but got "
-            f"{self.count(RFStationBaseClass, section_i=section_index)}"
-            f" in section {section_index}."
+            f"{n_rf_stations} in section {section_index}."
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index

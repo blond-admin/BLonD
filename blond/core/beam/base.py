@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond.core.backends.flags import BeamFlags
 from blond.core.backends.mpi_distributed import distributed_array
 from blond.core.backends.mpi_distributed import helpers as dist_help
 from blond.core.base import Preparable
-from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -310,7 +310,7 @@ class BeamBaseClass(Preparable, ABC):
 
         See Also
         --------
-        blond.core.beam.flags.BeamFlags: The available flags.
+        blond.core.backends.flags.BeamFlags: The available flags.
         """
         if self._flags is None:
             raise AttributeError(

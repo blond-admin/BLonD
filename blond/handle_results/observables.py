@@ -789,6 +789,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ...         bunch_observation.dEs[index, :],
     ...         bins=256,
     ...         range=[[0, 2.5e-9], [-4e8, 4e8]],
+    ...         cmap="turbo",
     ...     )
     """
 

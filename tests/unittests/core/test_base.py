@@ -1,4 +1,6 @@
+import gc
 import unittest
+import weakref
 from functools import cached_property
 
 import numpy as np
@@ -312,6 +314,26 @@ class TestUnsafeUserElement(BLonDTestCase):
             wrapper.track(arg)
 
         self.assertListEqual(called_with, call_args)
+
+
+class TestPreparableHoldsSimulationWeakly(BLonDTestCase):
+    def setUp(self):
+        gc.disable()
+        self.addCleanup(gc.enable)
+
+    def test_preparable_holds_simulation_weakly(self):
+        class Element(Preparable):
+            pass
+
+        class FakeSimulation:
+            pass
+
+        simulation = FakeSimulation()
+        simulation.element = Element()
+        simulation.element._simulation = simulation
+        simulation_ref = weakref.ref(simulation)
+        del simulation
+        self.assertIsNone(simulation_ref())
 
 
 if __name__ == "__main__":

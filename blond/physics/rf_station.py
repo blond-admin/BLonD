@@ -34,6 +34,7 @@ from blond.core.base import (
     Schedulable,
 )
 from blond.core.beam.beams import ProbeBeam
+from blond.core.offenders import WeakBackReference, hold_strongly
 from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental.physics.kick_pooling import (
@@ -62,6 +63,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
+
+
+class _HeadlessRing:
+    """
+    Stand-in for the `Ring` of an RF station used without simulation.
+
+    Parameters
+    ----------
+    circumference
+        Ring circumference, in [m].
+    """
+
+    def __init__(self, circumference: float) -> None:
+        self.circumference = circumference
+        self.section_lengths = np.array([circumference])
 
 
 class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -96,9 +112,6 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
         self._ring: Ring | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
-        self._turn_counter: DynamicParameter | None = None
-        self._magnetic_cycle: MagneticCycleBase | None = None
-        self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
@@ -145,6 +158,21 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._turn_counter = turn_counter
         self._magnetic_cycle = magnetic_cycle
         self._ring = ring
+
+    @property
+    def magnetic_cycle(self) -> MagneticCycleBase | None:
+        """
+        The energy program driving this element's reference update, if any.
+
+        Returns
+        -------
+        magnetic_cycle
+            The attached magnetic cycle, or ``None`` when this element does
+            not advance the reference energy itself (e.g. created via
+            ``headless(magnetic_cycle=None)`` because an external code owns
+            the reference).
+        """
+        return self._magnetic_cycle
 
     def track_reference(
         self,
@@ -200,14 +228,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element.
         """
         super()._track(beam=beam)
-        if self.schedule_active:
-            assert self._turn_counter is not None, (
-                "Turn counter must be set with active scheduling."
-            )
-            self.apply_schedules(
-                turn_i=self._turn_counter.value,
-                reference_time=float(beam.reference.time),
-            )
+        self.apply_active_schedules(reference_time=float(beam.reference.time))
 
 
 class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
@@ -251,6 +272,11 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         Additional keyword arguments for method
         resolution order of inheriting elements.
     """
+
+    # The ring owns this RF station and the beam feedback, which refers
+    # back to its RF stations; strong references would form cycles
+    _ring = WeakBackReference()
+    _beam_feedback = WeakBackReference()
 
     def __init__(
         self,
@@ -413,7 +439,8 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             Configure parameters collected by the MRO chain.
         """
         super().on_init_simulation(simulation=simulation, **kwargs)
-
+        # Each of ``voltage``, ``phi_rf_design`` and ``harmonic`` must be set
+        # directly or via a schedule.
         if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
                 f"You need to define `voltage` for '{self.name}' via "
@@ -1496,13 +1523,12 @@ class SingleHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring
+        hold_strongly(single_harmonic_rf_station, "_ring")
         single_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
 
         single_harmonic_rf_station.configure_run(
@@ -2063,13 +2089,13 @@ class MultiHarmonicRFStation(
             delayed_kick_time_axis=delayed_kick_time_axis,
         )
 
+        # Without a simulation, nothing else owns the stand-in ring and the
+        # beam feedback
+        hold_strongly(multi_harmonic_rf_station, "_ring", "_beam_feedback")
         multi_harmonic_rf_station.configure(
             turn_counter=turn_counter,
             magnetic_cycle=magnetic_cycle,
-            ring=SimpleNamespace(
-                circumference=circumference,
-                section_lengths=np.array([circumference]),
-            ),
+            ring=_HeadlessRing(circumference),
         )
         multi_harmonic_rf_station.configure_run(
             beam=SimpleNamespace(
