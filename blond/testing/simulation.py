@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,26 +11,28 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond import (
-    Beam,
-    BiGaussian,
+from blond.acc_math.analytic.simple_math import momentum_compaction_factor
+from blond.beam_preparation.bigaussian import BiGaussian
+from blond.core.beam.beams import Beam
+from blond.core.beam.particle_types import proton
+from blond.core.ring.ring import Ring
+from blond.core.simulation.simulation import Simulation
+from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
-    DriftSimple,
     MagneticCyclePerTurn,
-    MultiHarmonicRFStation,
-    RFStationPhaseObservation,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    StaticProfile,
-    WakeField,
-    backend,
-    proton,
 )
+from blond.handle_results.observables import RFStationPhaseObservation
+from blond.physics.drifts import DriftSimple
+from blond.physics.impedances.base import WakeField
 from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
+from blond.physics.profiles import StaticProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
 
 
 class ExampleSimulation01:
@@ -40,9 +42,10 @@ class ExampleSimulation01:
         ring = Ring(circumference=26658.883)
 
         rf_station = SingleHarmonicRFStation()
+
         rf_station.harmonic = 35640
         rf_station.voltage = 6e6
-        rf_station.phi_rf = 0
+        rf_station.phi_rf_design = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
@@ -55,13 +58,14 @@ class ExampleSimulation01:
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.momentum_compaction_factor = momentum_compaction_factor(
+            transition_gamma=55.759505
+        )
 
         beam1 = Beam(intensity=1e9, particle_type=proton)
         self.beam1 = beam1
 
         simulation = Simulation.from_locals(locals())
-        simulation.print_one_turn_execution_order()
 
         simulation.prepare_beam(
             beam=beam1,
@@ -82,7 +86,7 @@ class ExampleSimulation01:
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=)
         # batches
         def my_callback(simulation: Simulation, beam: Beam):
-            if simulation.turn_i.value % 10 != 0:
+            if simulation.turn_counter.value % 10 != 0:
                 return
 
             plt.scatter(
@@ -125,12 +129,11 @@ class SimulationTwoRFStations:
             main_harmonic_idx=0,
         )
 
-        rf_station_2 = SingleHarmonicRFStation(
-            section_index=1,
-        )
-        rf_station_2.harmonic = backend.float(35640)
-        rf_station_2.voltage = backend.float(6e6)
-        rf_station_2.phi_rf = backend.float(0)
+        rf_station_2 = SingleHarmonicRFStation(section_index=1)
+
+        rf_station_2.harmonic = 35640
+        rf_station_2.voltage = 6e6
+        rf_station_2.phi_rf_design = 0
 
         N_TURNS = int(1e6)
         energy_cycle = ConstantMagneticCycle(
@@ -142,16 +145,17 @@ class SimulationTwoRFStations:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=(
+                855.759505 if below_transition_crossing else 55.759505
+            )
         )
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
-        )
+        drift2.momentum_compaction_factor = momentum_compaction_factor_
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
@@ -192,12 +196,11 @@ class SimulationTwoRFStationsWithWake:
             main_harmonic_idx=0,
         )
 
-        rf_station_2 = SingleHarmonicRFStation(
-            section_index=1,
-        )
+        rf_station_2 = SingleHarmonicRFStation(section_index=1)
+
         rf_station_2.harmonic = 35640
         rf_station_2.voltage = 6e6
-        rf_station_2.phi_rf = 0
+        rf_station_2.phi_rf_design = 0
 
         N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(
@@ -214,16 +217,17 @@ class SimulationTwoRFStationsWithWake:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
+        momentum_compaction_factor_ = momentum_compaction_factor(
+            transition_gamma=(
+                855.759505 if below_transition_crossing else 55.759505
+            )
         )
+        drift1.momentum_compaction_factor = momentum_compaction_factor_
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = (
-            855.759505 if below_transition_crossing else 55.759505
-        )
+        drift2.momentum_compaction_factor = momentum_compaction_factor_
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,

@@ -851,18 +851,24 @@ def rf_volt_comp(
     voltages = voltages.astype(dtype=precision.real_t, order="C", copy=False)
     omega_rf = omega_rf.astype(dtype=precision.real_t, order="C", copy=False)
     phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
+    if len(voltages) > 0:
+        rf_voltage = np.empty(
+            len(bin_centers), dtype=precision.real_t, order="C"
+        )
 
-    rf_voltage = np.empty(len(bin_centers), dtype=precision.real_t, order="C")
-
-    get_libblond().rf_volt_comp(
-        __getPointer(voltages),
-        __getPointer(omega_rf),
-        __getPointer(phi_rf),
-        __getPointer(bin_centers),
-        __getLen(voltages),
-        __getLen(rf_voltage),
-        __getPointer(rf_voltage),
-    )
+        get_libblond().rf_volt_comp(
+            __getPointer(voltages),
+            __getPointer(omega_rf),
+            __getPointer(phi_rf),
+            __getPointer(bin_centers),
+            __getLen(voltages),
+            __getLen(rf_voltage),
+            __getPointer(rf_voltage),
+        )
+    else:
+        rf_voltage = np.zeros(
+            len(bin_centers), dtype=precision.real_t, order="C"
+        )
 
     return rf_voltage
 
@@ -1034,7 +1040,7 @@ def music_track(
     dt: NumpyArray,
     dE: NumpyArray,
     induced_voltage: NumpyArray,
-    array_parameters: NumpyArray,
+    parameter_array: NumpyArray,
     alpha: float,
     omega_bar: float,
     const: float,
@@ -1046,13 +1052,13 @@ def music_track(
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(induced_voltage[0], precision.real_t)
-    assert isinstance(array_parameters[0], precision.real_t)
+    assert isinstance(parameter_array[0], precision.real_t)
 
     get_libblond().music_track(
         __getPointer(dt),
         __getPointer(dE),
         __getPointer(induced_voltage),
-        __getPointer(array_parameters),
+        __getPointer(parameter_array),
         __getLen(dt),
         c_real(alpha),
         c_real(omega_bar),
@@ -1068,7 +1074,7 @@ def music_track_multiturn(
     dt: NumpyArray,
     dE: NumpyArray,
     induced_voltage: NumpyArray,
-    array_parameters: NumpyArray,
+    parameter_array: NumpyArray,
     alpha: float,
     omega_bar: float,
     const: float,
@@ -1080,13 +1086,13 @@ def music_track_multiturn(
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(induced_voltage[0], precision.real_t)
-    assert isinstance(array_parameters[0], precision.real_t)
+    assert isinstance(parameter_array[0], precision.real_t)
 
     get_libblond().music_track_multiturn(
         __getPointer(dt),
         __getPointer(dE),
         __getPointer(induced_voltage),
-        __getPointer(array_parameters),
+        __getPointer(parameter_array),
         __getLen(dt),
         c_real(alpha),
         c_real(omega_bar),

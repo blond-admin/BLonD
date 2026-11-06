@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,21 +11,27 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.core.backends.backend import backend
+from blond.core.backends.backend import INDEX_DTYPE, backend
+from blond.core.backends.flags import BeamFlags
 from blond.core.backends.mpi_distributed.callables import rms_emittance
-from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
-from blond.generals.cupy.no_cupy_import import is_cupy_array
-from blond.generals.distributed.distributed_array import DistributedArray
-from blond.generals.distributed.helpers import (
-    distributed_arange,
-    mpi_is_distributed,
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
 )
+from blond.core.backends.mpi_distributed.helpers import (
+    distributed_arange,
+    mpi_aware_random_generator_cpu,
+    mpi_is_distributed,
+    mpi_local_size,
+)
+from blond.core.beam.base import BeamBaseClass
+from blond.core.helpers import int_from_float_with_warning
+from blond.generals.cupy_.no_cupy_import import AllowPlotting
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -35,7 +41,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from matplotlib.collections import PathCollection, QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation
     from blond.core.beam.particle_types import ParticleType
 
 
@@ -62,6 +67,9 @@ class Beam(BeamBaseClass):
        Default is False (co-rotating beam).
     """
 
+    # Deprecated; reading it in the object walk would warn.
+    skip_find_instances_attributes = ["ratio"]
+
     def __init__(
         self,
         intensity: int | float,
@@ -75,19 +83,23 @@ class Beam(BeamBaseClass):
             is_distributed=False,
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def is_set_up(self) -> bool:
         """
-        Initialize beam parameters when the simulation is created.
+        ``True`` of all required arrays are initialized.
 
-        This method is automatically called during simulation initialization
-        to set up the beam within the simulation context.
-
-        Parameters
-        ----------
-        simulation
-            The simulation object that manages this beam.
+        Returns
+        -------
+        is_set_up
+            ``True`` of all required arrays are initialized.
         """
-        super().on_init_simulation(simulation=simulation)
+        return all(
+            (
+                self._dE is not None,
+                self._dt is not None,
+                self._flags is not None,
+                self._ids is not None,
+            )
+        )
 
     def setup_beam(
         self,
@@ -97,7 +109,6 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
-        **kwargs,
     ) -> None:
         """
         Configure the beam with an initial particle distributions.
@@ -143,10 +154,6 @@ class Beam(BeamBaseClass):
               While this mode uses more memory, it can be simpler to implement in scenarios where
               each rank needs to work with its own independent data (e.g., generating separate
               random distributions with `np.random.randn()`).
-
-        **kwargs
-            Unused - Keyword arguments to make the non-abstract implementation
-            extendable.
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
@@ -170,9 +177,9 @@ class Beam(BeamBaseClass):
             backend.array(flags, dtype=np.int32)
         )
 
-        if reference_time:
+        if reference_time is not None:
             self.reference.time = reference_time
-        if reference_total_energy:
+        if reference_total_energy is not None:
             self.reference.total_energy = reference_total_energy
 
         if mpi_mode == "root-distributes":
@@ -181,47 +188,16 @@ class Beam(BeamBaseClass):
             self._flags.mpi_scatter()
             # IDs need special treatment
             self._ids: DistributedArray = DistributedArray(
-                backend.arange(len(dt), dtype=np.int32)
+                backend.arange(len(dt), dtype=INDEX_DTYPE)
             )
             self._ids.mpi_scatter()
         elif mpi_mode == "all-ranks":
             # IDs need special treatment
             self._ids: DistributedArray = distributed_arange(
-                len(dt), dtype=np.int32
+                len(dt), dtype=INDEX_DTYPE
             )
         else:
             raise NameError(f"Unknown {mpi_mode=}")
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Prepare the beam before the simulation starts running.
-
-        This method is automatically called when `simulation.run_simulation()`
-        is invoked, allowing the beam to perform any necessary setup before
-        the turn-by-turn tracking begins.
-
-        Parameters
-        ----------
-        simulation
-            The simulation object managing the beam dynamics.
-        beam
-            The beam object being simulated (typically this beam itself).
-        n_turns
-            The total number of turns (revolutions) to simulate.
-        **kwargs
-            Additional keyword arguments for simulation setup.
-        """
-        super().on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=n_turns,
-        )
 
     @property
     def ratio(self) -> float:
@@ -241,12 +217,9 @@ class Beam(BeamBaseClass):
         warnings.warn(
             "`ratio` might be removed in future.",
             DeprecationWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
-        # As there are no weights, lets assume all weights are 1,
-        # The sum over all macro-particles with weight 1
-        # is thus `common_array_size`.
-        return self.intensity / self.common_array_size
+        return self._ratio
 
     @property
     def dt_min(self) -> float:
@@ -342,7 +315,7 @@ class Beam(BeamBaseClass):
             Additional keyword arguments passed to ``matplotlib.pyplot.hist2d``.
             Common options include:
             - bins: number of bins (default: 256)
-            - cmap: colormap (default: 'viridis')
+            - cmap: colormap (default: ``DEFAULT_CMAP``, i.e. 'turbo')
             - range: data range [[xmin, xmax], [ymin, ymax]]
 
         Returns
@@ -359,7 +332,7 @@ class Beam(BeamBaseClass):
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
         if "cmap" not in kwargs:
-            kwargs["cmap"] = "viridis"
+            kwargs["cmap"] = DEFAULT_CMAP
         if "bins" not in kwargs:
             kwargs["bins"] = 256
         if mpi_is_distributed():
@@ -368,14 +341,7 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
-            counts, xedges, yedges, image = plt.hist2d(
-                dt.get(), dE.get(), **kwargs
-            )
-        else:
+        with AllowPlotting():  # handles Cupy arrays gracefully
             counts, xedges, yedges, image = plt.hist2d(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
@@ -398,7 +364,7 @@ class Beam(BeamBaseClass):
             The `PathCollection` of the scatter plot.
         """
         if ax is None:
-            ax = plt
+            ax = plt.gca()
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -409,12 +375,7 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        if is_cupy_array(self._dt.array_local):
-            # variables below are just for the type hints to function correctly
-            dE: CupyArray = self._dE.array_local
-            dt: CupyArray = self._dt.array_local
-            scat = ax.scatter(dt.get(), dE.get(), **kwargs)
-        else:
+        with AllowPlotting():  # handles Cupy arrays gracefully
             scat = ax.scatter(
                 self._dt.array_local, self._dE.array_local, **kwargs
             )
@@ -454,24 +415,123 @@ class Beam(BeamBaseClass):
                 UserWarning,
                 stacklevel=2,
             )
-        dE = self._dE.array_local
-        dt = self._dt.array_local
-
-        if is_cupy_array(dE):  # assume `dE` is the same like `dt`
-            if axis == 0:
-                dt = dt.get()
-            elif axis == 1:
-                dE = dE.get()
-            else:
-                raise ValueError(f"{axis=}")
-
         if axis == 0:
-            xs = dt
+            xs = self._dt.array_local
         elif axis == 1:
-            xs = dE
+            xs = self._dE.array_local
         else:
             raise ValueError(f"{axis=}")
-        plt.hist(xs, **kwargs)
+
+        with AllowPlotting():  # handles Cupy arrays gracefully
+            plt.hist(xs, **kwargs)
+
+    @staticmethod
+    def simple_gaussian(
+        n_macroparticles: int,
+        intensity: int | float,
+        particle_type: ParticleType,
+        dt_scale: float,
+        dE_scale: float,
+        dE_offset: float = 0.0,
+        dt_offset: float = 0.0,
+        seed: int | None = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
+        is_counter_rotating: bool = False,
+    ) -> Beam:
+        """
+        Generate a beam with gaussian macro-particle positions.
+
+        Parameters
+        ----------
+        n_macroparticles
+            Number of macroparticles that will be generated by the random
+            generator.
+        intensity
+           The total number of real particles in the beam (beam intensity).
+           This is distinct from the number of macro-particles used in the
+           simulation, which is typically much smaller.
+        particle_type
+           The type of particle in the beam (e.g., protons, electrons).
+           This determines properties like mass and charge.
+        dt_scale
+            Scale of the beam in time direction,
+            see `numpy.random.standard_normal`.
+        dE_scale
+            Scale of the beam in energy direction,
+            see `numpy.random.standard_normal`.
+        dE_offset
+            Offset of the particle distribution, in [s].
+        dt_offset
+            Offset of the particle distributiion, in [eV].
+        seed
+            Random seed.
+            ``None`` will generete a different beam distribution on each run.
+            An integer, e.g. ``1``, will always yield the same random
+            coordinates.
+        reference_time
+            The absolute reference time for the coordinate system,
+            in [s]. Particle times `dt` are relative to
+            this reference.
+        reference_total_energy
+            The reference total energy for the coordinate system, in [eV].
+            Particle energies `dE` are relative to this reference.
+        is_counter_rotating
+           Whether this beam rotates in the opposite direction to the main beam.
+           Default is False (co-rotating beam).
+
+        Returns
+        -------
+        beam
+            A beam that is ready to be used in a simulation.
+
+        Examples
+        --------
+        >>> from blond import Beam, proton
+        >>> beam = Beam.simple_gaussian(
+        ...     n_macroparticles=10_000,
+        ...     intensity=1e10,
+        ...     particle_type=proton,
+        ...     dt_scale=1e-9,
+        ...     dE_scale=1e9,
+        ...     dE_offset=0.5e9,
+        ...     dt_offset=0.5e-9,
+        ... )
+        """
+        local_size = mpi_local_size(
+            int_from_float_with_warning(
+                n_macroparticles, warning_stacklevel=2
+            ),
+            warning_hint="n_macroparticles",
+        )
+        dts = (
+            mpi_aware_random_generator_cpu(
+                seed=seed, n_forward_per_rank=local_size
+            ).standard_normal(size=local_size)
+            * dt_scale
+            + dt_offset
+        )
+        dEs = (
+            mpi_aware_random_generator_cpu(
+                seed=None if seed is None else seed + 1,
+                n_forward_per_rank=local_size,
+            ).standard_normal(size=local_size)
+            * dE_scale
+            + dE_offset
+        )
+        beam = Beam(
+            intensity=intensity,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+        )
+        beam.setup_beam(
+            dt=dts,
+            dE=dEs,
+            mpi_mode="all-ranks",
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
+        )
+        return beam
 
 
 class ProbeBeam(Beam):

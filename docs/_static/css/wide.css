@@ -13,3 +13,14 @@
     display: block;
     text-align: center;
 }
+
+/* pydata-sphinx-theme paints every HTML notebook output as a light card in
+   dark mode (so raw HTML written for a white page stays readable). The marimo
+   notebooks' rendered markdown/math (the "Step n." boxes) is theme-aware
+   text, so let it follow the page instead of sitting on a white card. */
+html[data-theme=dark] .bd-content .nboutput
+  .output_area.rendered_html:has(.markdown.prose) {
+  background-color: transparent;
+  color: var(--pst-color-text-base);
+  padding: 0;
+}

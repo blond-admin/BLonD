@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,10 +12,10 @@ Several classes to manage and describe the ramp of the magnets.
 Notes
 -----
 The following classes are currently available:
-- :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
+- :class:`~blond.cycles.magnetic_cycle.ConstantMagneticCycle`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurn`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations`
+- :class:`~blond.cycles.magnetic_cycle.MagneticCycleByTime`
 
 Authors:
 Simon Lauber
@@ -23,18 +23,22 @@ Simon Lauber
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
-from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from copy import deepcopy
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
 from scipy.interpolate import interp1d
 
+from blond.acc_math.analytic import conversions
 from blond.acc_math.analytic.simple_math import calc_total_energy
-from blond.core.base import HasPropertyCache
+from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.particle_types import ParticleType, proton
+from blond.core.beam.particle_types import ParticleType
+from blond.core.ordering import requires
+from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -48,8 +52,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.simulation.simulation import Simulation
     from blond.generals.protocols import AnyInterpolator
-
-    FloatOrArray = float | NumpyArray
 
     T = TypeVar("T")
 
@@ -90,7 +92,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -100,11 +102,23 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation
             `Simulation` context manager.
         **kwargs
-            Additional keyword arguments.
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(simulation=simulation)
-        self._n_turns_max = kwargs["n_turns_max"]
+        super().on_init_simulation(simulation=simulation, **kwargs)
 
+    def configure(self, *, n_turns_max: int | None = None, **kwargs) -> None:
+        """
+        Set ``n_turns_max`` and invalidate the property cache.
+
+        Parameters
+        ----------
+        n_turns_max
+            Maximum number of turns; injected by concrete subclasses.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self._n_turns_max = n_turns_max
         self.invalidate_cache()
 
     def on_run_simulation(
@@ -112,7 +126,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -122,16 +136,42 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Configure-run parameters collected by the MRO chain.
         """
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
+            **kwargs,
+        )
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Invalidate the property cache at the start of each simulation run.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; passed to the next MRO level.
+        """
+        super().configure_run(
+            beam=beam,
+            n_turns=n_turns,
+            **kwargs,
         )
         self.invalidate_cache()
 
@@ -193,7 +233,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     def get_total_energy_init(
         self,
-        particle_type: ParticleType,
+        particle_type: ParticleType | None = None,
     ) -> float:
         """
         Compute the initial the total energy [eV] for the initial turn.
@@ -208,9 +248,11 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_total_energy
             The total energy, in [eV].
         """
+        if particle_type is None:
+            particle_type = self.reference_particle
         total_energy_init = calc_total_energy(
             mass=particle_type.mass,
-            momentum=magnetic_rigidity_to_momentum(
+            momentum=conversions.magnetic_rigidity_to_momentum(
                 magnetic_rigidity=self._magnetic_rigidity_before_turn_0,
                 charge=particle_type.charge,
             ),
@@ -221,7 +263,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def get_t_rev_init(
         self,
         circumference: float,
-        particle_type: ParticleType,
+        particle_type: ParticleType | None = None,
     ) -> float:
         r"""
         Compute the initial revolution period of a reference particle, in [s].
@@ -232,6 +274,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             Reference circumference of the synchrotron, in [m].
         particle_type : ParticleType
             Object containing particle properties (e.g., mass, charge).
+            If None, use the standard particle type.
 
         Returns
         -------
@@ -258,6 +301,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             \gamma = \frac{E_{\mathrm{tot}}}{mc^2}, \quad
             \beta = \sqrt{1 - \frac{1}{\gamma^2}}
         """
+        if particle_type is None:
+            particle_type = self.reference_particle
         reference_total_energy = self.get_total_energy_init(
             particle_type=particle_type,
         )
@@ -335,12 +380,12 @@ class ConstantMagneticCycle(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._total_energy_cache: dict[int, float] | None = {}
+        self._total_energy_cache: dict[int, float] = {}
 
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -350,12 +395,25 @@ class ConstantMagneticCycle(MagneticCycleBase):
         simulation
             `Simulation` context manager.
         **kwargs
-            Additional keyword arguments.
+            Configure parameters collected by the MRO chain.
         """
-        super().on_init_simulation(
-            simulation=simulation,
-            n_turns_max=None,
-        )
+        super().on_init_simulation(simulation=simulation, **kwargs)
+
+    def configure(self, **kwargs) -> None:
+        """
+        Inject ``n_turns_max=None`` into the base configure chain.
+
+        Parameters
+        ----------
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(n_turns_max=None, **kwargs)
+
+    def invalidate_cache(self):
+        """Wipe cached values, e.g. when the simulation context changes."""
+        super().invalidate_cache()
+        self._total_energy_cache = {}
 
     def get_target_total_energy(
         self,
@@ -391,7 +449,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         if key not in self._total_energy_cache:
             self._total_energy_cache[key] = calc_total_energy(
                 mass=particle_type.mass,
-                momentum=magnetic_rigidity_to_momentum(
+                momentum=conversions.magnetic_rigidity_to_momentum(
                     magnetic_rigidity=self._magnetic_rigidity,
                     charge=particle_type.charge,
                 ),
@@ -430,14 +488,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
         ret = ConstantMagneticCycle(
             value=value,
             in_unit=in_unit,
-            reference_particle=proton,
+            reference_particle=particle_type,
         )
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        simulation.ring.bending_radius = bending_radius
-
-        ret.on_init_simulation(simulation=simulation)
+        ret.configure()
         return ret
 
 
@@ -487,7 +540,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._value_init = value_init
 
         assert len(values_after_turn.shape) == 1, (
             f"Expected 1D array, but got {values_after_turn.shape}"
@@ -504,7 +556,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -514,11 +566,26 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         simulation
             `Simulation` context manager.
         **kwargs
-            Additional keyword arguments.
+            Configure parameters collected by the MRO chain.
         """
-        n_rf_stations = simulation.ring.n_rf_stations
-        n_turns_max = self._values_after_turn.shape[0]
+        super().on_init_simulation(
+            simulation=simulation,
+            n_rf_stations=simulation.ring.n_rf_stations,
+            **kwargs,
+        )
 
+    def configure(self, *, n_rf_stations: int, **kwargs) -> None:
+        """
+        Build the per-RF-station magnetic rigidity array.
+
+        Parameters
+        ----------
+        n_rf_stations
+            Number of RF stations in the ring.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        n_turns_max = self._values_after_turn.shape[0]
         magnetic_rigidity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_turn,
             mass=self._reference_particle.mass,
@@ -530,11 +597,17 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 else None
             ),
         )
-        assert n_rf_stations > 0
+        if n_rf_stations < 1:
+            raise ValueError(
+                "`MagneticCyclePerTurn` requires at least one RF station in "
+                "the ring to apply the per-turn energy increment, but got "
+                f"{n_rf_stations=}. If your only cavity lives inside a "
+                "wrapped external element (e.g. `WrapXsuite4Blond`, which is "
+                "not an RF station by type), add a BLonD-side RF station to "
+                "drive the ramp, or use a constant magnetic cycle."
+            )
         shape = (n_rf_stations, n_turns_max)
         _magnetic_rigidity = np.empty(shape)
-        # assume that each RF station gives an
-        # even part of the kick
         stair_like = np.linspace(
             1 / n_rf_stations, 1, n_rf_stations, endpoint=True
         )
@@ -548,11 +621,16 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         for cav_i in range(n_rf_stations):
             _magnetic_rigidity[cav_i, :] = base[:-1] + stair_like[cav_i] * step
 
-        super().on_init_simulation(
-            simulation=simulation,
-            n_turns_max=n_turns_max,
-        )
+        super().configure(n_turns_max=n_turns_max, **kwargs)
         self._magnetic_rigidity = _magnetic_rigidity
+        self._total_energy_cached = {}
+        self._momentum_cached = {}
+
+    def invalidate_cache(self):
+        """Wipe cached values, e.g. when the simulation context changes."""
+        super().invalidate_cache()
+        self._total_energy_cached = {}
+        self._momentum_cached = {}
 
     def get_target_total_energy(
         self,
@@ -585,15 +663,18 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         """
         key = hash(particle_type)
         if key not in self._momentum_cached:
-            self._momentum_cached[key] = magnetic_rigidity_to_momentum(
-                magnetic_rigidity=self._magnetic_rigidity[:, :],
-                charge=particle_type.charge,
+            self._momentum_cached[key] = (
+                conversions.magnetic_rigidity_to_momentum(
+                    magnetic_rigidity=self._magnetic_rigidity[:, :],
+                    charge=particle_type.charge,
+                )
             )
             self._total_energy_cached[key] = calc_total_energy(
                 mass=particle_type.mass,
                 momentum=self._momentum_cached[key],
             )
-        return self._total_energy_cached[key][section_i, int(turn_i)]
+        # Python float: scalar math on `np.float64` is slow per turn
+        return float(self._total_energy_cached[key][section_i, int(turn_i)])
 
     @staticmethod
     def headless(
@@ -636,26 +717,47 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
-
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.beam.particle_types import ParticleType
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        beam = Mock(BeamBaseClass)
-        beam.particle_type = Mock(ParticleType)
-
-        simulation.ring.bending_radius = bending_radius
-        beam.particle_type = reference_particle
-        simulation.ring.n_rf_stations = n_rf_stations
-        ret.on_init_simulation(simulation=simulation)
-        ret.on_run_simulation(
-            simulation=simulation,
-            n_turns=len(values_after_turn),
-            beam=beam,
-        )
-
+        ret.configure(n_rf_stations=n_rf_stations)
         return ret
+
+    @staticmethod
+    def init_from_linspace(
+        reference_particle: ParticleType,
+        values: NumpyArray,
+        in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: float | None = None,
+    ) -> MagneticCyclePerTurn:
+        """
+        Magnetic cycle per turn (supply ``n_turns + 1`` values).
+
+        Parameters
+        ----------
+        reference_particle
+            Type of particles, e.g. protons.
+        values
+             Values of the cycle in unit `in_unit`.
+             This must be ``n_turns + 1`` values long.
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m].
+
+        Returns
+        -------
+        cycle
+            The initialized `MagneticCyclePerTurn`.
+        """
+        cycle = MagneticCyclePerTurn(
+            reference_particle=reference_particle,
+            value_init=float(values[0]),
+            values_after_turn=values[1:],
+            in_unit=in_unit,
+            bending_radius=bending_radius,
+        )
+        return cycle
 
 
 class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
@@ -701,7 +803,6 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._value_init = value_init
         self._values_after_rf_station_per_turn = (
             values_after_rf_station_per_turn[:, :]
         )
@@ -717,7 +818,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -728,6 +829,23 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             `Simulation` context manager.
         **kwargs
             Additional keyword arguments.
+        """
+        super().on_init_simulation(
+            simulation,
+            n_rf_stations=simulation.ring.n_rf_stations,
+            **kwargs,
+        )
+
+    def configure(self, *, n_rf_stations: int, **kwargs) -> None:
+        """
+        Build the per-RF-station-per-turn magnetic rigidity array.
+
+        Parameters
+        ----------
+        n_rf_stations
+            Number of RF stations; must match ``values_after_rf_station_per_turn.shape[0]``.
+        **kwargs
+            Passed to the next level in the MRO chain.
         """
         magnetic_rigidity_after_rf_station_per_turn = _to_magnetic_rigidity(
             data=self._values_after_rf_station_per_turn[:, :],
@@ -740,7 +858,6 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
                 else None
             ),
         )
-        n_rf_stations = simulation.ring.n_rf_stations
         n_turns_max = magnetic_rigidity_after_rf_station_per_turn.shape[1]
         assert (
             n_rf_stations
@@ -748,15 +865,16 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         ), (
             f"{n_rf_stations=}, but {magnetic_rigidity_after_rf_station_per_turn.shape=}"
         )
-
-        super().on_init_simulation(
-            simulation=simulation,
-            n_turns_max=n_turns_max,
-            magnetic_rigidity_init=self._magnetic_rigidity_before_turn_0,
-        )
+        super().configure(n_turns_max=n_turns_max, **kwargs)
         self._magnetic_rigidity_after_rf_station_per_turn = (
             magnetic_rigidity_after_rf_station_per_turn
         )
+        self._momentum_cached = {}
+
+    def invalidate_cache(self):
+        """Wipe cached values, e.g. when the simulation context changes."""
+        super().invalidate_cache()
+        self._momentum_cached = {}
 
     def get_target_total_energy(
         self,
@@ -787,13 +905,23 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         total_energy
             Total relativistic energy, in [eV].
         """
+        assert turn_i >= 0, (
+            f"`turn_i` has to be bigger or equal 0 but is {turn_i=}."
+        )
+        assert section_i >= 0, (
+            f"`section_i` has to be bigger or equal 0 but is {section_i=}."
+        )
+
         key = hash(particle_type)
+
         if key not in self._momentum_cached:
-            self._momentum_cached[key] = magnetic_rigidity_to_momentum(
-                magnetic_rigidity=self._magnetic_rigidity_after_rf_station_per_turn[
-                    :, :
-                ],
-                charge=particle_type.charge,
+            self._momentum_cached[key] = (
+                conversions.magnetic_rigidity_to_momentum(
+                    magnetic_rigidity=self._magnetic_rigidity_after_rf_station_per_turn[
+                        :, :
+                    ],
+                    charge=particle_type.charge,
+                )
             )
         return calc_total_energy(
             mass=particle_type.mass,
@@ -831,7 +959,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRFStations`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycle.MagneticCyclePerTurnAllRFStations`.
         """
         ret = MagneticCyclePerTurnAllRFStations(
             value_init=value_init,
@@ -839,40 +967,21 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.beam.particle_types import ParticleType
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        beam = Mock(BeamBaseClass)
-        beam.particle_type = Mock(ParticleType)
-
-        simulation.ring.bending_radius = bending_radius
-        beam.particle_type = reference_particle
-        simulation.ring.n_rf_stations = values_after_rf_station_per_turn.shape[
-            0
-        ]
-
-        ret.on_init_simulation(simulation=simulation)
-        ret.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=values_after_rf_station_per_turn.shape[1],
-        )
+        ret.configure(n_rf_stations=values_after_rf_station_per_turn.shape[0])
         return ret
 
 
 class MagneticCycleByTime(MagneticCycleBase):
-    """
+    r"""
     Magnetic cycle defined as B vs. time, interpolated just in time.
 
     Parameters
     ----------
     reference_particle
         Type of particles, e.g. protons.
-    base_time
+    reference_time
         Values of time [s].
-    base_values
+    reference_values
         Values at time in synchrotron in of unit `in_unit`.
     in_unit
         - 'momentum' [eV/c], (no conversion is done)
@@ -892,6 +1001,22 @@ class MagneticCycleByTime(MagneticCycleBase):
     scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
     scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
     scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+    blond.generals.interpolators.DerivativeInterpolator : Smooth `B`-dot.
+
+    Notes
+    -----
+    Choosing `interpolator` decides how the ramp behaves *between* the
+    programmed points, which for an acceleration ramp is a physics choice
+    and not a cosmetic one. `interp1d` gives a piecewise-constant
+    :math:`\dot{B}` that jumps at every programmed point;
+    `Akima1DInterpolator` and `PchipInterpolator` are :math:`C^1` and pass
+    through the programmed points.
+    :class:`~blond.generals.interpolators.DerivativeInterpolator`
+    instead interpolates the *derivative* of the program, giving a
+    continuous :math:`\dot{B}` and hence a smooth demand on the
+    accelerating voltage. It is the BLonD 2 ``interpolation='derivative'``
+    option; note that it is a smoother rather than an interpolator, so it
+    matches only the first and the last programmed point.
 
     Examples
     --------
@@ -903,8 +1028,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     >>> energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)
     >>> energy_cycle = MagneticCycleByTime(
     ...     reference_particle=mu_plus,
-    ...     base_time=np.linspace(0, 18 * time_per_turn, n_turns),
-    ...     base_values=energy_ramp,
+    ...     reference_time=np.linspace(0, 18 * time_per_turn, n_turns),
+    ...     reference_values=energy_ramp,
     ...     in_unit="momentum",
     ...     interpolator=scipy.interpolate.Akima1DInterpolator,
     ...     method="makima",
@@ -914,8 +1039,8 @@ class MagneticCycleByTime(MagneticCycleBase):
     def __init__(
         self,
         reference_particle: ParticleType,
-        base_time: NumpyArray,
-        base_values: NumpyArray,
+        reference_time: NumpyArray,
+        reference_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
         interpolator: type[
@@ -926,13 +1051,15 @@ class MagneticCycleByTime(MagneticCycleBase):
         ] = interp1d,
         **kwargs,
     ):
-        assert not np.any(np.isnan(base_values)), (
-            "NaN occurred in `base_values`"
+        assert not np.any(np.isnan(reference_values)), (
+            "NaN occurred in `reference_values`"
         )
-        assert not np.any(np.isnan(base_time)), "NaN occurred in `base_time`"
+        assert not np.any(np.isnan(reference_time)), (
+            "NaN occurred in `reference_time`"
+        )
 
         base_magnetic_rigidity = _to_magnetic_rigidity(
-            data=base_values,
+            data=reference_values,
             mass=reference_particle.mass,
             charge=reference_particle.charge,
             convert_from=in_unit,
@@ -940,25 +1067,27 @@ class MagneticCycleByTime(MagneticCycleBase):
                 bending_radius if in_unit == "bending field" else None
             ),
         )
-        self._base_magnetic_rigidity: NumpyArray = base_magnetic_rigidity
 
         super().__init__(
             reference_particle=reference_particle,
             magnetic_rigidity_init=base_magnetic_rigidity[0],
         )
         self._interpolator = interpolator(
-            base_time[:],
+            reference_time[:],
             base_magnetic_rigidity[:],
             **kwargs,
         )
-        self._base_values = base_values[:]  # only for debugging
-        self._in_unit = in_unit  # only for debugging
-        self._bending_radius = bending_radius  # only for debugging
+        self._t_max = reference_time.max()
 
+    @requires(
+        [
+            "AltersReference",  # required for pre-tracking in `_calc_n_turns_max`
+        ]
+    )
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -970,11 +1099,81 @@ class MagneticCycleByTime(MagneticCycleBase):
         **kwargs
             Additional keyword arguments.
         """
-        super().on_init_simulation(
-            simulation=simulation,
-            n_turns_max=None,
-            **kwargs,
+        super().on_init_simulation(simulation=simulation, **kwargs)
+        try:
+            self._calc_n_turns_max(simulation)
+        except Exception as exc:
+            warnings.warn(
+                f"Failed to calculate `n_turns_max` with exception {str(exc)}.",
+                RuntimeWarning,
+                stacklevel=1,
+            )
+
+    def configure(self, *, n_turns_max: int | None = None, **kwargs) -> None:
+        """
+        Inject ``n_turns_max=None`` into the base configure chain.
+
+        ``n_turns_max`` is calculated separately via
+        ``_calc_n_turns_max`` when the full simulation context is available.
+
+        Parameters
+        ----------
+        n_turns_max
+            Blond-internal variable to for automatic simulation setup.
+            Default None and set by ``Simulation(...).on_init_simulation``.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(n_turns_max=n_turns_max, **kwargs)
+
+    def _calc_n_turns_max(self, simulation: Simulation):
+        """
+        Derive the maximum number of turns.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        """
+        sim_tmp = deepcopy(simulation)
+
+        particle_type = sim_tmp.magnetic_cycle.reference_particle
+        reference = ReferenceCoordinates(
+            time=0,
+            total_energy=sim_tmp.magnetic_cycle.get_total_energy_init(
+                particle_type=particle_type
+            ),
+            particle_type=particle_type,
         )
+
+        elements = tuple(
+            e
+            for e in sim_tmp.ring.elements.elements
+            if isinstance(e, AltersReference)
+        )
+
+        n_turns = 0
+        failed_within_turn = False
+        while reference.time < self._t_max:
+            for e in elements:
+                try:
+                    e.track_reference(reference=reference)
+                except Exception as exc:  # we cant know a priori what the interpolation algorithm might fail with.
+                    warnings.warn(
+                        f"Calculation of maximum number"
+                        f" of turns triggered an exception:\n{exc}",
+                        UserWarning,
+                        stacklevel=1,
+                    )
+                    failed_within_turn = True
+                    break
+            if failed_within_turn:
+                break
+
+            n_turns += 1
+
+        assert n_turns > 0, f"{n_turns=}"
+        self._n_turns_max = int(n_turns)
 
     def get_target_total_energy(
         self,
@@ -1010,7 +1209,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         assert not np.isinf(magnetic_rigidity), f"{magnetic_rigidity}"
         return calc_total_energy(
             mass=particle_type.mass,
-            momentum=magnetic_rigidity_to_momentum(
+            momentum=conversions.magnetic_rigidity_to_momentum(
                 magnetic_rigidity=magnetic_rigidity,
                 charge=particle_type.charge,
             ),
@@ -1023,10 +1222,12 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-        interpolator: Akima1DInterpolator
-        | PchipInterpolator
-        | interp1d
-        | AnyInterpolator = interp1d,
+        interpolator: type[
+            Akima1DInterpolator
+            | PchipInterpolator
+            | interp1d
+            | AnyInterpolator
+        ] = interp1d,
     ) -> MagneticCycleByTime:
         """
         Initialize object without simulation context.
@@ -1061,34 +1262,37 @@ class MagneticCycleByTime(MagneticCycleBase):
         scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
         scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
         scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+        blond.generals.interpolators.DerivativeInterpolator : Smooth `B`-dot.
         """
-        from blond.core.beam.base import BeamBaseClass
-        from blond.core.beam.particle_types import ParticleType
-        from blond.core.simulation.simulation import Simulation
-
-        simulation = Mock(Simulation)
-        beam = Mock(BeamBaseClass)
-        beam.particle_type = Mock(ParticleType)
-
-        beam.particle_type = reference_particle
-        simulation.ring.bending_radius = bending_radius
-
         ret = MagneticCycleByTime(
-            base_time=base_time,
-            base_values=base_values,
+            reference_time=base_time,
+            reference_values=base_values,
             in_unit=in_unit,
             interpolator=interpolator,
             reference_particle=reference_particle,
         )
-
-        ret.on_init_simulation(simulation=simulation)
-        ret.on_run_simulation(
-            simulation=simulation,
-            n_turns=1,
-            beam=beam,
-        )
-
+        ret.configure()
         return ret
+
+
+@overload
+def _to_magnetic_rigidity(
+    data: int | float,
+    mass: float,
+    charge: float,
+    convert_from: SynchronousDataTypes = "momentum",
+    bending_radius: float | None = None,
+) -> float: ...
+
+
+@overload
+def _to_magnetic_rigidity(
+    data: NumpyArray,
+    mass: float,
+    charge: float,
+    convert_from: SynchronousDataTypes = "momentum",
+    bending_radius: float | None = None,
+) -> NumpyArray: ...
 
 
 def _to_magnetic_rigidity(
@@ -1144,40 +1348,3 @@ def _to_magnetic_rigidity(
         raise ValueError(f"Unrecognized option {convert_from=}")
     magnetic_rigidity = momentum / (np.abs(charge) * c0)
     return magnetic_rigidity
-
-
-def magnetic_rigidity_to_momentum(
-    magnetic_rigidity: float | NumpyArray,
-    charge: float,
-) -> float | NumpyArray:
-    r"""
-    Convert magnetic rigidity to momentum.
-
-    Parameters
-    ----------
-    magnetic_rigidity
-        Magnetic rigidity :math:`B \rho`, in [Tm].
-    charge
-        Particle charge, i.e. number of elementary charges `e`.
-        Example: For an electron `charge=-1`.
-
-    Returns
-    -------
-    momentum
-        Relativistic momentum, in [eV/c].
-
-    Notes
-    -----
-    The momentum is calculated using the relation:
-
-    .. math::
-
-        p = B \rho \cdot |q| \cdot c
-
-    where:
-        - :math:`p`  is the momentum,
-        - :math:`B \rho` is the magnetic rigidity,
-        - :math:`q`  is the particle charge in units of `e`,
-        - :math:`c` is the speed of light in vacuum.
-    """
-    return magnetic_rigidity * np.abs(charge) * c0

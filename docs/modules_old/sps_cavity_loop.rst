@@ -181,7 +181,7 @@ sample number :math:`k` along the time axis are
     .. math::
         \sum_{i=1}^{n} \frac{\omega_{\mathsf{rf},s}^i - h_s^i \omega_0^i}{h_s^i \omega_0^i} 2 \pi h_s^i
 
-    between the signals of one turn to another. This phase shift is tracked in the :mod:`blond.trackers.tracker`; the
+    between the signals of one turn to another. This phase shift is tracked in the ``blond.trackers.tracker``; the
     the signal processing in the one-turn feedback, however, is performed w.r.t. the zero phase of the reference clock,
     and up- and down-modulation of (I,Q) signals does therefore not require a phase shift. In addition, the non-harmonic
     RF frequency can lead to a changing number of sampling points :math:`n_{\mathsf{coarse}}` over time; this feature is
@@ -318,4 +318,4 @@ beam loading if
     Z_\mathsf{gen}(f) H_\mathsf{FF}(f) = - Z_\mathsf{beam}(f) \, .
 
 The FIR filters for the 3-, 4-, 5-section cavities are designed by minimising the error between these two quantities,
-using the least-squares method and the FIR filter coefficients can be found in :mod:`blond.llrf.signal_processing`.
+using the least-squares method and the FIR filter coefficients can be found in ``blond.llrf.signal_processing``.

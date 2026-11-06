@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,11 +12,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from blond.core.offenders import WeakBackReference
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation
+    from blond.core.simulation.simulation import Simulation
 
 
 class IntensityEffectManager:
@@ -28,6 +29,9 @@ class IntensityEffectManager:
     simulation
         `Simulation` context manager.
     """
+
+    # The simulation owns this manager; a strong reference forms a cycle
+    _parent_simulation = WeakBackReference()
 
     def __init__(self, simulation: Simulation) -> None:
         self._parent_simulation = simulation
@@ -128,3 +132,27 @@ class IntensityEffectManager:
             "Cant handle mixed states of Profiles being active/inactive."
         )
         return actives.pop()
+
+    def freeze_wakefields(self) -> None:
+        """Freeze the wakefields, so that they applied the kick to what has happened before."""
+        # Deactivate all updates of wake fields.
+        # They need to be previously calculated by a successful run with an
+        # actual line density, as the probe beam has no line density.
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField, recursive=True
+        )
+        for wakefield in wakefields:
+            wakefield.update_induced_voltage = False
+            wakefield.profile.active = False
+
+    def unfreeze_wakefields(self) -> None:
+        """Unfreeze the wakefields, so that all intensity effects are active."""
+        # Deactivate all updates of wake fields.
+        # They need to be previously calculated by a successful run with an
+        # actual line density, as the probe beam has no line density.
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField, recursive=True
+        )
+        for wakefield in wakefields:
+            wakefield.update_induced_voltage = True
+            wakefield.profile.active = True

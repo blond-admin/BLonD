@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -74,7 +74,7 @@ def generate_file_description_table(root_dir: os.PathLike) -> list[str]:
         if skip:
             continue
         try:
-            indent = root[root.index(str(Path("blond/"))) :].count(os.sep) - 1
+            indent = root[root.index(str(Path("blond/"))) :].count(os.sep)
         except ValueError:
             indent = 0
 

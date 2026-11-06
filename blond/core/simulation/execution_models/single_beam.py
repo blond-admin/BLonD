@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -19,6 +19,7 @@ L. Thiele
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
@@ -27,8 +28,8 @@ from tqdm import tqdm  # type: ignore
 from blond.core.simulation.execution_models.base import ExecutionModel
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     CallbackTypeHint = Callable[["Simulation", BeamBaseClass], None]
@@ -47,6 +48,7 @@ class MainloopSingleBeam(ExecutionModel):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callbacks: Sequence[CallbackTypeHint] | CallbackTypeHint | None = None,
+        until_section_index: int = -1,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam.
@@ -78,6 +80,8 @@ class MainloopSingleBeam(ExecutionModel):
             >>>     ...
             >>> my_callback.each_turn_i = 2
             .
+        until_section_index
+            Section index until which to run the simulation. Default is -1.
 
         Notes
         -----
@@ -85,12 +89,20 @@ class MainloopSingleBeam(ExecutionModel):
         before.
         """
         assert len(beams) == 1, f"{beams=}"
+
+        if n_turns != 1 and until_section_index != -1:
+            warnings.warn(
+                f"n_turns is ignored since until_section_index was {until_section_index}",
+                stacklevel=1,
+            )
+
         beam = beams[0]
         logger.info("Starting simulation mainloop...")
         callbacks = simulation._sanitize_callbacks(callbacks)
 
         iterator = range(
-            simulation.turn_i.value, simulation.turn_i.value + n_turns
+            simulation.turn_counter.value,
+            simulation.turn_counter.value + n_turns,
         )
         if show_progressbar:
             # Get particle count for throughput calculation
@@ -103,16 +115,20 @@ class MainloopSingleBeam(ExecutionModel):
                     iterator, n_particles, show_progressbar
                 )
 
-            simulation.turn_i.value = turn_i
+            simulation.turn_counter.value = turn_i
 
-            simulation._calculate_current_t_rev(reference=beam.reference)
+            simulation._update_Trev_and_dErev(reference=beam.reference)
             for element in simulation._ring.elements.elements:
-                simulation.section_i.value = element.section_index
-                if element.is_active_this_turn(turn_i=simulation.turn_i.value):
+                section = element.section_index
+                if section >= until_section_index != -1:
+                    return
+                if element.is_active_this_turn(
+                    turn_i=simulation.turn_counter.value
+                ):
                     element.track(beam=beam)
             for observable in observe:
                 if observable.is_active_this_turn(
-                    turn_i=simulation.turn_i.value
+                    turn_i=simulation.turn_counter.value
                 ):
                     observable.update()
             for callback in callbacks:
@@ -120,12 +136,11 @@ class MainloopSingleBeam(ExecutionModel):
                     callback(simulation, beam)
 
         # make possible to run two main-loops after each other
-        simulation.turn_i.value += 1
-        simulation.section_i.value = 0
+        simulation.turn_counter.value += 1
 
     @staticmethod
     def _add_progressbar_info(
-        iterator: tqdm, n_particles: int, show_progressbar: bool
+        iterator: range | tqdm, n_particles: int, show_progressbar: bool
     ):
         # Update tqdm with particle throughput metrics
         if show_progressbar and hasattr(iterator, "format_dict"):

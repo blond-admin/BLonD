@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -9,7 +9,7 @@
 # References: Simon Lauber
 # TODO add original author of bigaussian()
 
-"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`."""
+"""Functions needed for :class:`~blond.beam_preparation.bigaussian.BiGaussian`."""
 
 from __future__ import annotations
 
@@ -22,11 +22,11 @@ from blond.acc_math.analytic.hamilton import (
     is_in_separatrix,
 )
 from blond.beam_preparation.base import MatchingRoutine
-from blond.core.helpers import int_from_float_with_warning
-from blond.generals.distributed.helpers import (
+from blond.core.backends.mpi_distributed.helpers import (
     mpi_aware_random_generator_cpu,
     mpi_local_size,
 )
+from blond.core.helpers import int_from_float_with_warning
 from blond.generals.iterables_ import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -146,7 +146,7 @@ def get_main_harmonic_attributes(
     Parameters
     ----------
     beam
-        Simulation :class:`~blond.core.beam.beam.Beam` object.
+        Simulation :class:`~blond.core.beam.beams.Beam` object.
     simulation
         `Simulation` context manager.
 
@@ -162,8 +162,10 @@ def get_main_harmonic_attributes(
         Main voltage, in [V].
     """
     # TODO move this into ring.
-    from blond import MultiHarmonicRFStation
-    from blond.physics.cavities import SingleHarmonicRFStation
+    from blond.physics.rf_station import (
+        MultiHarmonicRFStation,
+        SingleHarmonicRFStation,
+    )
 
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRFStation, recursive=False
@@ -172,7 +174,7 @@ def get_main_harmonic_attributes(
     )
     # omega_rf should be all same
     omega_rf = [
-        rf.calc_main_harmonic_omega_rf(
+        rf.calc_main_harmonic_omega_rf_design(
             beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )
@@ -184,17 +186,8 @@ def get_main_harmonic_attributes(
     omega_rf = float(omega_rf[0])
 
     # phi_rf should be all same
-    try:
-        phi_rf = [
-            rf.get_main_harmonic_phi_rf()
-            + rf.delta_phi_rf[rf.main_harmonic_idx]
-            for rf in rf_stations
-        ]
-    except AttributeError:
-        phi_rf = [
-            rf.get_main_harmonic_phi_rf() + rf.delta_phi_rf
-            for rf in rf_stations
-        ]
+    phi_rf = [rf.get_main_harmonic_phi_rf() for rf in rf_stations]
+
     assert all_equal(phi_rf), (
         f"Expected all `phi_rf` to be the same, but got {phi_rf}."
     )
@@ -276,7 +269,7 @@ class BiGaussian(MatchingRoutine):
         simulation
             `Simulation` context manager.
         beam
-            Simulation :class:`~blond.core.beam.beam.Beam` object.
+            Simulation :class:`~blond.core.beam.beams.Beam` object.
         """
         from blond.core.backends.backend import backend
         from blond.physics.drifts import DriftSimple
@@ -340,6 +333,7 @@ class BiGaussian(MatchingRoutine):
             seed=(self._seed + 1) if self._seed is not None else None,
             n_forward_per_rank=self._n_macroparticles_local,
         )
+
         dt = backend.array(  # potentially on GPU
             self._sigma_dt
             * rng_dt_cpu_only.standard_normal(
@@ -382,23 +376,27 @@ class BiGaussian(MatchingRoutine):
                 n_new = int(backend.sum(sel))
                 if n_new == 0:
                     break
-                dt[sel] = backend.array(  # potentially on GPU
-                    self._sigma_dt
-                    * rng_dt_cpu_only.standard_normal(
-                        size=n_new,
-                        dtype=backend.float,
+                dt[sel] = (
+                    backend.array(  # potentially on GPU  # pragma: no cover
+                        self._sigma_dt
+                        * rng_dt_cpu_only.standard_normal(
+                            size=n_new,
+                            dtype=backend.float,
+                        )
+                        + (phi_s - phi_rf) / omega_rf,
+                        copy=False,
                     )
-                    + (phi_s - phi_rf) / omega_rf,
-                    copy=False,
                 )
 
-                dE[sel] = backend.array(  # potentially on GPU
-                    sigma_dE
-                    * rng_dE_cpu_only.standard_normal(
-                        size=n_new,
-                        dtype=backend.float,
-                    ),
-                    copy=False,
+                dE[sel] = (
+                    backend.array(  # potentially on GPU  # pragma: no cover
+                        sigma_dE
+                        * rng_dE_cpu_only.standard_normal(
+                            size=n_new,
+                            dtype=backend.float,
+                        ),
+                        copy=False,
+                    )
                 )
         beam.setup_beam(
             dt=dt,

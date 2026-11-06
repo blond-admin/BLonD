@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -13,12 +13,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import scipy.integrate
 from scipy.constants import c, e
 
-from blond import SingleHarmonicRFStation
+# scipy >= 1.12 removed cumtrapz (renamed to cumulative_trapezoid).
+# Patch it back so xpart (which still uses the old name) can import it.
+if not hasattr(scipy.integrate, "cumtrapz"):
+    scipy.integrate.cumtrapz = scipy.integrate.cumulative_trapezoid
+
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.physics.drifts import DriftSimple
+from blond.physics.rf_station import SingleHarmonicRFStation
 
 if TYPE_CHECKING:  # pragma: no cover
     from xpart.longitudinal.rfbucket_matching import (
@@ -127,9 +133,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             - The rf_station is not provided.
             - Initial beam energy is not set.
             - No `DriftSimple` elements are found in the ring.
-            - `transition_gamma` is not defined in the first drift element.
+            - `momentum_compaction_factor` is not defined in the first drift element.
         """
-        # prevent crash if xpart not installed
         from xpart.longitudinal.rf_bucket import RFBucket
         from xpart.longitudinal.rfbucket_matching import RFBucketMatcher
 
@@ -147,9 +152,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             )
         )
 
-        if drift.transition_gamma is None:
+        if drift.momentum_compaction_factor is None:
             raise ValueError(
-                "transition_gamma is not set in the first drift element."
+                "`momentum_compaction_factor` is not set in the first drift element."
             )
 
         alpha_c = drift.momentum_compaction_factor
@@ -181,7 +186,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             macroparticlenumber=self.n_macroparticles
         )
 
-        omega = rf_station.calc_omega(
+        omega = rf_station.calc_omega_rf_design(
             beam_beta=beam.reference.beta,
             ring_circumference=simulation.ring.circumference,
         )

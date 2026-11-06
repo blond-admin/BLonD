@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -16,13 +16,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant
+from blond.core.base import BeamPhysicsRelevant, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
-
-    from blond import Simulation
+    from blond.core.base import DynamicParameter
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant, ABC):
@@ -81,7 +80,7 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
             beam.purge_flagged_entries()
 
 
-class BoxLosses(LossesBaseClass):
+class BoxLosses(LossesBaseClass, Schedulable):
     """
     Particles outside a rectangle will be flagged lost.
 
@@ -104,13 +103,13 @@ class BoxLosses(LossesBaseClass):
 
     Attributes
     ----------
-    t_min : float
+    t_min
         Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
-    t_max : float
+    t_max
         Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
-    e_min : float
+    e_min
         Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
-    e_max : float
+    e_max
         Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 
@@ -154,39 +153,41 @@ class BoxLosses(LossesBaseClass):
         self.e_min = float(e_min)
         self.e_max = float(e_max)
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+        self._turn_counter: DynamicParameter | None = None
+        self._register_schedulable_variables(
+            "t_min", "t_max", "e_min", "e_max"
+        )
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
         Parameters
         ----------
         simulation
-            Simulation context manager.
+            `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        pass
+        super().on_init_simulation(
+            simulation, turn_counter=simulation.turn_counter, **kwargs
+        )
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
+    def configure(
+        self, *, turn_counter: DynamicParameter | None = None, **kwargs
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called.
+        Store the turn counter needed for schedule application during tracking.
 
         Parameters
         ----------
-        simulation
-            Simulation context manager.
-        beam
-            Simulation beam object.
-        n_turns
-            Number of turns to simulate.
+        turn_counter
+            Live turn counter; accessed as ``turn_counter.value`` each track call.
         **kwargs
-            Additional keyword arguments.
+            Passed to the next level in the MRO chain.
         """
-        pass
+        self._turn_counter = turn_counter
+        super().configure(**kwargs)
 
     def _track(self, beam: BeamBaseClass) -> None:
         """
@@ -197,6 +198,14 @@ class BoxLosses(LossesBaseClass):
         beam
             Beam class to interact with this element.
         """
+        if self.schedule_active:
+            assert self._turn_counter is not None, (
+                "Turn counter must be set with active scheduling."
+            )
+            self.apply_schedules(
+                turn_i=self._turn_counter.value,
+                reference_time=beam.reference.time,
+            )
         if beam.common_array_size > 0:
             backend.specials.loss_box(
                 e_max=backend.float(self.e_max),

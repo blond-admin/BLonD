@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -93,7 +93,8 @@ def calc_total_energy(mass: float, momentum: NumpyArray) -> NumpyArray: ...
         nb.float64(nb.float64, nb.float64),
         nb.float64[:](nb.float64, nb.float64[:]),
         nb.float64[:, :](nb.float64, nb.float64[:, :]),
-    ]
+    ],
+    cache=True,
 )  # pragma: no cover
 def calc_total_energy(
     mass: float, momentum: float | NumpyArray
@@ -176,3 +177,97 @@ def beta_by_momentum(
     Internal assumption is :math:`c_0=1`.
     """
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
+
+
+@overload
+def momentum_compaction_factor(transition_gamma: float) -> float: ...  # NOQA
+
+
+@overload
+def momentum_compaction_factor(transition_gamma: complex) -> float: ...  # NOQA
+
+
+@overload
+def momentum_compaction_factor(transition_gamma: NumpyArray) -> NumpyArray: ...  # NOQA
+
+
+def momentum_compaction_factor(
+    transition_gamma,
+):
+    """
+    Calculate the momentum compaction factor.
+
+    Parameters
+    ----------
+    transition_gamma
+        Relativistic gamma of beam transition crossing.
+
+    Returns
+    -------
+    momentum_compaction_factor
+        Momentum compaction factor.
+    """
+    _assert_purely_real_or_imaginary(transition_gamma)
+    momentum_compaction_factor_ = 1 / (transition_gamma * transition_gamma)
+    return momentum_compaction_factor_.real
+
+
+def _assert_purely_real_or_imaginary(val: complex | NumpyArray):
+    """
+    Check that a complex number is purely real or purely imaginary.
+
+    A complex number is considered *purely real* if its imaginary part is zero,
+    and *purely imaginary* if its real part is zero. This function raises a
+    `ValueError` if the number has both nonzero real and imaginary parts.
+
+    Parameters
+    ----------
+    val
+        Complex number (or array of them) to be validated.
+
+    Raises
+    ------
+    ValueError
+        If any element of `val` has both real and imaginary parts nonzero.
+
+    Examples
+    --------
+    >>> _assert_purely_real_or_imaginary(5 + 0j)   # purely real
+    >>> _assert_purely_real_or_imaginary(0 + 3j)   # purely imaginary
+    >>> _assert_purely_real_or_imaginary(0j)       # zero (both parts 0) is fine
+    >>> _assert_purely_real_or_imaginary(2 + 4j)
+    Traceback (most recent call last):
+        ...
+    ValueError: Expected purely real or purely imaginary number, not (2+4j).
+    """
+    if np.any((val.real != 0) & (val.imag != 0)):
+        raise ValueError(
+            f"Expected purely real or purely imaginary number, not {val}."
+        )
+
+
+def gaussian_distribution(
+    time_array: NumpyArray, sigma_t: float, center: float
+):
+    """
+    Return a gaussian distribution on a given time array.
+
+    Parameters
+    ----------
+    time_array
+        Time array for which the gaussian distribution is to be calculated.
+    sigma_t
+        Standard deviation of the gaussian distribution.
+    center
+        Center of the gaussian distribution.
+
+    Returns
+    -------
+    gauss
+        Gaussian distribution.
+    """
+    return (
+        1
+        / (sigma_t * np.sqrt(2 * np.pi))
+        * np.exp(-((time_array - center) ** 2) / (2 * sigma_t**2))
+    )

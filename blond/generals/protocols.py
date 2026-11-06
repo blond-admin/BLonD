@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,12 +12,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:  # pragma: no cover
-    pass
+    from numpy.typing import NDArray as NumpyArray
 
-from typing import Protocol
+from typing import Protocol, TypeVar
+
+# Covariant because it only appears as a return type. A bare
+# `ScheduleFunction` is implicitly `ScheduleFunction[Any]`.
+ScheduledValueType_co = TypeVar("ScheduledValueType_co", covariant=True)
 
 
 class AnyInterpolator(Protocol):
@@ -37,9 +39,9 @@ class AnyInterpolator(Protocol):
         Additional keyword arguments.
     """
 
-    def __init__(self, x: np.ndarray, y: np.ndarray, **kwargs) -> None: ...
+    def __init__(self, x: NumpyArray, y: NumpyArray, **kwargs) -> None: ...
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
+    def __call__(self, x: float | NumpyArray) -> NumpyArray:
         """
         Interpolate at new points x.
 
@@ -52,5 +54,38 @@ class AnyInterpolator(Protocol):
         -------
         y
             Interpolated values at the given points.
+        """
+        ...
+
+
+class ScheduleFunction(Protocol[ScheduledValueType_co]):
+    """
+    A callable that computes a scheduled value per turn.
+
+    Used by `ScheduledFunctional`, which calls it with the keyword
+    arguments `turn_i` and `reference_time`, so the parameters must
+    carry exactly these names.
+
+    Generic in the returned value, e.g. `ScheduleFunction[float]`.
+    Without a type argument, the return type is `Any`.
+    """
+
+    def __call__(
+        self, *, turn_i: int, reference_time: float
+    ) -> ScheduledValueType_co:
+        """
+        Compute the scheduled value.
+
+        Parameters
+        ----------
+        turn_i
+            Current turn index.
+        reference_time
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The scheduled value for this turn/time.
         """
         ...

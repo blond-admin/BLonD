@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -11,27 +11,28 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
-from scipy.interpolate import interp1d
+
+from blond.core.offenders import WeakBackReference
+from blond.core.scheduling import ScheduledBaseClass, get_scheduler
+from blond.generals.formatting_ import pretty_string
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from os import PathLike
     from typing import Any, TypeVar
 
+    import sympy
     from numpy.typing import NDArray as NumpyArray
-    from scipy.interpolate import (
-        Akima1DInterpolator,
-        PchipInterpolator,
-    )
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.reference_clock.reference_clock import ReferenceCoordinates
     from blond.core.simulation.simulation import Simulation
-    from blond.generals.protocols import AnyInterpolator
+    from blond.generals.protocols import ScheduleFunction
     from blond.handle_results.observables import ObservablesOncePerTurnBase
 
     T = TypeVar("T")
@@ -40,13 +41,23 @@ logger = logging.getLogger(__name__)
 
 
 class Preparable(ABC):
-    """Internal Mix-in for a class to make it preparable by the `Simulation` object."""
+    """
+    Internal Mix-in for a class to make it preparable by the `Simulation` object.
 
-    def __init__(self) -> None:
-        super().__init__()
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+    """
 
-    @abstractmethod  # pragma: no cover
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    # The simulation owns its elements; a strong reference would form a cycle
+    _simulation = WeakBackReference()
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -54,16 +65,37 @@ class Preparable(ABC):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        pass
+        self.configure(**kwargs)
 
-    @abstractmethod  # pragma: no cover
+    def configure(self, **kwargs) -> None:
+        """
+        Set attributes that would otherwise come from the simulation context.
+
+        Each MRO level declares its own explicit keyword parameters and passes
+        the remainder via ``super().configure(**kwargs)``.  This base
+        implementation is the chain terminator: it raises if any unexpected
+        kwargs remain, guarding against typos or missing levels.
+
+        Parameters
+        ----------
+        **kwargs
+            Must be empty when reaching this base implementation.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
+
     def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -77,14 +109,51 @@ class Preparable(ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Simulation-extracted kwargs collected by the MRO chain.
         """
-        pass
+        self.configure_run(beam=beam, n_turns=n_turns, **kwargs)
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Set run-specific state for each simulation run.
+
+        Mirrors :meth:`.Preparable.configure` for the ``on_run_simulation``
+        lifecycle.
+        ``beam`` and ``n_turns`` are passed explicitly (as in
+        ``on_run_simulation``); any values extracted from ``simulation``
+        are collected in ``**kwargs`` and distributed down the MRO chain.
+
+        Parameters
+        ----------
+        beam
+            The beam being simulated.
+        n_turns
+            Number of turns for this run.
+        **kwargs
+            Simulation-extracted values; must be empty at the base.
+        """
+        if kwargs:
+            raise TypeError(
+                f"{type(self).__name__}.configure_run() received unexpected "
+                f"keyword arguments: {list(kwargs)}"
+            )
 
 
 class MainLoopRelevant(Preparable):
     """
     Base class for objects that are relevant for the simulation main loop.
+
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
 
     Attributes
     ----------
@@ -93,8 +162,8 @@ class MainLoopRelevant(Preparable):
         callable each n-th turn.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.each_turn_i = 1
         self.active = True
 
@@ -122,25 +191,115 @@ class Schedulable:
     """
     Base class for objects with schedule parameters.
 
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
     Attributes
     ----------
     schedules
         Dictionary to update a certain attribute by some value
         via `apply_schedules`
+
+    Notes
+    -----
+    Schedulable attributes require two manual entries in the dedicated class:
+    - in the initialization:
+    >>> def __init__(self, attribute_to_be_scheduled)
+    >>>     self._register_schedulable_variables("attribute_to_be_scheduled")
+    - in the initialisation method:
+    >>> def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    >>> super().on_init_simulation(
+    >>>        simulation,
+    >>>        turn_counter = simulation.turn_counter,
+    >>>        **kwargs,
+    >>>    )
+    - in the tracking method:
+    >>> def _track(self, beam: BeamBaseClass, **kwargs):
+    >>>     if self.schedule_active:
+    >>>         self.apply_schedules(
+    >>>            turn_i=self._turn_counter,
+    >>>            reference_time=float(beam.reference.time),
+    >>>         )
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.schedules: dict[str, SchedulerBaseClass] = {}
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.intended_for_scheduling = set()
+        self.schedules: dict[str, ScheduledBaseClass] = {}
         self.schedule_active = False
+        self._turn_counter: DynamicParameter | None = None
+
+    @property
+    def turn_counter(self) -> DynamicParameter | None:
+        """
+        The live turn counter consumed when applying active schedules.
+
+        Inside a BLonD ``Simulation`` this is bound automatically during
+        initialization (``configure``); when the element is driven by an
+        external loop (e.g. wrapped for xsuite), the driver provides one
+        instead and keeps its ``.value`` current.
+
+        Returns
+        -------
+        turn_counter
+            Counter whose ``.value`` is the current turn index, or ``None``
+            if none has been bound yet.
+        """
+        return self._turn_counter
+
+    @turn_counter.setter
+    def turn_counter(self, turn_counter: DynamicParameter | None) -> None:
+        self._turn_counter = turn_counter
+
+    def apply_active_schedules(self, reference_time: float) -> None:
+        """
+        Apply all schedules for the current turn, if scheduling is active.
+
+        Elements call this once per track; it is a no-op without active
+        schedules. With active schedules a bound :attr:`turn_counter` is
+        required.
+
+        Parameters
+        ----------
+        reference_time
+            Current reference time, in [s] (consumed by time-keyed
+            schedules).
+        """
+        if not self.schedule_active:
+            return
+        assert self._turn_counter is not None, (
+            "Turn counter must be set with active scheduling."
+        )
+        self.apply_schedules(
+            turn_i=self._turn_counter.value,
+            reference_time=reference_time,
+        )
+
+    def _register_schedulable_variables(self, *names: str) -> None:
+        """
+        Declare a variable name suitable for scheduling.
+
+        When scheduling anything different as an intended variable,
+        this class will issue a `UserWarning`.
+
+        Parameters
+        ----------
+        *names
+            Names of a variable.
+        """
+        for name in names:
+            self.intended_for_scheduling.add(str(name))
 
     def schedule(
         self,
         attribute: str,
-        value: ScheduledArray
-        | ScheduledInterpolation
+        value: ScheduledBaseClass
         | NumpyArray
-        | tuple[NumpyArray, NumpyArray],
+        | tuple[NumpyArray, NumpyArray]
+        | ScheduleFunction,
     ) -> None:
         """
         Schedule a parameter to change dynamically during the simulation.
@@ -160,12 +319,24 @@ class Schedulable:
             Can be provided in one of several forms:
 
             1. **Convenient input options**:
-                - `NumpyArray`: Automatically cast to `ScheduledArray`.
-                - `tuple[NumpyArray, NumpyArray]`: Automatically cast to `ScheduledInterpolation`.
 
-            2. **Explicit scheduling objects**:
-                - `ScheduledArray`: Full control over array-based scheduling.
-                - `ScheduledInterpolation`: Full control over interpolation-based scheduling.
+               - `NumpyArray`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledArray`.
+               - `tuple[NumpyArray, NumpyArray]`: Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledInterpolation`.
+               - :class:`~blond.generals.protocols.ScheduleFunction`:
+                 Automatically cast to
+                 :class:`~blond.core.scheduling.ScheduledFunctional`.
+
+            2. **Explicit scheduling objects**, i.e. any
+               :class:`~blond.core.scheduling.ScheduledBaseClass`, e.g.:
+
+               - :class:`~blond.core.scheduling.ScheduledArray`:
+                 Full control over array-based scheduling.
+               - :class:`~blond.core.scheduling.ScheduledInterpolation`:
+                 Full control over interpolation-based scheduling.
+               - :class:`~blond.core.scheduling.ScheduledFunctional`:
+                 Full control over function-based scheduling.
 
         Raises
         ------
@@ -177,10 +348,17 @@ class Schedulable:
         - Once a schedule is applied, the `schedule_active` flag is set to True.
         - For convenience, non-explicit types are automatically converted using `get_scheduler`.
         """
+        if attribute not in self.intended_for_scheduling:
+            warnings.warn(
+                f"'{attribute}' is not intended to be scheduled. "
+                f"This can result in bugs. Use at your own risk.",
+                UserWarning,
+                stacklevel=2,
+            )
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        if isinstance(value, SchedulerBaseClass):
+        if isinstance(value, ScheduledBaseClass):
             # explicit declaration
             self.schedules[attribute] = value
         else:
@@ -242,7 +420,9 @@ class Schedulable:
                 attribute,
                 value,
             )
-            logger.debug(f"Wrote {self}.{attribute} = {value}")
+            # Lazy %-formatting: the array repr is only built when DEBUG
+            # logging is actually enabled (this runs once per turn).
+            logger.debug("Wrote %s.%s = %s", self, attribute, value)
 
 
 class SimulationElementBase(MainLoopRelevant, ABC):
@@ -319,42 +499,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         """
         return self._section_index
 
-    @abstractmethod  # pragma: no cover
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
-    @abstractmethod  # pragma: no cover
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs,
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     def info_string(self, prefix="") -> str:
         """
         Print the state of the object.
@@ -369,10 +513,6 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         str
             The state of the object.
         """
-        from blond.core.ring.beam_physics_relevant_elements import (
-            pretty_string,  # prevent circular import
-        )
-
         filtered_dict = {
             k: pretty_string(v)
             for k, v in self.__dict__.items()
@@ -440,7 +580,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index, name, **kwargs)
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -489,210 +629,60 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     ...         dt += backend.random.rand(len(dt))
     """
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
 
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
+# n.b.:  runtime_checkable will check the method is present, but does
+# not validate the signature.
+@runtime_checkable
+class _Trackable(Protocol):
+    def track(self, beam): ...
 
 
-class SchedulerBaseClass(ABC):
-    """Base class to create objects used for scheduling of parameters."""
-
-    @abstractmethod  # pragma: no cover
-    def get_scheduled(
-        self,
-        turn_i: int,
-        reference_time: float,
-    ):
-        """
-        Get the value of the schedule for the current turn/time.
-
-        Parameters
-        ----------
-        turn_i
-            Currently turn index.
-        reference_time
-            Current time, in [s].
-        """
-        pass
-
-
-class ScheduledArray(SchedulerBaseClass):
+class UnsafeUserElement(UserDefinedElement):
     """
-    Schedule values that change per turn.
+    Class to wrap around an arbitrary user defined element.
+
+    Used to sanitise non-standard objects defined by the user, should
+    not be used for production code.
+
+    The given `.track` method will be called on every turn, and the
+    element will be taken as part of section 0.  For any other
+    behaviour, inheriting from `UserDefinedElement` is essential.
 
     Parameters
     ----------
-    values
-        Values per turn.
-        (indexing is done via self.values[turn_i]).
-    """
-
-    def __init__(self, values: NumpyArray) -> None:
-        super().__init__()
-        self.values = values
-
-    def get_scheduled(
-        self,
-        turn_i: int,
-        reference_time: float,
-    ) -> NumpyArray:
-        """
-        Get the value of the schedule for the current turn.
-
-        Parameters
-        ----------
-        turn_i
-            Currently turn index.
-        reference_time
-            Current time, in [s].
-
-        Returns
-        -------
-        value
-            The scheduled value for the current turn.
-        """
-        return self.values[turn_i]
-
-
-class ScheduledInterpolation(SchedulerBaseClass):
-    """
-    Schedule values that change along time.
-
-    Parameters
-    ----------
-    times
-        Values along the times axis, in [s].
-    values
-        Values along the values axis.
-    interpolator
-        Interpolation routine to get time in between the base values.
-        Default: `scipy.interpolate.interp1d`.
-    **kwargs
-        Optional keyword arguments for the interpolator.
-
-    See Also
-    --------
-    scipy.interpolate.interp1d : 1D interpolator similar to `np.interp`.
-    scipy.interpolate.Akima1DInterpolator : Modified Akima Interpolation.
-    scipy.interpolate.PchipInterpolator : Piecewise Cubic Hermite Interpolating Polynomial.
+    element
+        The element defined by the user, must implement a
+        `.track(self, beam)` method.
 
     Examples
     --------
-    Using the Akima interpolation
-
-    >>> import scipy
-    >>> t_arr = np.linspace(0, 10)
-    >>> vals = np.linspace(-10, 0)
-    >>> scheduler = ScheduledInterpolation(
-    ...     times=t_arr,
-    ...     values=vals,
-    ...     interpolator=scipy.interpolate.Akima1DInterpolator,
-    ...     method="makima",
-    ... )
-
-    Using the Akima interpolation
-    >>> import scipy
-    >>> t_arr = np.linspace(0, 10)
-    >>> vals = np.linspace(-10, 0)
-    >>> scheduler = ScheduledInterpolation(
-    ...     times=t_arr,
-    ...     values=vals,
-    ...     interpolator=scipy.interpolate.PchipInterpolator,
-    ...     method="makima",
-    ... )
+    >>> class Test:
+    ...    def track(self, beam):
+    ...        print("This is a test")
+    >>> ring.add_element(Test())
     """
 
-    def __init__(
-        self,
-        times: NumpyArray,
-        values: NumpyArray,
-        interpolator: type[
-            Akima1DInterpolator
-            | PchipInterpolator
-            | interp1d
-            | AnyInterpolator
-        ] = interp1d,
-        **kwargs,
-    ) -> None:
+    def __init__(self, element: _Trackable):
+        if not isinstance(element, _Trackable):
+            raise TypeError(
+                "Arbitrary user elements must at minimum "
+                "define a `.track(self, beam)` method,"
+                f" but {element.__class__.__name__} does not provide it."
+            )
+        else:
+            warnings.warn(
+                f"Element {element} (class name {element.__class__.__name__}) "
+                "is not recognised, attempting to coerce it to a usable form, "
+                "but results are not guaranteed. Inheriting from "
+                "`UserDefinedElement` is strongly recommended.",
+                stacklevel=2,
+            )
+
         super().__init__()
-        self.interpolator = interpolator(times, values, **kwargs)
+        self._element = element
 
-    def get_scheduled(
-        self,
-        turn_i: int,
-        reference_time: float,
-    ):
-        """
-        Get the value of the schedule for the current time.
-
-        Parameters
-        ----------
-        turn_i
-            Currently turn index.
-        reference_time
-            Current time, in [s].
-
-        Returns
-        -------
-        value
-            The interpolated value for the current time.
-        """
-        return self.interpolator(reference_time)
-
-
-def get_scheduler(
-    value: NumpyArray | tuple[NumpyArray, NumpyArray],
-) -> SchedulerBaseClass:
-    """
-    Auto-select the correct class of the schedulers.
-
-    Parameters
-    ----------
-    value
-        Array - per turn
-        (Array, Array) - time vs value, to be interpolated.
-
-    Returns
-    -------
-    scheduler
-        The appropriate scheduler instance.
-    """
-    if isinstance(value, np.ndarray):
-        return ScheduledArray(values=value)
-    elif isinstance(value, tuple):
-        return ScheduledInterpolation(times=value[0], values=value[1])
-    else:
-        raise TypeError(type(value))
+    def _track(self, beam: BeamBaseClass):
+        self._element.track(beam)
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
@@ -780,6 +770,40 @@ class HasPropertyCache:
         pass
 
 
+class HasOrbitLength:
+    """
+    Base class for elements that occupy length along the ring's closed orbit.
+
+    The ring's geometry accounting (``Ring.closed_orbit_length``, per-section
+    orbit lengths, the per-section "length-bearing element present" check)
+    operates on this type. Inheriting it says *only* "this element takes up
+    ``orbit_length`` metres of the orbit" — it does not imply any particular
+    longitudinal physics. Drifts inherit it alongside their physics; black-box
+    elements (e.g. a wrapped xsuite line) inherit it without being drifts, so
+    drift-specific analytics (``eta_0`` averaging, momentum compaction,
+    synchrotron radiation) never see them.
+
+    Parameters
+    ----------
+    orbit_length
+        Length along the closed orbit, in [m].
+        Length / velocity => time of flight through the element.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+
+    Attributes
+    ----------
+    orbit_length
+        Length along the closed orbit, in [m].
+        Length / velocity => time of flight through the element.
+    """
+
+    def __init__(self, orbit_length: float, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.orbit_length = orbit_length
+
+
 class AltersReference(ABC):
     """Base class for objects that alter the reference coordinate system."""
 
@@ -800,5 +824,31 @@ class AltersReference(ABC):
         -------
         change
             Change of reference time or energy.
+        """
+        pass
+
+
+class HasSymbolicHamiltonian(ABC):
+    """Base class for objects that have an analytic expression."""
+
+    @abstractmethod  # pragma: no cover
+    def get_hamilton_symbolic(
+        self, replace_symbols: bool = True
+    ) -> sympy.Expr:
+        """
+        Return the partial Hamiltonian symbolic expression.
+
+        Parameters
+        ----------
+        replace_symbols
+            If ``True``, the according variables will be replaced by
+            their current numeric value.
+            ``False`` is intended to derive the value of an parameter
+            analytically.
+
+        Returns
+        -------
+        expression
+            The symbolic expression.
         """
         pass

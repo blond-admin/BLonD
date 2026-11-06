@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -18,16 +18,21 @@ Simon Albright
 from __future__ import annotations
 
 import os
+import unittest
 import warnings
-from functools import wraps
+from functools import partial, wraps
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.backends import backend
+from blond.generals.cupy_ import no_cupy_import as no_cupy
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
-    from blond.core.backends.backend import BackendBaseClass
+    from blond.core.backends.backend import Cupy64Bit, Numpy64Bit
+    from blond.generals.typing_ import AnyArray
 
 try:
     import cupy  # noqa: F401
@@ -50,7 +55,7 @@ def _set_forcing() -> bool:
 FORCE_ALL_BACKENDS = _set_forcing()
 
 
-def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
+def _backend_selection(*args: str) -> list[type[Numpy64Bit | Cupy64Bit]]:
     if FORCE_ALL_BACKENDS:
         # If FORCE_ALL_BACKENDS is True, the requested backends will all
         # be used, whether or not they can be initialised.  For backends
@@ -77,7 +82,59 @@ def _backend_selection(*args: tuple[str]) -> dict[str, BackendBaseClass]:
     return backends
 
 
-def multi_backend_testcase(*args: tuple[str]) -> Callable:
+def pin_fast_test_backends() -> None:
+    """
+    Pin the global numeric backends to a fast, deterministic state.
+
+    Intended to be called from an autouse test fixture so that per-test
+    timing and behaviour do not depend on test order (``pytest-randomly``) or
+    on a backend left active by an earlier test.
+
+    The two backend systems are handled asymmetrically:
+
+    - **BLonD 2**: if the legacy ``bm`` singleton has already been imported,
+      it is reset to the fastest available CPU backend (``use_cpu``:
+      cpp > numba > python). The legacy backend is a mutable global that many
+      regression tests change without restoring; leaving it in pure-python
+      mode made those tests an order-dependent performance sink.
+    - **BLonD 3**: the *array* backend is reset to the one the environment
+      asks for (``Numpy64Bit``, or ``Cupy64Bit`` when
+      ``BLOND_BACKEND_MODE=cuda``), so a backend left active by an earlier
+      test cannot make the next test operate on the wrong array namespace.
+      On top of that, only the slow pure-python kernels are guarded against
+      being the *ambient* default; ``python`` specials are switched to
+      ``numba``. Tests that deliberately exercise another backend set it
+      themselves after this helper runs and are therefore unaffected.
+
+    Notes
+    -----
+    The legacy backend is only touched when its module is already imported, so
+    backend-agnostic BLonD 3 tests do not pay the cost of importing the legacy
+    code. The first legacy import runs ``use_cpu`` itself, so the state is
+    clean either way.
+    """
+    import sys
+
+    legacy_utils = sys.modules.get("blond.legacy.blond2.utils")
+    if legacy_utils is not None:
+        legacy_utils.bmath.use_cpu()
+
+    environment_mode = os.environ.get(
+        "BLOND_BACKEND_MODE", backend.DEFAULT_BACKEND
+    )
+    backend.backend.change_backend(
+        backend.backend_class_for_mode(environment_mode)
+    )
+
+    if backend.backend.specials_mode == "python":
+        try:
+            backend.backend.set_specials("cpp")
+        except Exception as exc:
+            warnings.warn(str(exc), stacklevel=1)
+            backend.backend.set_specials("numba")
+
+
+def multi_backend_testcase(*args: str | Callable) -> Callable:
     """
     Decorator to run a unittest testcase with multiple backends.
 
@@ -85,9 +142,12 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
     with all available backends.  If called with a list of str, only
     the corresponding backends will be run.
 
-    The test case function will be called multiple times from within
-    a for loop with the backend changed before each call of the
-    function.  At the end, the backend will be changed to its initial
+    Each backend is run as its own `TestCase.subTest`, labelled with
+    the backend's class name: a failure under one backend is recorded
+    against that subtest (keeping its original exception) and does not
+    stop the remaining backends from being tried. The overall test is
+    reported as failed if any backend failed, with every failure shown
+    separately. At the end, the backend is changed back to its initial
     value.
 
     `setUp` and `tearDown` will be called before and after each run
@@ -97,7 +157,7 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
     ----------
     *args
         If only specific backends are desired, their name should be
-        specified as a str.  E.g. @multi_backend_testcase("Numpy32Bit")
+        specified as a str.  E.g. @multi_backend_testcase("Numpy64Bit")
         If no name is specified, all known backends are used.
 
     Returns
@@ -111,8 +171,8 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
     >>> @multi_backend_testcase
     ... def testcase(self):
     ...    # Unit test code
-    >>> # To run with only Numpy32Bit and Numpy64Bit
-    >>> @multi_backend_testcase("Numpy32Bit", "Numpy64Bit")
+    >>> # To run with only Numpy64Bit
+    >>> @multi_backend_testcase("Numpy64Bit")
     ... def testcase(self):
     ...    # Unit test code
     """
@@ -126,22 +186,19 @@ def multi_backend_testcase(*args: tuple[str]) -> Callable:
 
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
-        def multi_test(self):
-            init_backend = backend.backend.__class__.__name__
-            for t in tested_backends:
-                backend.backend.change_backend(t)
-                self.setUp()
-                try:
-                    fn(self)
-                except Exception:
-                    # If a function call fails, force return to the
-                    # initial condition, then re-raise the exception.
-                    backend.backend.change_backend(
-                        backend.ALL_BACKENDS[init_backend]
-                    )
-                    raise
-                self.tearDown()
-            backend.backend.change_backend(backend.ALL_BACKENDS[init_backend])
+        def multi_test(self: unittest.TestCase):
+            init_backend = backend.backend.__class__
+            try:
+                for t in tested_backends:
+                    with self.subTest(backend=t.__name__):
+                        backend.backend.change_backend(t)
+                        self.setUp()
+                        try:
+                            fn(self)
+                        finally:
+                            self.tearDown()
+            finally:
+                backend.backend.change_backend(init_backend)
 
         return multi_test
 
@@ -180,3 +237,122 @@ def skip_if_no_cupy(fn: Callable) -> Callable:
             fn(self)
 
     return func
+
+
+class ArrayLikeScan:
+    """
+    Convenience object to simplify testing different `ArrayLike`s.
+
+    Simplifies the process of iterating over common `ArrayLike` types for
+    testing `ArrayLike` inputs.  When an `iterator` is created from it,
+    the return is a `Generator` that yields casting functions to type
+    cast the input.  By default, it will iterate over list, tuple,
+    np.array and (if cupy is available) cp.array.  If different types
+    are required, they can be given at input when creating the object.
+
+    Parameters
+    ----------
+    array_likes
+        The casting functions to use (e.g. `list`, `tuple`, ...).
+        If None, will be replaced with `[list, tuple, np.array]`,
+        `cp.array` will be appended if cupy is available.
+
+    Examples
+    --------
+    >>> for inp_cast in ArrayLikeScan():
+    ...     np.max(inp_cast([1, 2, 3]))
+    """
+
+    def __init__(self, array_likes: Iterable[Callable] | None = None):
+        if array_likes is None:
+            array_likes = [list, tuple, np.array]
+            if cupy_available:
+                array_likes.append(cupy.array)
+
+        self.array_likes = array_likes
+
+    def __iter__(self):
+        """A generator to iterate over casting options."""
+        for type_ in self.array_likes:
+            func = partial(self._cast_to, type_)
+
+            yield func
+
+    def _cast_to(self, type_: Callable, value: AnyArray) -> AnyArray:
+        # Wrapper to ensure cupy arrays are first converted to numpy
+        # arrays, otherwise most conversions raise an error
+        # because automatic convertion (`.get()`) is not possible.
+        if no_cupy.is_cupy_array(value):
+            value = no_cupy.copy_to_cpu(value)
+
+        return type_(value)
+
+
+def _backend_state() -> tuple[str, str]:
+    # e.g. "Numpy64Bit, cpp" or "Cupy64Bit, cuda"
+    return backend.backend.__class__.__name__, backend.backend.specials_mode
+
+
+class BLonDTestCase(unittest.TestCase):
+    """
+    `TestCase` base class that reports the active backend on failure.
+
+    Records the backend class and specials mode active at the start of
+    each test and, if the test raises, the ones active at the point of
+    failure, then appends both to the failure/error message. Passing
+    tests are unaffected.
+
+    This exists because `backend_mutation` tests change the global
+    backend as a side effect; if one leaves it changed, the next test
+    can fail under an unexpected backend. Comparing the start/failure
+    states reported here distinguishes that from a genuine per-backend
+    bug.
+
+    Notes
+    -----
+    Tests decorated with `multi_backend_testcase` are not annotated:
+    that decorator runs each backend inside a `TestCase.subTest`, which
+    records the exception itself instead of letting it reach the
+    annotating hook here.  Nothing is lost, since each subtest is
+    already labelled with the backend it ran under.
+    """
+
+    def run(
+        self, result: unittest.TestResult | None = None
+    ) -> unittest.TestResult | None:
+        """
+        Run the test, recording the backend state active at the start.
+
+        Parameters
+        ----------
+        result
+            The result object the test outcome is recorded on. If None,
+            a default result is created, matching `TestCase.run`.
+
+        Returns
+        -------
+        unittest.TestResult or None
+            The `result` passed in, or the default created in its
+            place.
+        """
+        self._backend_at_start, self._specials_at_start = _backend_state()
+        return super().run(result)
+
+    def _callTestMethod(self, method: Callable) -> None:
+        try:
+            super()._callTestMethod(method)
+        except unittest.SkipTest:
+            raise
+        except Exception as exc:
+            bend_state = _backend_state()
+            note = (
+                f"\n[backend at start: {self._backend_at_start}, "
+                f"at failure: {bend_state[0]}]"
+                f"\n[specials at start: {self._specials_at_start}, "
+                f"at failure: {bend_state[1]}]"
+            )
+            if exc.args:
+                exc.args = (f"{exc.args[0]} {note}", *exc.args[1:])
+            else:
+                exc.args = (note,)
+            raise

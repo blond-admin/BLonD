@@ -1,8 +1,8 @@
 <div align="center">
-<img src="BLonD2_centered.png" alt="drawing" width="300"/>
+<img src="resources/BLonD3_centered.png" alt="drawing" width="300"/>
 </div>
 
-[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
+[![Pipeline Status](https://gitlab.cern.ch/blond/BLonD/badges/blonder/pipeline.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Coverage Report](https://gitlab.cern.ch/blond/BLonD/badges/blonder/coverage.svg)](https://gitlab.cern.ch/blond/BLonD/-/commits/blonder) [![Latest Release](https://gitlab.cern.ch/blond/BLonD/-/badges/release.svg)](https://gitlab.cern.ch/blond/BLonD/-/releases) [![PyPi](https://img.shields.io/pypi/v/blond.svg)](https://pypi.org/project/blond/) [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org) [![Documentation Pages](https://img.shields.io/badge/docs-sphinx-blue)](https://blond-code.docs.cern.ch/)
 
 
 # Developer Guide for BLonD
@@ -21,58 +21,81 @@ Code that is not mature enough to be inside the standard codebase should be deve
 blond/                        BLonD beam dynamics software.
 ├── acc_math/                 Analytical equations.
 ├──── analytic/               Analytical equations for theoretic descriptions.
+├────── synchrotron_radiation/A collection of analytic equations required for synchrotron radiation.
 ├──── empiric/                Analytical equations for empirical observations.
 ├── beam_preparation/         Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├── convenience/              Convenience functions to interact with BLonD.
+├── core/                     Core functionalities that define BLonD and its runtime.
+├──── backends/               All helper functions and implementations for the numeric backends of BLonD.
+├────── cpp/                  Holds `CppSpecials` and helper functions.
+├────── cuda/                 Holds `CudaSpecials` and helper functions.
+├────── mpi_distributed/      Functions to interface with MPI distributed arrays.
+├────── numba/                Holds `NumbaSpecials` and helper functions.
+├────── python/               Holds `PythonSpecials` and helper functions.
+├──── beam/                   Core classes and routines related to the Beam objects.
+├──── reference_clock/        Helper class that holds the reference to the beam coordinate system.
+├──── ring/                   Methods related to the `Ring` class.
+├──── simulation/             Definitions related to assembling a `Simulation`.
+├────── execution_models/     Different implementations of main-loops, for example for counter-rotation.
 ├── cycles/                   Module to manage and describe the ramp of the magnets and other cycles.
 ├──── noise_generators/       Module for noise generators.
 ├── examples/                 Overview of BLonD input files as a starting point for new simulations..
+├──── notebooks/              Helpful marimo/jupyter notebooks that are presented on the website.
+├──── scripts/                Overview of BLonD input files as a starting point for new simulations..
 ├── experimental/             Untested/unstable code that might be changed in the future.
 ├──── acc_math/               Helpers for math to deal with the output of simulations.
 ├────── empiric/              Helpers for math to deal with the output of simulations.
 ├──── beam_preparation/       Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
+├────── semi_empiric_matcher_extensions/
+├──────── line_density/       Helper implementations to fit a line density with `SemiEmpiricMatcher`.
+├──── cycles/                 Module to manage and describe the ramp of the magnets and other cycles.
+├────── noise_generators/     Collection of functions to generate noise.
 ├──── physics/                Implementations to handle different beam physics processes,
 ├────── feedbacks/            Module to manage and describe the longitudinal feedbacks.
 ├──────── accelerators/       Feedback implementations for specific accelerators.
 ├────────── lhc/              Functions to define the CERN Large Hadron Collider feedback systems.
-├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
 ├────────── psb/              Functions to define the CERN Proton Synchrotron Booster feedback systems.
-├──── cycles/                 Module to manage and describe the ramp of the magnets and other cycles.
-├────── noise_generators/     Collection of functions to generate noise.
-├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.Observables`.
-├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
-├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
-├──── impedances/             Module to handle the interaction of impedance sources with the beam.
-├──── feedbacks/              Module to manage and describe the longitudinal feedbacks.
-├── testing/                  Utilities for testing of BLonD.
-├── specifics/                Utility functions for specific accelerators.
-├──── cern/                   Utility functions for CERN synchrotrons.
-├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
-├────── ps/                   Utility functions for the CERN Proton Synchrotron.
-├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
-├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
-├──── muon_collider/          Helper scripts for the muon collider.
+├────────── sps/              Utility functions to define feedbacks for the CERN synchrotrons.
+├──── simulation/             Experimental extensions to :class:`~blond.core.simulation.simulation.Simulation`.
+├── generals/                 Function definitions that are useful outside the beam physics context.
+├──── cupy_/                  Scripts that are useful to work with Cupy.
+├── handle_results/           Helper functions and detailed implementations to define :class:`blond.handle_results.observables.ObservablesBaseClass`.
 ├── interfaces/               Managing access to other (optional) beam physics software, like XSuite.
 ├──── xsuite/                 Glue code for XSuite.
 ├────── beam_preparation/     Classes to setup the beam coordinates according to a :class:`~blond.core.simulation.simulation.Simulation`.
 ├────── physics/              Beam physics classes for interfacing XSuite.
-├── generals/                 Function definitions that are useful outside the beam physics context.
-├──── cupy/                   Scripts that are useful to work with Cupy.
-├──── distributed/            Helper module to work with CPU/GPU arrays distributed via MPI.
-├── core/                     Core functionalities that define BLonD and its runtime.
-├──── backends/               All helper functions and implementations for the numeric backends of BLonD.
-├────── cpp/                  Holds `CppSpecials` and helper functions.
-├────── cuda/                 Holds `CduaSpecials` and helper functions.
-├────── numba/                Holds `NumbaSpecials` and helper functions.
-├────── python/               Holds `PythonSpecials` and helper functions.
-├────── mpi_distributed/      Functions to interface with MPI distributed arrays.
-├──── beam/                   Core classes and routines related to the Beam objects.
-├──── ring/                   Methods related to the `Ring` class.
-├──── simulation/             Definitions related to assembling a `Simulation`.
-├────── execution_models/     Different implementations of main-loops, for example for counter-rotation.
-├──── reference_clock/        Helper class that holds the reference to the beam coordinate system.
-├── performance_blond3/       Testing the performance of BLonD.
-├──── backends/               Testing the performance of the BLonD backends.
+├──── rf_noise_cpp/           Python ctypes interface to CERN's external ``rf-noise-cpp`` library.
+├── legacy/                   Access point for the legacy blond version, use ``from blond.legacy import blond2``.
+├── physics/                  Implementations to handle different beam physics processes, like RF-Stations.
+├──── feedbacks/              Module to manage and describe rf feedback systems.
+├────── accelerators/         Module to manage and describe rf feedback systems for specific accelerators.
+├──────── lhc/                Module to manage and describe rf feedback systems for the Large Hadron Collider.
+├──────── ps/                 Module to manage and describe rf feedback systems for the Proton Synchrotron.
+├──────── psb/                Module to manage and describe rf feedback systems for the Proton Synchrotron Booster.
+├──────── sps/                Module to manage and describe rf feedback systems for the Super Proton Synchrotron.
+├──── impedances/             Module to handle the interaction of impedance sources with the beam.
+├──── synchrotron_radiation/  Implementations to simulate the effect of synchrotron radiation.
+├── specifics/                Utility functions for specific accelerators.
+├──── cern/                   Utility functions for CERN synchrotrons.
+├────── lhc/                  Utility functions for the CERN Large Hadron Collider.
+├──────── varinoise/          LHC VariNoise data (spectral-shape ``gain_y`` for band-limited RF noise).
+├────── ps/                   Utility functions for the CERN Proton Synchrotron.
+├────── psb/                  Utility functions for the CERN Proton Synchrotron Booster.
+├────── sps/                  Utility functions for the CERN Super Proton Synchrotron.
+├──── fccee/                  Accelerator specifics for the future circular collider.
+├──── muon_collider/          Helper scripts for the muon collider.
+├── testing/                  Utilities for testing of BLonD.
+├── utilities/                Module contains various utilities used throughout the library.
+├──── separatrix/             Package which contains utilities for working with separatrix.
 ```
+
+
+**Where to start reading:**
+
+* [`blond/examples/scripts/minimum_working_example.py`](blond/examples/scripts/minimum_working_example.py) — smallest end-to-end simulation.
+* [`blond/core/simulation/simulation.py`](blond/core/simulation/simulation.py) — assembles `Ring`, `MagneticCycle`, beams, and observables; drives the main loop.
+* [`blond/core/ring/ring.py`](blond/core/ring/ring.py) and [`blond/physics/`](blond/physics/) — physics elements added to a ring.
+* [`blond/examples/scripts/`](blond/examples/scripts/) — `EX_01_*` … `EX_13_*` cover progressively richer setups.
 
 ---
 
@@ -80,11 +103,11 @@ blond/                        BLonD beam dynamics software.
 
 Ensure the following tools are installed:
 
-* [Python 3.10+](https://www.python.org/downloads/)
+* [Python 3.11+](https://www.python.org/downloads/)
 * [Git](https://git-scm.com/)
 * [Pre-Commit](https://pre-commit.com/)
 
-**Optional (for C++ extensions / GPU support):**
+**Optional (for C++ extensions / GPU / MPI support):**
 
 * **Linux:**
 
@@ -96,6 +119,18 @@ Ensure the following tools are installed:
 * **GPU Support:**
 
   * [CUDA Compiler Driver (NVCC)](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
+* **MPI Support** (only for the optional `mpi` extra; `mpi4py` installs
+  from a wheel, but needs an MPI runtime on the system to import):
+
+  * Linux: `libopenmpi-dev` / `openmpi` (or your distribution's equivalent)
+  * macOS: `brew install open-mpi`
+  * Windows: [Microsoft MPI](https://learn.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
+* **Documentation build** (not installable via pip, must be on `PATH`):
+
+  * [Pandoc](https://pandoc.org/installing.html) — used by `nbsphinx` for the example notebooks
+    (Linux: `apt install pandoc`, macOS: `brew install pandoc`, Windows: `winget install JohnMacFarlane.Pandoc`)
+  * [Graphviz](https://graphviz.org/download/) (`dot`) — used for the inheritance diagrams
+    (Linux: `apt install graphviz`, macOS: `brew install graphviz`, Windows: `winget install Graphviz.Graphviz`)
 
 ---
 
@@ -106,7 +141,7 @@ Ensure the following tools are installed:
 
 ```bash
 git clone https://gitlab.cern.ch/blond/BLonD/
-cd blond
+cd BLonD
 git checkout blonder  # Current development branch for BLonD3
 ```
 
@@ -114,7 +149,8 @@ git checkout blonder  # Current development branch for BLonD3
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate           # Linux / macOS
+# .venv\Scripts\activate            # Windows (PowerShell or cmd)
 ```
 
 ### 3. Install Development Dependencies
@@ -122,13 +158,38 @@ source .venv/bin/activate
 For CPU-only development:
 
 ```bash
-pip install --editable .[dev]
+pip install --editable ".[dev]"
 ```
 
-For GPU-enabled development:
+For GPU-enabled development both CUDA12 and CUDA 13 are available:
+
+For CUDA12:
+```bash
+pip install --editable ".[dev, gpu_cuda12]"
+```
+
+For CUDA13:
+```bash
+pip install --editable ".[dev, gpu_cuda13]"
+```
+
+The convenience extras `all_no_cuda`, `all_cuda12`, and `all_cuda13` bundle
+`dev`, `doc`, `xsuite`, and `mpi` (and the matching GPU package), e.g.:
 
 ```bash
-pip install --editable .[dev, gpu]
+pip install --editable ".[all_cuda12]"
+```
+
+For XSuite interop only (e.g., RF-bucket matching via XSuite), add the `xsuite` extra:
+
+```bash
+pip install --editable ".[dev, xsuite]"
+```
+
+After installation, verify your setup by running a minimal slice of the test suite:
+
+```bash
+python3 -m pytest -v tests/unittests/core/ring/
 ```
 
 ### 4. Set Up Pre-Commit Hooks
@@ -137,7 +198,7 @@ pip install --editable .[dev, gpu]
 pre-commit install
 ```
 
-### 4. Compiling Native Backends (Optional)
+### 5. Compiling Native Backends (Optional)
 
 > **Note:** These steps are automatically executed in the GitLab CI pipeline prior to running tests.
 > You only need to perform them manually if you are developing or testing locally.
@@ -145,13 +206,10 @@ pre-commit install
 To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp --parallel   # Compile the C++ backend
+blond-compile-cpp   # Compile the C++ backend
 ```
 ```bash
 blond-compile-cuda             # Compile the CUDA backend
-```
-```bash
-blond-compile-fortran          # Compile the Fortran backend
 ```
 
 Once compiled, the corresponding backends will be available for use within your simulation environment.
@@ -159,9 +217,9 @@ Once compiled, the corresponding backends will be available for use within your 
 To activate a specific backend (for example, the C++ backend), you can use the following Python code:
 
 ```python
-from blond import backend
+from blond import setup_backend
 
-backend.set_specials(mode="cpp")  # Activate the C++ backend
+setup_backend("cpp")  # Activate the C++ backend
 ```
 
 
@@ -171,27 +229,58 @@ backend.set_specials(mode="cpp")  # Activate the C++ backend
 ## Running Tests
 > Automatically done in GitLab CI Pipeline
 ```bash
-python3 -m pytest -v unittests/
+python3 -m pytest -v tests/unittests/ --randomly-seed=$CI_PIPELINE_ID
 ```
 
-BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
-Following markers are used
+The random seed is displayed online in the output terminal of the CI pipeline.
+Replace '$CI_PIPELINE_ID' by the actual pipeline number when executing tests on a local machine.
 
-- 'backend_mutation'
-- 'cupy'
+BLonD provides for marked tests with [PyTest](https://docs.pytest.org/en/stable/how-to/mark.html) via `@pytest.mark.xxx`.
+Apply a marker when your test depends on global/backend state or external runtimes:
+
+- `backend_mutation` — test changes the active backend as a side effect (e.g.,
+  switches numerical specials). Skip these when running against a fixed backend.
+- `cupy` — test requires CuPy / a CUDA-capable GPU.
+- `mpi` — test must be launched under `mpirun` (uses MPI communication).
 
 Those tests can be excluded for running the tests with the `pytest -m` flag.
 ```bash
 export BLOND_BACKEND_MODE=cuda
-export BLOND_BACKEND_BITS=32
-python3 -m pytest -m "not backend_mutation"  -v unittests/
+export BLOND_BACKEND_BITS=64
+python3 -m pytest -m "not backend_mutation"  -v tests/unittests/
 ```
+
+When modifying backend code, set `BLOND_FORCE_TEST_ALL_BACKENDS=True` to make
+backend-aware tests fan out across every available backend instead of only the
+one selected by `BLOND_BACKEND_MODE`:
+
+```bash
+export BLOND_FORCE_TEST_ALL_BACKENDS=True
+python3 -m pytest -v tests/unittests/
+```
+
+To run the suite in parallel, use pytest-xdist (part of the `dev` extra),
+as CI does for every non-MPI run. With CuPy, all workers share the GPU.
+
+```bash
+python3 -m pytest -n 4 --dist loadfile tests/unittests/
+```
+
+All `BLOND_*` environment variables that BLonD reads are listed with a short
+description in `pyproject.toml` under `[tool.blond] env-vars`. When you add,
+rename or remove one, update that list: the `check-env-vars` pre-commit hook
+fails if a variable used in `blond/` is missing there, or a listed one is no
+longer used.
 
 The tests with distributed computing (MPI) can be executed via
 ```bash
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
-mpirun -n 2 python3 -m pytest -v unittests/ -m "mpi"
+mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 ```
+
+BLonD only initialises MPI when it detects an MPI launcher (Open MPI,
+PMIx, PMI/PMI2 or MVAPICH environment variables). If your launcher is not
+detected, set `BLOND_LOAD_MPI=True`; `BLOND_LOAD_MPI=False` disables MPI.
 
 ---
 
@@ -210,9 +299,29 @@ To run hooks on **all files**:
 ```bash
 pre-commit run --all-files
 ```
+C/C++ and CUDA sources are formatted by `clang-format` (style in
+[`.clang-format`](.clang-format)). The hook installs a pinned `clang-format`
+wheel into pre-commit's own environment, so no system clang installation is
+needed, and the version is identical on Linux, macOS and Windows. When editing
+C++/CUDA in an IDE, point it at that same version (`pip install
+clang-format==<rev in .pre-commit-config.yaml>`) to avoid format ping-pong.
+
 An optional check of the code can be done using the command
 ```bash
 ruff check
+```
+
+**Docstring style.** Public functions, classes, and modules use the
+[NumPy docstring convention](https://numpydoc.readthedocs.io/en/latest/format.html);
+docstrings are validated by `numpydoc` (configured in `pyproject.toml`).
+
+**Copyright header.** Every new file under `blond/` (excluding `blond/legacy/`)
+must carry the copyright header from
+[`dev_tools/copyright_notice.txt`](dev_tools/copyright_notice.txt) — pre-commit
+will reject missing headers. To apply the header to all new files in bulk:
+
+```bash
+python3 dev_tools/copy_copyright_to_all_files.py
 ```
 
 ---
@@ -221,35 +330,70 @@ ruff check
 ## Documentation
 > Automatically done in GitLab CI Pipeline
 
-To build the documentation locally:
+To build the documentation locally (requires [Pandoc and Graphviz](#dependencies)
+on `PATH`; `docs/conf.py` aborts with install hints if either is missing):
 
 ```bash
 python -m pip install .[doc]
-python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going docs docs/_build/html
+cd docs && bash create_docs.sh
 ```
 
+See [`docs/create_docs.sh`](docs/create_docs.sh) for the full build steps.
 Built files appear in `docs/_build/html/`.
 
 Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
+### Notebooks
+
+The notebooks in the docs are [marimo](https://marimo.io) notebooks: edit
+the `.py` files (`marimo edit <notebook>.py`), listed in `NOTEBOOKS` of
+`dev_tools/update_notebook_outputs.py`. Their executed outputs are cached as
+`.ipynb` in an `autogenerated/` folder next to each source, and committed:
+
+```
+blond/examples/notebooks/getting_started.py                    <- edit this
+blond/examples/notebooks/autogenerated/getting_started.ipynb   <- generated
+```
+
+The doc build only reads the cache, it never executes a notebook (some run
+full simulations); it prints a note for every cache older than its source.
+Refresh the cache after changing a notebook, or when a BLonD change should
+show up in the outputs, then commit the `autogenerated/` files:
+
+```bash
+cd docs && bash create_docs.sh --rerun-notebooks       # all, then build
+python dev_tools/update_notebook_outputs.py            # all, no build
+python dev_tools/update_notebook_outputs.py <nb>.py    # just one
+```
+
 ## Contributing
 
-1. Create a feature branch:
+> **Reporting bugs or asking questions:** open an issue at
+> [BLonD Issues](https://gitlab.cern.ch/blond/BLonD/-/issues). When an issue is
+> linked from a branch, reference it in the branch name (e.g.
+> `blonder_feature/249-...`).
+
+1. Create a feature branch off `blonder`. Branch naming follows the pattern:
+
+   ```text
+   blonder_feature/<issue-or-topic>     # new functionality
+   blonder_bugfix/<issue-or-topic>      # bug fixes
+   ```
 
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b blonder_feature/your-feature-name
    ```
 
 2. Implement your feature **along with unit tests**.
 
-   * Follow the same folder structure in `/unittests` as in `blond/`.
+   * Follow the same folder structure in `tests/unittests` as in `blond/`.
 
 3. Run tests to ensure nothing is broken.
 
 4. Push your changes:
    * [GitLab CI Pipeline](.gitlab-ci.yml) will automatically run all tests online.
 
-5. Create a Merge Request (MR):
+5. Create a Merge Request (MR) targeting `blonder`:
 
    * Clearly explain your changes.
    * MR view shows:
@@ -262,16 +406,38 @@ Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ---
 
+## Guidelines for the use of AI
+
+When contributing code with the assistance of coding agents, the following guidelines should be considered:
+1. AI is a tool, not a collaborator, you are entirely responsible for what it does
+2. Be sure that you understand the code enough to extend or modify it yourself
+3. Know why the chosen solution is the right one, at least subjectively
+4. Make sure the documentation is clear, concise, and cites relevant sources
+
+In addition, adherence to the [general principles for the use of AI at CERN](https://home.cern/general-principles-use-ai-cern/) is expected.
+
+---
+
 ## Release Process
 > [!WARNING]
-> As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the docuemntation website.
+> As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the documentation website.
 
 > Automatically done in GitLab CI Pipeline
 
 The [GitLab CI Pipeline](.gitlab-ci.yml) is configured for an automatic release process.
-- Uploads **BLonD** from `master` to [PyPi](https://pypi.org/project/blond/)  if a new tag is created (see [BLonD Tags](https://gitlab.cern.ch/blond/BLonD/-/tags))
+- Uploads **BLonD** to [PyPi](https://pypi.org/project/blond/) whenever a new tag is pushed (see [BLonD Tags](https://gitlab.cern.ch/blond/BLonD/-/tags))
 - Build/updates the **documentation** hosted at [BLonD Documentation Website](https://blond-code.docs.cern.ch/)
   - The linking between the GitLab project and the website can be adjusted in the [GitLab project settings](https://gitlab.cern.ch/blond/BLonD/pages#domains-settings)
+
+**Cutting a release (manual steps).** Versioning is driven by Git tags via
+[`setuptools_scm`](https://setuptools-scm.readthedocs.io/) — no version field
+is edited by hand. To release:
+
+1. Ensure `blonder` is green in CI and that all release-blocking issues are closed.
+2. Tag the release commit following [PEP 440](https://peps.python.org/pep-0440/),
+   e.g. `git tag v3.0.0` (use `vMAJOR.MINOR.PATCH`).
+3. Push the tag: `git push origin v3.0.0`. The `release_sdist_*` jobs (triggered
+   by `.on_tag` in `.gitlab-ci.yml`) then publish to PyPi.
 
 
 

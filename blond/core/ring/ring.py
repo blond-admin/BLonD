@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -10,18 +10,21 @@
 
 from __future__ import annotations
 
+import cmath
 import copy
 import warnings
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable
+from blond.core.base import (
+    Preparable,
+    UnsafeUserElement,
+)
+from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
-    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -54,12 +57,16 @@ class Ring(Preparable):
     check_section_indices : bool, optional
         If True, validate section indices during initialization.
         Default is True.
+    radiation_integrals
+            Synchrotron radiation integrals.
+            Use `SynchrotronRadiationMaster` to activate synchrotron radiation.
     """
 
     def __init__(
         self,
         circumference: float,
         check_section_indices: bool = True,
+        radiation_integrals: NumpyArray | None = None,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
@@ -73,8 +80,9 @@ class Ring(Preparable):
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
+        self._radiation_integrals = radiation_integrals
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Initialize the ring when a simulation is created.
 
@@ -86,7 +94,10 @@ class Ring(Preparable):
         ----------
         simulation
             The `Simulation` context manager that owns this ring.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
+        super().on_init_simulation(simulation=simulation, **kwargs)
         if self.n_rf_stations > 1:
             assert (
                 len(self.elements.get_sections_indices()) == self.n_rf_stations
@@ -110,32 +121,6 @@ class Ring(Preparable):
                 stacklevel=1,
             )
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Prepare the ring when simulation execution begins.
-
-        This method is automatically called
-        when ``simulation.run_simulation()`` starts.
-
-        Parameters
-        ----------
-        simulation
-            The `Simulation` context manager.
-        beam
-            The beam object being simulated.
-        n_turns
-            Total number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
-
     @property
     def circumference(self) -> float:
         """
@@ -155,39 +140,108 @@ class Ring(Preparable):
         """
         return self._circumference
 
-    @cached_property
-    def average_transition_gamma(self) -> complex:
+    @property
+    def radiation_integrals(self) -> NumpyArray | None:
         """
-        Calculate the orbit-length weighted average transition gamma.
-
-        The transition gamma is the Lorentz factor at which particles cross from
-        below to above transition energy. This property computes a weighted average
-        based on the drift sections in the ring.
+        Synchrotron radiation integrals of the ring.
 
         Returns
         -------
-        average_transition_gamma
-            The weighted average transition gamma (dimensionless).
+        radiation_integrals
+            Synchrotron radiation integrals.
+        """
+        return self._radiation_integrals
+
+    @property
+    def momentum_compaction_factor(self) -> float:
+        r"""
+        Calculate the orbit-length weighted average momentum compaction factor.
+
+        Returns
+        -------
+        momentum_compaction_factor
+            The weighted average momentum compaction factor (dimensionless).
 
         Notes
         -----
         Currently only considers DriftSimple elements. The weighting is based on
-        the orbit length of each drift section. This value is cached after first
-        calculation.
-        """
-        from blond import DriftSimple  # prevent cyclic import
+        the orbit length of each drift section.
 
-        gammas = [
-            e.transition_gamma
-            for e in self.elements.get_elements(DriftSimple, recursive=False)
-        ]
-        weights = [
-            e.orbit_length
-            for e in self.elements.get_elements(DriftSimple, recursive=False)
-        ]
+        The following derivation is only relevant for a *multi-drift simulation
+        setup*.
+
+        The global momentum compaction factor is defined as
+
+        .. math::
+
+            \alpha_0 = \frac{1}{C} \int_C \frac{D(s)}{\rho} \, ds
+
+        where :math:`C` is the total circumference, :math:`D(s)` is the dispersion
+        function, and :math:`\rho` is the bending radius.
+
+        For two sections of length :math:`A` and :math:`B` such that
+        :math:`C = A + B`, this becomes
+
+        .. math::
+
+            \alpha_0 = \frac{1}{C}
+            \left(
+                \int_A \frac{D(s)}{\rho} \, ds
+                +
+                \int_B \frac{D(s)}{\rho} \, ds
+            \right)
+
+        Introducing the section-averaged momentum compaction factors
+
+        .. math::
+
+            \alpha_A = \frac{1}{A} \int_A \frac{D(s)}{\rho} \, ds
+
+        .. math::
+
+            \alpha_B = \frac{1}{B} \int_B \frac{D(s)}{\rho} \, ds
+
+        the total momentum compaction factor can be written as
+
+        .. math::
+
+            \alpha_0 =
+            \frac{1}{C}
+            \left(
+                A \, \alpha_A
+                +
+                B \, \alpha_B
+            \right)
+
+        i.e. the orbit-length weighted average of the individual drift-section
+        momentum compaction factors.
+        """
+        drifts = self.elements.get_elements(DriftSimple, recursive=False)
+        momentum_compaction_factors = np.array(
+            [e.momentum_compaction_factor for e in drifts]
+        )
+        weights = np.array([e.orbit_length for e in drifts])
         # todo not only simple drift
-        transition_gamma_average = complex(np.average(gammas, weights=weights))
-        return transition_gamma_average
+        momentum_compaction_factor = float(
+            np.average(
+                momentum_compaction_factors,
+                weights=weights,
+            )
+        )
+        return momentum_compaction_factor
+
+    @property
+    def transition_gamma(self) -> complex:
+        """
+        The overall transition gamma, taking into account all drifts.
+
+        Returns
+        -------
+        transition_gamma
+            The overall transition gamma, taking into account all drifts.
+        """
+        momentum_compaction_factor = self.momentum_compaction_factor
+        return 1 / cmath.sqrt(momentum_compaction_factor)
 
     def calc_average_eta_0(self, gamma: float) -> float:
         """
@@ -207,10 +261,6 @@ class Ring(Preparable):
         -------
         average_eta_0
             The weighted average slip factor (dimensionless).
-
-        See Also
-        --------
-        eta_0 : Internally used for calculation.
         """
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent circular import
@@ -247,21 +297,25 @@ class Ring(Preparable):
 
         See Also
         --------
-        average_transition_gamma : This method is internally used.
+        momentum_compaction_factor : This method is internally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference.gamma) < 0)
 
     @property
     def n_rf_stations(self) -> int:
         """
-        Get the total number of RF stations in the ring.
+        Get the number of RF stations in the ring.
+
+        Black-box elements (e.g. ``WrapXsuite4Blond``) are not RF stations
+        by type and are therefore not counted: ``MagneticCyclePerTurn``
+        divides each turn's energy increment across ``n_rf_stations``.
 
         Returns
         -------
         n_rf_stations
-            The count of all RF station elements currently in the ring.
+            The count of RF station elements in the ring.
         """
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
         return self.elements.count(RFStationBaseClass)
 
@@ -290,15 +344,16 @@ class Ring(Preparable):
 
         Notes
         -----
-        This is calculated by summing the `orbit_length` of all drift elements and
-        may differ from the reference circumference during simulation.
+        This is calculated by summing the `orbit_length` of all length-bearing
+        elements (drifts, black-box wrappers) and may differ from the
+        reference circumference during simulation.
         """
-        from blond.physics.drifts import DriftBaseClass
+        from blond.core.base import HasOrbitLength
 
-        all_drifts = self.elements.get_elements(
-            DriftBaseClass, recursive=False
+        segments = self.elements.get_elements(HasOrbitLength, recursive=False)
+        orbit_length = float(
+            sum([segment.orbit_length for segment in segments])
         )
-        orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
         return orbit_length
 
     @property
@@ -312,6 +367,59 @@ class Ring(Preparable):
             Array containing the orbit length of each section, in [m].
         """
         return self.elements.get_sections_orbit_length()
+
+    def assert_radiation_integrals(
+        self,
+        rtol: float = 1e-5,
+    ):
+        """
+        Verify that the ring radiation integrals match drifts'.
+
+        This method checks that the sum of all drift radiation integrals equals the
+        ring's radiation integrals if all drifts hold radiation integrals.
+        Use this function to validate your ring configuration for synchrotron
+        radiation simulation.
+
+        This function is automatically called by the
+        SynchrotronRadiationMaster class when setting the radiation
+        integrals.
+
+        Parameters
+        ----------
+        rtol
+            The relative tolerance for the comparison.
+            Default is 1e-5.
+
+        Raises
+        ------
+        AssertionError
+            If the ring's radiation integrals differ from the sun of the
+            drifts' radiation integrals.
+        """
+        from blond.physics.drifts import DriftBaseClass
+
+        all_drifts = self.elements.get_elements(
+            DriftBaseClass, recursive=False
+        )
+
+        drift_list_ = (
+            drift.radiation_integrals is not None for drift in all_drifts
+        )
+        drifts_with_radiation_integrals = any(drift_list_)
+        if drifts_with_radiation_integrals:
+            use_radiation_integrals_from_drifts = all(drift_list_)
+            if use_radiation_integrals_from_drifts:
+                total_radiation_integrals_from_drifts = sum(
+                    drift.radiation_integrals for drift in all_drifts
+                )
+                assert np.allclose(
+                    self.radiation_integrals,
+                    total_radiation_integrals_from_drifts,
+                    rtol=rtol,
+                ), (
+                    "Ring radiation integrals do not match the "
+                    "contribution of the drifts."
+                )
 
     def assert_circumference(
         self,
@@ -382,7 +490,7 @@ class Ring(Preparable):
             The drift class to instantiate. If None, uses `DriftSimple`.
         **kwargs_drift
             Additional keyword arguments passed to the drift constructor
-            (e.g., `transition_gamma`, `bending_radius`).
+            (e.g., `momentum_compaction_factor`, `bending_radius`).
 
         Examples
         --------
@@ -392,8 +500,6 @@ class Ring(Preparable):
         >>> # Creates 40 drifts total, 10 per section, each with length = circumference/40
         """
         if driftclass is None:
-            from blond import DriftSimple  # prevent cyclic import
-
             driftclass = DriftSimple
 
         n_drifts = n_drifts_per_section * n_sections
@@ -448,11 +554,17 @@ class Ring(Preparable):
         >>> rf_station = MultiHarmonicRFStation(voltage=1e6, harmonic=400, section_index=0)
         >>> ring.add_element(rf_station)
         """
+        from blond.core.base import SimulationElementBase  # NOQA
+
         if deepcopy:
             element = copy.deepcopy(element)
         if section_index is not None:
             element._section_index = int(section_index)
-        self.elements.add_element(element, reorder=reorder)
+
+        if isinstance(element, SimulationElementBase):
+            self.elements.add_element(element, reorder=reorder)
+        else:
+            self.elements.add_element(UnsafeUserElement(element))
 
         if reorder:
             self.elements.reorder()
@@ -496,11 +608,12 @@ class Ring(Preparable):
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:
-            self.add_element(
-                element=element,
-                deepcopy=deepcopy,
-                section_index=section_index,
-            )
+            if element is not None:
+                self.add_element(
+                    element=element,
+                    deepcopy=deepcopy,
+                    section_index=section_index,
+                )
 
         if reorder:
             self.elements.reorder()

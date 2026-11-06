@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -24,10 +24,13 @@ from scipy.constants import (  # type: ignore[import-untyped]
     physical_constants,
 )
 
-m_mu = physical_constants["muon mass"][0]
+import blond.generals.formatting_ as formatting
+from blond.generals.exceptions_ import InvalidParticleAttributeError
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
+
+m_mu = physical_constants["muon mass"][0]
 
 
 class ParticleType:
@@ -47,6 +50,21 @@ class ParticleType:
     def __init__(
         self, mass: float, charge: float, user_decay_rate: float = 0.0
     ):
+
+        if mass <= 0:
+            raise InvalidParticleAttributeError(
+                f"Particle mass must be greater than 0, got {mass}"
+            )
+        if charge == 0:
+            raise InvalidParticleAttributeError(
+                f"Particle charge must not be 0, got {charge}"
+            )
+        if user_decay_rate < 0:
+            raise InvalidParticleAttributeError(
+                "Particle decay rate must not be negative, got "
+                f"{user_decay_rate}"
+            )
+
         self._mass = float(mass)
         self._charge = float(charge)
         self._user_decay_rate = float(user_decay_rate)
@@ -64,6 +82,21 @@ class ParticleType:
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
         self._quantum_radiation_constant = c_q
+
+    def __repr__(self) -> str:
+        """
+        String representation of the particle.
+
+        Returns
+        -------
+        string
+            The string representation.
+        """
+        string = (
+            f"Mass: {formatting.si_format(self._mass)}eV, charge: {self._charge}e, "
+            f"decay rate: {self._user_decay_rate}s^-1"
+        )
+        return string
 
     def __eq__(self, other: Self) -> bool:
         """
@@ -111,14 +144,19 @@ class ParticleType:
         hash
             The computed hash value.
         """
-        return hash(
-            (
-                self._mass,
-                self._charge,
-                self._user_decay_rate,
-                self._classical_particle_radius,
+        # cached: looked up per turn, and the hashed fields are read-only
+        try:
+            return self._hash
+        except AttributeError:
+            self._hash = hash(
+                (
+                    self._mass,
+                    self._charge,
+                    self._user_decay_rate,
+                    self._classical_particle_radius,
+                )
             )
-        )
+            return self._hash
 
     @property
     def mass(self) -> float:

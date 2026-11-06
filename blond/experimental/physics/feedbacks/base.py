@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,17 +12,17 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         RFStationBaseClass,
         SingleHarmonicRFStation,
     )
-    from blond.physics.profiles import ProfileBaseClass
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
@@ -88,17 +88,42 @@ class GlobalFeedback(FeedbackBaseClass):
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicRFStation"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    @requires(["SingleHarmonicRFStation", "MultiHarmonicRFStation"])
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called
 
         simulation
             `Simulation` context manager
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicRFStation, recursive=False
+        super().on_init_simulation(
+            simulation,
+            cavities=simulation.ring.elements.get_elements(
+                SingleHarmonicRFStation, recursive=False
+            ),
+            **kwargs,
         )
+
+    def configure(
+        self,
+        *,
+        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
+        **kwargs,
+    ) -> None:
+        """
+        Store the RF station list.
+
+        Parameters
+        ----------
+        cavities
+            List of RF stations in the ring section.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self.cavities = cavities
 
 
 BeamFeedback = GlobalFeedback  # just an alias name

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,21 +14,28 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import numpy as np
+
+from blond.core.backends.flags import BeamFlags
+from blond.core.backends.mpi_distributed import distributed_array
+from blond.core.backends.mpi_distributed import helpers as dist_help
 from blond.core.base import Preparable
-from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal
+    from typing import Any, Literal, Self
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
+    from blond.core.backends.mpi_distributed.distributed_array import (
+        DistributedArray,
+    )
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
-    from blond.generals.distributed.distributed_array import DistributedArray
 
 
 class BeamBaseClass(Preparable, ABC):
@@ -73,13 +80,270 @@ class BeamBaseClass(Preparable, ABC):
             time=0, total_energy=None, particle_type=particle_type
         )
 
+    def __iadd__(self, other: Self) -> Self:
+        """
+        In place addition of another beam to this one.
+
+        See `add_beam` for full documentation.
+
+        Parameters
+        ----------
+        other
+            The beam object to be added to this one.
+
+        Returns
+        -------
+        self
+            Self with the contents of other beam added.
+
+        Examples
+        --------
+        >>> beam_1 = Beam([..])
+        >>> beam_2 = Beam([..])
+        >>> beam_1 += beam_2
+        """
+        self.add_beam(other)
+        return self
+
+    def add_beam(self, other: Self):
+        """
+        Add another beam to this one, mutates this beam.
+
+        The particles from the other beam will be concatenated with the
+        particles of this one.  The MPI distribution status, intensity
+        ratio and particle types must match.
+
+        The ``ids`` of the added beam will be incremented by the maximum id
+        of the current beam plus one.  E.g.:
+            ``self.ids = [0, 2, 4]``
+            ``other.ids = [0, 1, 2, 3, 4]``
+        After addition:
+            ``self.ids = [0, 2, 4, 5, 6, 7, 8, 9]``
+
+        Parameters
+        ----------
+        other
+            The beam object to be added to this one.
+
+        Raises
+        ------
+        RuntimeError
+            Raised if one beam is distributed and one is not.
+        ValueError
+            Raised if the ratio values are not exactly equal.
+            Raised if the particle types are not equal.
+        """
+        if self.is_distributed != other.is_distributed:
+            raise RuntimeError(
+                "A non-distributed beam cannot be added to a distributed beam."
+                f"{self.is_distributed=}, {other.is_distributed=}"
+            )
+
+        if self._ratio != other._ratio:
+            raise ValueError(
+                "Beams can only be added if they have the same ratio."
+                f"{self._ratio=}, {other._ratio=}"
+            )
+
+        if self.particle_type != other.particle_type:
+            raise ValueError(
+                "Cannot add beams with mismatched particle types."
+                f"{self.particle_type=}, {other.particle_type=}"
+            )
+
+        new_ids = other._ids.array_local + int(self._ids.max()) + 1
+
+        self._add_coordinates(
+            other._dt,
+            other._dE,
+            other._flags,
+            distributed_array.DistributedArray(new_ids),
+        )
+
+    def add_particles(self, dt: DistributedArray, dE: DistributedArray):
+        """
+        Add a new set of particle coordinates to the beam.
+
+        The particle coordinates given by input `dt` and `dE` will be
+        added to the beam object.  The intensity per macroparticle of
+        the added particles will be set to match the existing beam and
+        all particles will be flagged as active.
+
+        Parameters
+        ----------
+        dt
+            The time coordinates of the new particles.
+        dE
+            The energy coordinates of the new particles.
+
+        Raises
+        ------
+        ValueError
+            Raised if the local or global sizes of the `dt` and `dE`
+            arrays do not match.
+        """
+        if (dt.local_size != dE.local_size) or (
+            dt.global_size != dE.global_size
+        ):
+            raise ValueError(
+                "The dt and dE array sizes are mismatched"
+                f"{dt.local_size=}, {dE.local_size=}"
+                f"{dt.global_size=}, {dE.global_size=}"
+            )
+
+        from blond.core.backends.backend import (
+            INDEX_DTYPE,  # prevent cyclic import
+        )
+
+        id_max = INDEX_DTYPE(self._ids.max())
+        local_size = dt.local_size
+
+        new_ids = dist_help.distributed_arange(local_size, INDEX_DTYPE)
+        new_ids.array_local += id_max + 1
+
+        new_flags = dist_help.distributed_zeros(local_size, np.int32)
+        new_flags.array_local[:] = np.int32(BeamFlags.ACTIVE.value)
+
+        self._add_coordinates(dt, dE, new_flags, new_ids)
+
+    def _add_coordinates(
+        self,
+        new_dt: DistributedArray,
+        new_dE: DistributedArray,
+        new_flags: DistributedArray,
+        new_ids: DistributedArray,
+    ):
+        """
+        Protected function to add new coordinates to the beam.
+
+        Parameters
+        ----------
+        new_dt
+            The new dt coordinates.
+        new_dE
+            The new dE coordinates.
+        new_flags
+            The new particle flags.
+        new_ids
+            The new particle ids.
+        """
+        ratio = self._ratio
+
+        self._dt = distributed_array.concatenate(self._dt, new_dt)
+        self._dE = distributed_array.concatenate(self._dE, new_dE)
+        self._flags = distributed_array.concatenate(self._flags, new_flags)
+        self._ids = distributed_array.concatenate(self._ids, new_ids)
+
+        self.intensity = ratio * self.common_array_size
+
+    def signed_charge_with_direction(self):
+        """
+        Return the charge, corrected with the direction of the beam.
+
+        If a particle traverses an electrical field, the directionality is taken into account through the vector of the
+        electrical field. For particles traveling in the opposite direction, this has to be inverted, which is handled
+        through an opposite sign of the charge.
+
+        Field     -->
+        Velocity  -->
+        Acceleration
+
+        Field     -->
+        Velocity  <--
+        Same field, but deceleration for counter-rotating beam.
+
+        Its the most convenient way to include the change via the charge.
+
+        Returns
+        -------
+        signed_charge_with_direction
+            Charge, corrected with the direction of the beam.
+        """
+        return (
+            self.particle_type.charge * -1
+            if self.is_counter_rotating
+            else self.particle_type.charge
+        )
+
+    @property
+    def dE(self) -> DistributedArray:
+        """
+        Beam macro-particle energy coordinates, in [eV].
+
+        Returns
+        -------
+        dE
+            Beam macro-particle energy coordinates, in [eV].
+        """
+        if self._dE is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can use `setup_beam` or the beam preparation methods.."
+            )
+        return self._dE
+
+    @property
+    def dt(self) -> DistributedArray:
+        """
+        Beam macro-particle time coordinates, in [s].
+
+        Returns
+        -------
+        dt
+            Beam macro-particle time coordinates, in [s].
+        """
+        if self._dt is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can use `setup_beam` or the beam preparation methods.."
+            )
+        return self._dt
+
+    @property
+    def flags(self) -> DistributedArray:
+        """
+        Beam macro-particle flags.
+
+        Returns
+        -------
+        flags
+            Beam macro-particle flags.
+
+        See Also
+        --------
+        blond.core.backends.flags.BeamFlags: The available flags.
+        """
+        if self._flags is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can use `setup_beam` or the beam preparation methods.."
+            )
+        return self._flags
+
+    @property
+    def ids(self) -> DistributedArray:
+        """
+        The macro-particle ids. Each particle keeps its id, even after losses.
+
+        Returns
+        -------
+        ids
+            The macro-particle ids.
+        """
+        if self._ids is None:
+            raise AttributeError(
+                "Beam is not properly initialized. "
+                "You can use `setup_beam` or the beam preparation methods.."
+            )
+        return self._ids
+
     @requires(["MagneticCycleBase"])
     def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -93,13 +357,41 @@ class BeamBaseClass(Preparable, ABC):
         n_turns
             Number of turns to simulate.
         **kwargs
-            Additional keyword arguments.
+            Configure-run parameters collected by the MRO chain.
         """
         super().on_run_simulation(
-            beam=beam,
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
+            total_energy_init=simulation.magnetic_cycle.get_total_energy_init(
+                particle_type=self.particle_type,
+            ),
+            **kwargs,
         )
+
+    def configure_run(
+        self,
+        *,
+        beam: BeamBaseClass,
+        n_turns: int,
+        total_energy_init: float,
+        **kwargs,
+    ) -> None:
+        """
+        Validate beam arrays and set the reference total energy.
+
+        Parameters
+        ----------
+        beam
+            Simulation `Beam` object.
+        n_turns
+            Number of turns to simulate.
+        total_energy_init
+            Initial total energy in [eV] from the magnetic cycle.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure_run(beam=beam, n_turns=n_turns, **kwargs)
         msg = (
             "Beam was not initialized. This is possible using"
             " `simulation.prepare_beam(...)` or"
@@ -109,15 +401,13 @@ class BeamBaseClass(Preparable, ABC):
         assert self._dE is not None, msg
         assert self._flags is not None, msg
         assert self._ids is not None, msg
-        total_energy_init = simulation.magnetic_cycle.get_total_energy_init(
-            particle_type=self.particle_type,
-        )
+
+        # Display a warning when the reference energy is overwritten,
+        # but not when None is overwritten.
         if (
             self.reference._total_energy != total_energy_init
             and self.reference._total_energy is not None
         ):
-            # Display a warning when the reference energy is overwritten,
-            # but not when None is overwritten.
             msg = (
                 f"`Bunch` was prepared for"
                 f" total_energy = {self.reference._total_energy} eV,"
@@ -133,6 +423,20 @@ class BeamBaseClass(Preparable, ABC):
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights."""
         pass
+
+    @property
+    def _ratio(self) -> float:
+        """
+        Real particles per macro-particle, for internal use.
+
+        Returns
+        -------
+        ratio
+            Intensity divided by the number of macro-particles.
+        """
+        # Without weights every macro-particle has weight 1, so the sum
+        # of weights is `common_array_size`.
+        return self.intensity / self.common_array_size
 
     @property
     def particle_type(self) -> ParticleType:
@@ -216,21 +520,17 @@ class BeamBaseClass(Preparable, ABC):
         """
         return self._is_counter_rotating
 
-    @requires(["MagneticCycleBase"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass  # this gets never called
-
     @abstractmethod  # pragma: no cover
-    def plot_hist2d(self) -> None:
-        """Plot 2D histogram of beam coordinates."""
+    def plot_hist2d(self) -> QuadMesh | None:
+        """
+        Plot 2D histogram of beam coordinates.
+
+        Returns
+        -------
+        image
+            `matplotlib.collections.QuadMesh` object, if the
+            implementation returns one.
+        """
         pass
 
     @property
@@ -442,6 +742,34 @@ class BeamBaseClass(Preparable, ABC):
         """
         return self._flags.array_local
 
+    def sort_by_dt(self) -> None:
+        """
+        Sort the macro-particles in place by ascending ``dt``.
+
+        All per-particle arrays (``dt``, ``dE``, ``ids``, ``flags``) are
+        permuted by the same order, so particle identity is preserved.
+
+        Raises
+        ------
+        NotImplementedError
+            If the beam is distributed across MPI ranks: a per-node sort
+            cannot order the global beam, so sorting is unsupported there.
+        """
+        if self.is_distributed:
+            raise NotImplementedError(
+                "`sort_by_dt` cannot sort an MPI-distributed beam: a "
+                "per-node sort does not order the global beam."
+            )
+
+        order = (
+            self._dt.array_local.argsort()
+        )  # ndarray method works for NumPy and CuPy
+
+        self._dt.array_local[:] = self._dt.array_local[order]
+        self._dE.array_local[:] = self._dE.array_local[order]
+        self._ids.array_local[:] = self._ids.array_local[order]
+        self._flags.array_local[:] = self._flags.array_local[order]
+
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """
         Delete flagged array entries from the array.
@@ -455,7 +783,7 @@ class BeamBaseClass(Preparable, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
-        from blond.generals.distributed.helpers import mpi_barrier
+        from blond.core.backends.mpi_distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
 

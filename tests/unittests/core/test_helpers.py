@@ -1,0 +1,401 @@
+import gc
+import unittest
+import weakref
+from unittest.mock import Mock
+
+import numpy as np
+
+from blond import (
+    Beam,
+    ConstantMagneticCycle,
+    DriftSimple,
+    Resonators,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    StaticProfile,
+    WakeField,
+    mu_plus,
+)
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
+from blond.core.helpers import (
+    find_instances_with_method,
+    int_from_float_with_warning,
+)
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.testing.backend_testing import BLonDTestCase
+
+
+class TestFunctions(BLonDTestCase):
+    def test_int_from_float_with_warning(self):
+        with self.assertWarns(Warning):
+            int_from_float_with_warning(1.2, 2)
+
+    def test_int_from_float_with_exception(self):
+        with self.assertRaises(TypeError):
+            int_from_float_with_warning(type(int_from_float_with_warning), 2)
+
+    def test_find_instances_with_method(self):
+        class Test:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        test = Test()
+        found = find_instances_with_method(
+            root=test, method_name="to_be_found"
+        )
+        self.assertEqual(found.pop(), test)
+
+    def test_find_instances_with_recursion_attribute(self):
+        class Foo:
+            def __init__(self, subclass, subclass2):
+                self.a = 1
+                self.subclass = subclass
+                self.subclass2 = subclass2
+
+            def to_be_found(self):
+                pass
+
+        class Bar:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        class Car:
+            def __init__(self):
+                self.a = 1
+
+            def not_found(self):
+                pass
+
+        bar = Bar()
+        car = Car()
+        foo = Foo(bar, car)
+        found = find_instances_with_method(root=foo, method_name="to_be_found")
+        self.assertTrue(foo in found)
+        self.assertTrue(bar in found)
+        self.assertTrue(len(found) == 2)
+
+    def test_find_instances_with_recursion_tuple(self):
+        class Foo:
+            def __init__(self, subclasses):
+                self.a = 1
+                self.subclasses = subclasses
+
+            def to_be_found(self):
+                pass
+
+        class Bar:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        class Car:
+            def __init__(self):
+                self.a = 1
+
+            def not_found(self):
+                pass
+
+        bar = Bar()
+        car = Car()
+        foo = Foo((bar, car))  # a tuple
+        found = find_instances_with_method(root=foo, method_name="to_be_found")
+        self.assertTrue(foo in found)
+        self.assertTrue(bar in found)
+        self.assertTrue(len(found) == 2)
+
+    def test_find_instances_with_method2(self):
+        class Test1:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        class Problem:
+            def __getattribute__(self, name):
+                raise Exception()
+
+        class Test2:
+            skip_find_instances_attributes = ["problem"]
+
+            def __init__(self, test1):
+                self.a = test1
+                self.problem = Problem()
+
+            def not_found(self):
+                pass
+
+        test1 = Test1()
+        test2 = Test2(test1=test1)
+        found = find_instances_with_method(
+            root=test2, method_name="to_be_found"
+        )
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found.pop(), test1)
+
+    def test_find_instances_ignores_modules(self):
+        # An attribute that references an imported module must not make the
+        # walk crawl into that module's globals (which reaches arbitrary
+        # third-party state, e.g. pytest's ``mark``).
+        import pytest as pytest_module
+
+        class Test1:
+            def to_be_found(self):
+                pass
+
+        class HoldsModule:
+            def __init__(self, test1):
+                self.a = test1
+                self.some_module = pytest_module
+
+        test1 = Test1()
+        holder = HoldsModule(test1=test1)
+        found = find_instances_with_method(
+            root=holder, method_name="to_be_found"
+        )
+        self.assertEqual(found, {test1})
+
+    def test_find_instances_fabricated_getattr(self):
+        # Objects whose ``__getattr__`` fabricates any attribute (like
+        # pytest's ``MarkGenerator``) must not crash the walk: a fabricated,
+        # non-iterable ``skip_find_instances_attributes`` must be ignored.
+        class Fabricator:
+            def __getattr__(self, name):
+                return object()  # non-iterable for any attribute name
+
+        class Holder:
+            def __init__(self):
+                self.weird = Fabricator()
+
+            def to_be_found(self):
+                pass
+
+        holder = Holder()
+        found = find_instances_with_method(
+            root=holder, method_name="to_be_found"
+        )
+        self.assertEqual(found, {holder})
+
+    def test_find_instances_does_not_stringify_visited_objects(self):
+        # The walk visits every object of a simulation tree, including
+        # large arrays. Converting those to text on each step dominated
+        # `Simulation` setup time, so no visited object may be stringified.
+        class CountsStringification:
+            n_calls = 0
+
+            def __str__(self):
+                CountsStringification.n_calls += 1
+                return "counted"
+
+            __repr__ = __str__
+
+            def __hash__(self):
+                return 0
+
+        class Holder:
+            def __init__(self):
+                self.attribute = CountsStringification()
+                self.sequence = [CountsStringification()]
+                self.mapping = {
+                    CountsStringification(): CountsStringification()
+                }
+
+            def to_be_found(self):
+                pass
+
+        holder = Holder()
+        find_instances_with_method(root=holder, method_name="to_be_found")
+        self.assertEqual(CountsStringification.n_calls, 0)
+
+    def test_find_instances_logs_path_of_names(self):
+        # The logged location must be the path of attribute names, indices
+        # and keys leading to the match, not the text of the values on it.
+        class Target:
+            def to_be_found(self):
+                pass
+
+        class Holder:
+            def __init__(self):
+                self.items = [None, {"key": Target()}]
+
+        with self.assertLogs("blond.core.helpers", level="INFO") as logs:
+            find_instances_with_method(
+                root=Holder(), method_name="to_be_found"
+            )
+        self.assertEqual(len(logs.records), 1)
+        self.assertTrue(
+            logs.output[0].endswith(" at .items[1]['key']"),
+            logs.output[0],
+        )
+
+    def test_find_instances_leaves_no_reference_cycle(self):
+        # Found instances must be freed by reference counting alone once the
+        # caller drops them. A reference cycle inside the search would keep
+        # them (e.g. a beam with GBs of arrays) alive until a full cyclic
+        # garbage collection, which loops creating simulations rarely
+        # trigger.
+        class Target:
+            def to_be_found(self):
+                pass
+
+        target = Target()
+        target_ref = weakref.ref(target)
+        gc.disable()
+        self.addCleanup(gc.enable)
+        find_instances_with_method(root=target, method_name="to_be_found")
+        del target
+        self.assertIsNone(target_ref())
+
+    @unittest.skip
+    def test_float_or_array_typesafe(self):
+        # TODO: implement test for `float_or_array_typesafe`
+        float_or_array_typesafe(something=None, dtype=None)
+
+    @unittest.skip
+    def test_safe_index(self):
+        # TODO: implement test for `safe_index`
+        safe_index(x=None, idx=None)
+
+    @unittest.skip
+    def test_walk(self):
+        # TODO: implement test for `walk`
+        walk(obj=None)
+
+
+class TestNestedMocksHashingBug(BLonDTestCase):
+    def test_hashing_bug(self):
+        profile = Mock(StaticProfile)
+        profile.active = True
+        profile.hist_x = np.zeros(1)
+        profile.hist_y = np.zeros(1)
+        profile.n_bins = 1
+        profile.hist_step = 1
+        profile.hist_y_to_density_factor = 1
+        rf_station = SingleHarmonicRFStation(
+            phi_rf=0,
+            harmonic=5,
+            voltage=5e6,
+            local_wakefield=WakeField(
+                profile=profile,
+                solver=SingleTurnResonatorConvolutionSolver(),
+                sources=[
+                    Resonators(
+                        center_frequencies=1,
+                        quality_factors=1,
+                        shunt_impedances=1,
+                    )
+                ],
+            ),
+        )
+        circumference = 5
+        drift = DriftSimple(circumference, momentum_compaction_factor=0)
+        ring = Ring(circumference=circumference, check_section_indices=False)
+        ring.add_elements([rf_station, drift])
+
+        beam = Beam(
+            intensity=1, particle_type=mu_plus, is_counter_rotating=False
+        )
+        beam.setup_beam(dt=np.zeros(5), dE=np.zeros(5))
+
+        cnst_cycle = ConstantMagneticCycle(
+            reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
+        )
+
+        sim = Simulation(ring, cnst_cycle)  # NOQA
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class TestNoDeprecationWarningsFromInternals(BLonDTestCase):
+    """BLonD must not trigger its own deprecation warnings."""
+
+    def _build_simulation(self):
+        from blond import BiGaussian, momentum_compaction_factor, proton
+
+        ring = Ring(26658.883)
+        ring.add_elements(
+            [
+                SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0),
+                DriftSimple(
+                    orbit_length=26658.883,
+                    momentum_compaction_factor=momentum_compaction_factor(
+                        transition_gamma=55.759505
+                    ),
+                ),
+            ]
+        )
+        magnetic_cycle = ConstantMagneticCycle(
+            value=450e9, reference_particle=proton
+        )
+        beam = Beam(intensity=1e9, particle_type=proton)
+        simulation = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+        simulation.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                sigma_dt=0.1e-9, n_macroparticles=1000
+            ),
+        )
+        return simulation, beam
+
+    def _deprecation_messages(self, function):
+        import warnings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            function()
+        return [
+            str(warning.message)
+            for warning in caught
+            if issubclass(warning.category, DeprecationWarning)
+        ]
+
+    def test_simulation_run_triggers_no_deprecation_warning(self):
+        def run():
+            simulation, beam = self._build_simulation()
+            simulation.run_simulation(
+                beams=(beam,), n_turns=2, show_progressbar=False
+            )
+
+        self.assertEqual(self._deprecation_messages(run), [])
+
+    def test_add_beam_triggers_no_deprecation_warning(self):
+        _, beam = self._build_simulation()
+        _, other = self._build_simulation()
+
+        self.assertEqual(
+            self._deprecation_messages(lambda: beam.add_beam(other)), []
+        )
+
+    def test_find_instances_skips_deprecated_properties(self):
+        simulation, beam = self._build_simulation()
+
+        def walk():
+            find_instances_with_method(simulation, "track")
+            find_instances_with_method(beam, "track")
+
+        self.assertEqual(self._deprecation_messages(walk), [])
+
+    def test_deprecated_properties_still_warn_at_the_caller(self):
+        simulation, beam = self._build_simulation()
+        for name, owner in (("turn_i", simulation), ("ratio", beam)):
+            with (
+                self.subTest(name=name),
+                self.assertWarns(DeprecationWarning) as context,
+            ):
+                getattr(owner, name)
+            self.assertEqual(context.filename, __file__)

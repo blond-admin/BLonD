@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -12,8 +12,16 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import cumulative_trapezoid as cumtrapz
+
+# prevent `ImportError: cannot import name 'cumtrapz' from 'scipy.integrate'`
+try:
+    from scipy.integrate import cumtrapz
+except ImportError:
+    from scipy.integrate import cumulative_trapezoid as cumtrapz
+
 from scipy.signal import find_peaks
+
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -90,7 +98,9 @@ def calc_hamiltonian(
             plt.figure(10)
             plt.clf()
             plt.matshow(
-                np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid, fignum=0
+                np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid,
+                fignum=0,
+                cmap=DEFAULT_CMAP,
             )
             plt.colorbar()
         err1 = np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid
@@ -99,7 +109,9 @@ def calc_hamiltonian(
             plt.figure(11)
             plt.clf()
             plt.matshow(
-                np.gradient(H, pi, axis=1, edge_order=2) - dH_dx_grid, fignum=0
+                np.gradient(H, pi, axis=1, edge_order=2) - dH_dx_grid,
+                fignum=0,
+                cmap=DEFAULT_CMAP,
             )
             plt.colorbar()
         err2 = np.gradient(H, xi, axis=1, edge_order=2) - dH_dx_grid
@@ -107,7 +119,7 @@ def calc_hamiltonian(
         if DEV_PLOT:
             plt.figure(12)
             plt.clf()
-            plt.matshow(H, fignum=0)
+            plt.matshow(H, fignum=0, cmap=DEFAULT_CMAP)
             plt.colorbar()
 
             plt.draw()

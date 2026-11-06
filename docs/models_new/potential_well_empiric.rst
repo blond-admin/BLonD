@@ -3,7 +3,7 @@
 Empirical Potential Well
 ========================
 
-.. currentmodule:: blond._core.simulation.simulation
+.. currentmodule:: blond.core.simulation.simulation
 
 Overview
 --------
@@ -18,7 +18,7 @@ Unlike purely analytic models, this method captures **realistic distortions**
 introduced by multiple RF stations, synchrotron phase shifts, and drifts between stations.
 
 The potential well is obtained using the method
-:func:`Simulation.get_potential_well_empiric`, which integrates the *energy gain and loss*
+:meth:`Simulation.get_potential_well_empiric`, which integrates the *energy gain and loss*
 experienced by a set of probe particles over one complete turn.
 
 ---
@@ -54,13 +54,13 @@ Internally, the method performs the following steps:
 
 1. **Probe initialization**
 
-   A :class:`~blond._core.beam.beams.ProbeBeam` is created using the provided
+   A :class:`~blond.core.beam.beams.ProbeBeam` is created using the provided
    particle type and intensity. Its macroparticles are placed at specified
    time offsets ``dt`` and have zero energy deviation ``dE = 0``.
 
 2. **Tracking for one turn**
 
-   The :class:`~blond._core.simulation.simulation.Simulation` instance runs
+   The :class:`~blond.core.simulation.simulation.Simulation` instance runs
    for exactly one revolution (``n_turns = 1``) with wakefields and drifts enabled.
    Each probe particle passes through all RF stations and drifts, accumulating
    a total energy change :math:`\Delta E_\text{out}` and a small time shift
@@ -117,7 +117,7 @@ The function returns a 3-tuple:
 API Reference
 -------------
 
-:func:`Simulation.get_potential_well_empiric`
+:meth:`Simulation.get_potential_well_empiric`
 
 ---
 

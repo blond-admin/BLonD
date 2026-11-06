@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,6 +14,12 @@ import argparse
 import os
 import subprocess
 from typing import TYPE_CHECKING
+
+from blond.core.backends.cuda.compiled_dir_handler import (
+    cuda_compiled_dir,
+    resolve_nvcc,
+)
+from blond.generals.compiled_cache import mark_used, prune_siblings
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
@@ -50,6 +56,7 @@ def run_compile(command: list[str], libname: str) -> int:
 
 def compile_cuda_library(  # NOQA: PLR0915
     compute_capability: int | Literal["discover"] = "discover",
+    limit_cachesize: bool = False,
 ) -> None:
     """
     Compile the GPU library.
@@ -59,6 +66,10 @@ def compile_cuda_library(  # NOQA: PLR0915
     compute_capability
         The compute capability of your GPU,
         see https://developer.nvidia.com/cuda-gpus.
+    limit_cachesize
+        If True, evict least-recently-used sibling builds after compiling so
+        the ``compiled/`` tree stays bounded (intended for CI). If False
+        (default), every build is kept and nothing is removed.
     """
     print("\nTrying to compile CUDA backend.")
 
@@ -73,27 +84,19 @@ def compile_cuda_library(  # NOQA: PLR0915
         "32",
     ]
 
-    from blond.generals.hashing_ import hash_in_folder
-
     folder = os.path.dirname(os.path.abspath(__file__))
 
-    hash_ = hash_in_folder(
-        folder=folder,
-        extensions=(".py", ".cu"),
-        recursive=False,
-    )
-    target = os.path.join(folder, "compiled", hash_)
+    nvcc = resolve_nvcc()
+
+    # Toolchain-aware directory, computed identically by the loader
+    # (callables.py) so it finds exactly what we build here. Call with the
+    # default nvcc (same as the loader) to share the memoised entry.
+    target = cuda_compiled_dir(folder)
     os.makedirs(target, exist_ok=True)
 
     # The CUDA library name, without the file extension.
     cuda_libname = os.path.join(target, "kernels")
 
-    nvcc = "nvcc"
-
-    # Get nvcc from CUDA_PATH
-    cuda_path = os.getenv("CUDA_PATH", default="")
-    if cuda_path != "":
-        nvcc = cuda_path + "/bin/nvcc"
     import cupy as cp  # type: ignore # NOQA must be installed to be compiled / force exception
 
     # if something is wrong with the installation
@@ -138,23 +141,15 @@ def compile_cuda_library(  # NOQA: PLR0915
     print("CuPy location: ", cupyloc)
 
     libname_double = cuda_libname + f"_sm_{compute_capability_}_double.cubin"
-    libname_single = cuda_libname + f"_sm_{compute_capability_}_single.cubin"
-
-    command = (
-        [nvcc]
-        + nvcc_flags
-        + ["-o", libname_single, "-I" + cupyloc]
-        + ["-DUSEFLOAT"]
-        + cuda_files
-    )
-
-    print("\nCompiling the single-precision (32-bit) CUDA library")
-    ret = run_compile(command, libname_single)
-    if ret != 0:
-        print("There was a compilation error.")
-    else:
-        print("Compiled successfully.")
-
+    # Reuse a previously built cubin when present: it lives in a
+    # toolchain-keyed `compiled/<hash>/` dir and its filename encodes the
+    # exact target GPU arch, so an existing file is guaranteed compatible.
+    if os.path.isfile(libname_double):
+        print(f"Reusing cached CUDA library: {libname_double}")
+        mark_used(target)
+        if limit_cachesize:
+            prune_siblings(target)  # evict old sibling builds; keep this one
+        return
     command = (
         [nvcc]
         + nvcc_flags
@@ -167,6 +162,12 @@ def compile_cuda_library(  # NOQA: PLR0915
         print("There was a compilation error.")
     else:
         print("Compiled successfully.")
+        # Stamp this build. Eviction of least-recently-used sibling dirs is
+        # opt-in (--limit-cachesize, e.g. in CI); by default every build is
+        # kept.
+        mark_used(target)
+        if limit_cachesize:
+            prune_siblings(target)
 
 
 def main_cli() -> None:
@@ -183,10 +184,20 @@ def main_cli() -> None:
         " e.g. -sm 70 80"
         " (see https://en.wikipedia.org/wiki/CUDA#GPUs_supported).",
     )
+    parser.add_argument(
+        "--limit-cachesize",
+        action="store_true",
+        help="Evict least-recently-used sibling builds after compiling so the"
+        " compiled/ tree stays bounded (intended for CI). Off by default:"
+        " all builds are kept.",
+    )
     args = vars(parser.parse_args())
 
     for sm in args["sm"]:  # iterate all SM compute capabilities given by user
-        compile_cuda_library(compute_capability=sm)
+        compile_cuda_library(
+            compute_capability=sm,
+            limit_cachesize=args["limit_cachesize"],
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

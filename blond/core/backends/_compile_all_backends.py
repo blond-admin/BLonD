@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -49,7 +49,7 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
     except Exception as exc:
         warnings.warn(str(exc), UserWarning, stacklevel=1)
     try:
-        main_cli_cpp(force_parallel=True)
+        main_cli_cpp()
     except Exception as exc:
         warnings.warn(str(exc), UserWarning, stacklevel=1)
 

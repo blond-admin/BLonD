@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -16,17 +16,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.base import Preparable
-from blond.core.beam.base import BeamBaseClass
 from blond.core.helpers import find_instances_by_class
-from blond.core.ring.helpers import filter_elements
-from blond.core.simulation.simulation import Simulation
+from blond.core.ordering import filter_elements
+from blond.generals.formatting_ import pretty_string  # noqa: F401  (re-export)
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, TypeVar
+    from typing import TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.base import SimulationElementBase
+    from blond.core.simulation.simulation import Simulation
 
     T = TypeVar("T")
 
@@ -82,8 +82,8 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from blond.physics.cavities import RFStationBaseClass
-        from blond.physics.drifts import DriftBaseClass
+        from blond.core.base import HasOrbitLength
+        from blond.physics.rf_station import RFStationBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
@@ -101,49 +101,22 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in rf_stations]}"
             )
-
+        # One RF station anywhere in the ring is enough (a section may have
+        # none, e.g. when the cavity lives in another section or inside a
+        # black-box element); every section must occupy length, though.
         unique_section_indices = np.unique(elem_section_indices)
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
-                rf_stations = self.get_elements(
-                    RFStationBaseClass,
+                segments = self.get_elements(
+                    HasOrbitLength,
                     section_i=section_index,  # type: ignore
                     recursive=False,
                 )
-                drifts = self.get_elements(
-                    DriftBaseClass, section_i=section_index, recursive=False
-                )
-                if len(rf_stations) == 0:
+                if len(segments) == 0:
                     raise RuntimeError(
-                        f"Missing RF station in section {section_index}"
+                        f"Missing length-bearing element (drift or black-box "
+                        f"wrapper) in section {section_index}."
                     )
-                if len(drifts) == 0:
-                    raise RuntimeError(
-                        f"Missing drift in section {section_index}"
-                    )
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        beam
-            Simulation `Beam` object.
-        n_turns
-            Number of turns to simulate.
-        **kwargs
-            Additional keyword arguments.
-        """
-        pass
 
     def get_sections_indices(self) -> tuple[int, ...]:
         """
@@ -172,16 +145,16 @@ class BeamPhysicsRelevantElements(Preparable):
         -----
         This is different from per-drift listing
         """
-        from blond.physics.drifts import DriftBaseClass
+        from blond.core.base import HasOrbitLength
 
         sections = self.get_sections_indices()
         result = np.empty(len(sections))
         for section_i in sections:
-            drifts = self.get_elements(
-                DriftBaseClass, section_i=section_i, recursive=False
+            segments = self.get_elements(
+                HasOrbitLength, section_i=section_i, recursive=False
             )
-            if len(drifts) > 0:
-                result[section_i] = sum([d.orbit_length for d in drifts])
+            if len(segments) > 0:
+                result[section_i] = sum([s.orbit_length for s in segments])
             else:
                 result[section_i] = 0
         return result
@@ -284,7 +257,7 @@ class BeamPhysicsRelevantElements(Preparable):
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
-                f"0:{len(self.elements)}] indexes. "
+                f"0:{len(self.elements)}] indexes."
             )
 
     def insert(self, element: SimulationElementBase, insert_at: int) -> None:
@@ -373,7 +346,7 @@ class BeamPhysicsRelevantElements(Preparable):
         if self._on_init_simulation_passed and key in self._get_element_cache:
             return self._get_element_cache[key]
 
-        def is_in_section(element: T) -> bool:
+        def is_in_section(element: SimulationElementBase) -> bool:
             return element.section_index == section_i
 
         elements = self.elements
@@ -465,13 +438,17 @@ class BeamPhysicsRelevantElements(Preparable):
             "forbidden!"
         )
         assert isinstance(section_index, int)
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.core.base import HasOrbitLength
         from blond.physics.drifts import DriftBaseClass
         from blond.physics.feedbacks.base import FeedbackBaseClass
         from blond.physics.impedances.base import ImpedanceBaseClass
         from blond.physics.losses import LossesBaseClass
         from blond.physics.profiles import ProfileBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
+        # ``HasOrbitLength`` comes last so black-box length-bearing elements
+        # (e.g. a wrapped xsuite line) order like drifts; real drifts match
+        # ``DriftBaseClass`` first.
         natural_order = (
             LossesBaseClass,
             ProfileBaseClass,
@@ -479,10 +456,14 @@ class BeamPhysicsRelevantElements(Preparable):
             ImpedanceBaseClass,
             RFStationBaseClass,
             DriftBaseClass,
+            HasOrbitLength,
         )
-        assert self.count(RFStationBaseClass, section_i=section_index) == 1, (
+        # One RF station anywhere in the ring is enough; per section there
+        # must not be more than one.
+        n_rf_stations = self.count(RFStationBaseClass, section_i=section_index)
+        assert n_rf_stations <= 1, (
             f"Only one RF station per section allowed, but got "
-            f"{self.count(RFStationBaseClass, section_i=section_index)}"
+            f"{n_rf_stations} in section {section_index}."
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index
@@ -499,12 +480,19 @@ class BeamPhysicsRelevantElements(Preparable):
         _seen = set()
         ordered_elements = []
 
+        for element in elements_in_section:
+            assert any(isinstance(element, n) for n in natural_order), (
+                f"Element of type `{type(element).__name__}` can not be"
+                f" automatically ordered!\n"
+                f"Build your execution order using `ring.add_elements(...)`."
+            )
+
         for cls in natural_order:
             for e in elements_in_section:
                 if e not in _seen and isinstance(e, cls):
                     ordered_elements.append(e)
                     _seen.add(e)
-
+        assert len(ordered_elements) == len(elements_in_section)
         self.elements = list(
             elements_before_section + ordered_elements + elements_after_section
         )
@@ -568,23 +556,3 @@ class BeamPhysicsRelevantElements(Preparable):
             content += element.info_string() + "\n"
         content += sep
         return content
-
-
-def pretty_string(v: NumpyArray | Any) -> Any:
-    """
-    Pretty print an array.
-
-    Parameters
-    ----------
-    v
-        Value to format (array or other type).
-
-    Returns
-    -------
-    formatted_string
-        Formatted string representation of the input value.
-    """
-    if isinstance(v, np.ndarray):
-        return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
-    else:
-        return v

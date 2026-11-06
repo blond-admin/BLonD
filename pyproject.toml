@@ -1,41 +1,123 @@
 [build-system]
 requires = [
-    "setuptools >= 61.0",
-    "wheel",
-    "setuptools_scm[toml]>=3.4",
-    "build",
-    "twine"
+  "setuptools >= 61.0",
+  "wheel",
+  "setuptools_scm[toml]>=3.4",
+  "build",
+  "twine",
 
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "blond"
-dynamic = ["dependencies", "optional-dependencies", "version"]
+dynamic = ["version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
 license = { file = "LICENSE.txt" }
-requires-python = ">=3.10"
-authors = [
-    { name = "Helga Timko", email = "helga.timko@cern.ch" },
-]
+requires-python = ">=3.11"
+authors = [{ name = "Helga Timko", email = "helga.timko@cern.ch" }]
 maintainers = [
-    { name = "Alexandre Lasheen", email = "alexandre.lasheen@cern.ch" },
-    { name = "Simon Albright", email = "simon.albright@cern.ch" },
-    { name = "Simon Lauber", email = "simon.fabian.lauber@cern.ch" },
+  { name = "Alexandre Lasheen", email = "alexandre.lasheen@cern.ch" },
+  { name = "Simon Albright", email = "simon.albright@cern.ch" },
+  { name = "Simon Lauber", email = "simon.fabian.lauber@cern.ch" },
 ]
 classifiers = [
-    "Intended Audience :: Science/Research",
-    "Natural Language :: English",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Physics",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+  "setuptools>=60",       # packaging utilities
+  "numpy>=2",             # array computing
+  "scipy>=1.15,!=1.18.0", # scientific computing algorithms
+  "matplotlib>=3.9",      # plotting and visualization
+  "numba>=0.61",          # simple computing backend that compiles everywhere out of the box
+  "tqdm>4",               # nice loading bar
+  "mpmath>=1",            # for numba fastmath replacement
+  "sympy>=1.9",           # symbolic math for separatrix calculations, etc.
+  "scikit-rf>1",          # pole fitting of impedances
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=9",           # test runner
+  "pre-commit",          # automatic checks before `git commit`
+  "pytest-cov>=6",       # test coverage reporting
+  "mpmath>=1",           # part of the testing against blond2
+  "pytest-randomly>=4",  # randomizes test order via `randomly-seed=...`
+  "pytest-timeout>=2.4", # caps hung tests, e.g. deadlocked MPI collectives
+  "pytest-xdist>=3",     # parallel test workers (`-n N`)
+  "marimo>=0.25.1",      # example notebooks (blond/examples/notebooks)
+  "nbformat>=5.7",       # needed by `marimo export ipynb`
+]
+doc = [
+  "sphinx>=6",                   # documentation generator
+  "sphinx-rtd-theme>=3",         # Read the Docs theme
+  "numpydoc>1",                  # NumPy-style docstring parser
+  "intersphinx_registry>0.2511", # cross-project documentation links
+  "myst-parser>4",               # Markdown support for Sphinx
+  "sphinx_autodoc_typehints>3",  # type hint integration for autodoc
+  "pydata_sphinx_theme>0.16",    # PyData community theme
+  "nbsphinx>=0.9",               # Jupyter notebook integration for Sphinx
+  "nbconvert>=6",                # notebook to documentation conversion
+  "ipython>5",                   # interactive Python shell
+  "notebook>=7",                 # for jupyter-notebooks in the examples
+  "sphinx-copybutton",           # for the copy button of code on the website
+  "marimo",                      # marimo notebooks exported for the docs
+  "nbformat",                    # needed by `marimo export ipynb`
+  "xsuite",                      # document the xsuite interface glue
+]
+mpi = [
+  # Distributed computing. Optional: the wheel needs an MPI runtime
+  # (libmpi) on the system to import, which not every machine has, and
+  # BLonD degrades to a single rank without it.
+  "mpi4py>=4",
+]
+# The >=13.3.0 floor is required for NumPy 2 (NEP 50): CuPy <13.3.0 routes
+# ``cupy.full(n, <python float>)`` through ``copyto`` -> ``numpy.can_cast`` on
+# the Python scalar, which NumPy >=2 rejects with a TypeError. CuPy 13.3.0 is
+# the first release that probes castability via ``numpy.copyto`` instead, so
+# ``WrapXsuite4Blond`` (which builds a p0c buffer that way) works on the GPU.
+# Without a floor, a lowest-version resolve grabs the buggy 13.2.0.
+gpu_cuda12 = [
+  "cupy-cuda12x>=13.3.0,!=14.0.0,!=14.2.0", # GPU array computing (CUDA 12)
+]
+gpu_cuda13 = [
+  "cupy-cuda13x>=13.6.0,!=14.0.0,!=14.2.0", # GPU array computing (CUDA 13); 13.6.0 is the
+  # oldest cuda13 wheel and already NEP-50-safe.
+]
+xsuite = [
+  # Depend on the `xsuite` meta-package alone: it pins a mutually-compatible
+  # x-stack (xtrack/xobjects/xpart/xfields/xcoll/xdeps) to exact versions and
+  # ships prebuilt tracking kernels built against exactly those versions.
+  # Letting xsuite be the single source of truth keeps the installed stack in
+  # lock-step with the shipped kernels, so `xtrack.Tracker._build_kernel`
+  # finds a suitable prebuilt kernel instead of recompiling from C source on
+  # every `build_tracker`. (Declaring xtrack/xobjects/xpart separately with
+  # `>=` floors is redundant — xsuite's `==` pins win — and risks a resolver
+  # conflict if a future xsuite pins below a floor, for no benefit.)
+  "xsuite>=0.45.10",
+  # Deliberate exception to the rule above: cap xpart below 0.23.16. That
+  # release renamed RFBucket's `z_offset` to `zeta0`, made it required, and
+  # dropped its auto-centring default, which collapses the bucket to zero
+  # width for a non-zero phi_rf and crashes the matcher with a
+  # ZeroDivisionError (reported upstream). The `<` cap backtracks the xsuite
+  # meta-package to the last release pinning xpart 0.23.15; drop it once the
+  # regression is fixed upstream.
+  "xpart>=0.23.9, !=0.23.16", # particle objects
+]
+all_no_cuda = ["blond[dev,doc,xsuite,mpi]"]
+all_cuda12 = ["blond[dev,doc,xsuite,mpi,gpu_cuda12]"]
+all_cuda13 = ["blond[dev,doc,xsuite,mpi,gpu_cuda13]"]
+
 [tool.setuptools]
-packages = { find = { } }
+packages = { find = {} }
 include-package-data = true
 
 [project.urls]
@@ -51,50 +133,39 @@ blond-compile-cuda = "blond.core.backends.cuda.compile:main_cli"
 [tool.setuptools_scm]
 write_to = 'blond/_version.py' # autogenerates version string using git
 
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = ["requirements.txt","requirements-gpu.txt","requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt", "blond/interfaces/xsuite/requirements.txt", "requirements-mpi.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] },  dev = { file = ["requirements-dev.txt"]}, mpi = { file = ["requirements-mpi.txt"]} ,  legacy = { file = ["legacy/requirements.txt"]}, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
-
-
 [tool.ruff]
-src = ["blond"]  # Source directories
+src = ["blond"]                                                       # Source directories
 line-length = 79
-target-version = "py310"  # Minimum supported version (no quotes)
-fix = true  # Enable autofix
-exclude = [
-    "blond/legacy/*",
-    "legacy/*",
-    "integrationtests_blond3/*",
-]
+target-version = "py311"                                              # Minimum supported version (no quotes)
+fix = true                                                            # Enable autofix
+exclude = ["blond/legacy/*", "legacy/*", "integrationtests_blond3/*"]
 [tool.ruff.lint]
-exclude = [
-    "blond/experimental/*",
-    "unittests/*",
-    "blond/examples/*",
-]
+exclude = ["blond/experimental/*", "tests/*", "blond/examples/*"]
 # Enable broad set of useful lint rules
 select = [
-    "E",    # pycodestyle errors
-    "F",    # pyflakes
-    "B",    # flake8-bugbear (catch common bugs)
-    # "I",  # isort (import sorting)
-    # "N",  # pep8-naming
-    "UP",   # pyupgrade
-    "C4", # flake8-comprehensions
-    "D",    # pydocstyle
-    "SIM",# flake8-simplify
-    "NPY",  # numpy-specific rules
-    "PL",   # pylint rules
+  "E", # pycodestyle errors
+  "F", # pyflakes
+  "B", # flake8-bugbear (catch common bugs)
+  # "I",  # isort (import sorting)
+  # "N",  # pep8-naming
+  "UP",  # pyupgrade
+  "C4",  # flake8-comprehensions
+  "D",   # pydocstyle
+  "SIM", # flake8-simplify
+  "NPY", # numpy-specific rules
+  "PL",  # pylint rules
+  "G",   # flake8-logging-format (no eager f-string log messages)
+  "A",   # flake8-builtins (no shadowing of Python builtins)
 ]
 
 ignore = [
-    "E501", #  Line too long
-    "E501", #  Line too long
-    "PLR0913", # Too many arguments in function definition
-    "PLC0415", # `import` should be at the top-level of a file
-    "D401", # First line of docstring should be in imperative mood
-    "B024", # ... is an abstract base class, but it has no abstract methods or properties
-    "E712", #  Avoid equality comparisons to `False`; use `if not ...:` for false checks
+  "E501",    #  Line too long
+  "E501",    #  Line too long
+  "PLR0913", # Too many arguments in function definition
+  "PLC0415", # `import` should be at the top-level of a file
+  "D401",    # First line of docstring should be in imperative mood
+  "B024",    # ... is an abstract base class, but it has no abstract methods or properties
+  "E712",    #  Avoid equality comparisons to `False`; use `if not ...:` for false checks
 
 ]
 
@@ -103,36 +174,54 @@ convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"
+strict_markers = true
+testpaths = ["tests/unittests", "tests/integration"]
+filterwarnings = [
+  # Examples call `plt.show()`; under the headless test backend that only
+  # means the figure is not displayed.
+  "ignore:FigureCanvasAgg is non-interactive, and thus cannot be shown:UserWarning",
+]
 markers = [
-    "mpi: Tests that require MPI.",
-    "backend_mutation: Tests that alter the backend as a side effect.",
-    "cupy: Test that require CuPy."
+  "mpi: Tests that require MPI.",
+  "backend_mutation: Tests that alter the backend as a side effect.",
+  "cupy: Test that require CuPy.",
+  "integration: Full end-to-end simulation tests.",
+]
+
+# Every BLOND_* environment variable read in blond/, enforced by the
+# check-env-vars pre-commit hook (dev_tools/precommit_check_env_vars.py).
+[tool.blond]
+env-vars = [
+  "BLOND_BACKEND_MODE: Backend set when blond is imported: python (default), cpp, cpp_single_core, numba or cuda. Any later setup_backend(...), e.g. setup_backend('auto') in the examples, set_specials() or change_backend() overrides it.",
+  "BLOND_BACKEND_BITS: Leftover; only 64 is accepted (the default), anything else raises ValueError.",
+  "BLOND_FORCE_TEST_ALL_BACKENDS: True makes backend-aware tests run on every registered backend, not only the available ones.",
+  "BLOND_COMPILED_CACHE_KEEP_N: Number of compiled-backend builds to keep in the cache (default 100).",
+  "BLOND_LOAD_MPI: True or False overrides whether blond initialises MPI on import; unset (default), MPI is loaded only when an MPI launcher such as mpirun is detected.",
 ]
 
 [tool.numpydoc_validation]
 checks = [
-    "all",   # report on all checks, except the below
-    "SA01", # See Also section not found
-    "EX01", # No examples section found
-    "GL08", # The object does not have a docstring
-    "ES01", # No extended summary found
-    "PR04", # Parameter "..." has no type
-    "PR04", # Parameter "..." has no type
+  "all",  # report on all checks, except the below
+  "SA01", # See Also section not found
+  "EX01", # No examples section found
+  "GL08", # The object does not have a docstring
+  "ES01", # No extended summary found
+  "PR04", # Parameter "..." has no type
+  "PR04", # Parameter "..." has no type
 
 
 ]
 exclude_files = [ # don't process filepaths that match these regex
-    '^dev_tools/.*',
-    '^docs/.*',
-    '^integrationtests/.*',
-    '^integrationtests_blond3/.*',
-    '^legacy/.*',
-    '^unittests/.*',
-    '^blond/legacy/.*',
-    '^blond/core/backends/fortran/callables.py',
-    '^blond/core/backends/cpp/callables.py',
-    '^blond/core/backends/cuda/callables.py',
-    '^blond/core/backends/numba/callables.py',
-    '^blond/experimental/.*',
+  '^dev_tools/.*',
+  '^docs/.*',
+  '^integrationtests/.*',
+  '^integrationtests_blond3/.*',
+  '^legacy/.*',
+  '^tests/.*',
+  '^blond/legacy/.*',
+  '^blond/core/backends/cpp/callables.py',
+  '^blond/core/backends/cuda/callables.py',
+  '^blond/core/backends/numba/callables.py',
+  '^blond/experimental/.*',
 
 ]

@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 from blond.core.reference_clock.reference_clock_numba import beta as beta_nb
@@ -46,6 +47,19 @@ class ReferenceCoordinates:
         self.time = time  # no property syntax
         self._total_energy = total_energy  # only read access
         self._particle_type = particle_type  # only read access
+
+    def __copy__(self) -> ReferenceCoordinates:
+        """
+        Shallow copy, much faster than the generic `copy.copy` path.
+
+        Returns
+        -------
+        reference
+            New reference with the same time, energy and particle type.
+        """
+        return ReferenceCoordinates(
+            self.time, self._total_energy, self._particle_type
+        )
 
     @property
     def particle_type(self) -> ParticleType:
@@ -114,7 +128,9 @@ class ReferenceCoordinates:
         beta
             Beam reference fraction of speed of light (v/c0) [].
         """
-        return beta_nb(self._total_energy, self._particle_type.mass_inv)
+        beta = beta_nb(self._total_energy, self._particle_type.mass_inv)
+        assert not math.isnan(beta), f"{beta=}"  # np.isnan is slow on floats
+        return beta
 
     @property
     def velocity(self) -> float:

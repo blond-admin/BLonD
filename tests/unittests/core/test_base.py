@@ -1,0 +1,340 @@
+import gc
+import unittest
+import weakref
+from functools import cached_property
+
+import numpy as np
+
+from blond import Simulation
+from blond.core.base import (
+    BeamObservationElement,
+    BeamPhysicsRelevant,
+    DynamicParameter,
+    HasPropertyCache,
+    MainLoopRelevant,
+    Preparable,
+    Schedulable,
+    UnsafeUserElement,
+    UserDefinedElement,
+)
+from blond.core.beam.base import BeamBaseClass
+from blond.core.scheduling import ScheduledArray, ScheduledInterpolation
+from blond.handle_results.helpers import callers_relative_path
+from blond.testing.backend_testing import BLonDTestCase
+
+
+class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
+    def __init__(self, section_index: int = 0, name: str | None = None):
+        super().__init__(section_index=section_index, name=name)
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        pass
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+    ) -> None:
+        pass
+
+
+class TestBeamPhysicsRelevant(BLonDTestCase):
+    def setUp(self):
+        self.beam_physics_relevant = BeamPhysicsRelevantTester(
+            section_index=10, name="Simon"
+        )
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_section_index(self):
+        self.assertEqual(10, self.beam_physics_relevant.section_index)
+
+    @unittest.skip("Abstract method")
+    def test_track(self):
+        # self.beam_physics_relevant.track(beam=None)
+        pass
+
+
+class BeamObservationElementTester(BeamObservationElement):
+    def __init__(self, section_index: int = 0, name: str | None = None):
+        super().__init__(section_index=section_index, name=name)
+
+    def _track(self, beam: BeamBaseClass) -> None:
+        pass
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+    ) -> None:
+        pass
+
+
+class TestBeamPhysicsRelevantTrack(BLonDTestCase):
+    def test_track_inactive_skips_physics(self):
+        call_log = []
+
+        class TrackerHelper(BeamPhysicsRelevantTester):
+            def _track(self, beam):
+                call_log.append(beam)
+
+        element = TrackerHelper(section_index=0)
+        element.active = False
+        element.track(beam=None)
+        self.assertEqual(call_log, [])
+
+
+class TestBeamObservationElement(BLonDTestCase):
+    def setUp(self):
+        self.beam_observation_element = BeamObservationElementTester(
+            section_index=10, name="Elle"
+        )
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_section_index(self):
+        self.assertEqual(10, self.beam_observation_element.section_index)
+
+    @unittest.skip("Abstract method")
+    def test_track(self):
+        # self.beam_observation_element.track(beam=None)
+        pass
+
+
+class TestDynamicParameter(BLonDTestCase):
+    def setUp(self):
+        self.dynamic_parameter = DynamicParameter(value_init=5)
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_on_change(self):
+        array = [0]
+
+        def callback(newvalue):
+            array[0] = newvalue
+
+        self.dynamic_parameter.on_change(callback=callback)
+        self.dynamic_parameter.value = 10
+        self.assertEqual(array[0], 10)
+
+
+class HasPropertyCacheHelper(HasPropertyCache):
+    def __init__(self):
+        self.foo = 1
+
+    @cached_property
+    def bar(self):
+        return self.foo
+
+    def invalidate_cache(self):
+        self._invalidate_cache(("bar",))
+
+
+class TestHasPropertyCache(BLonDTestCase):
+    def setUp(self):
+        self.has_property_cache = HasPropertyCacheHelper()
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_invalidate_cache(self):
+        self.has_property_cache.foo = 22
+        self.assertEqual(22, self.has_property_cache.bar)
+        self.has_property_cache.foo = 11
+        self.assertEqual(22, self.has_property_cache.bar)  # cache still active
+        self.has_property_cache.invalidate_cache()
+        self.assertEqual(11, self.has_property_cache.bar)
+
+
+class MainLoopRelevantHelper(MainLoopRelevant):
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+    ) -> None:
+        pass
+
+
+class TestMainLoopRelevant(BLonDTestCase):
+    def setUp(self):
+        self.main_loop_relevant = MainLoopRelevantHelper()
+        self.main_loop_relevant.each_turn_i = 10
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_is_active_this_turn(self):
+        self.assertFalse(self.main_loop_relevant.is_active_this_turn(turn_i=1))
+        self.assertTrue(self.main_loop_relevant.is_active_this_turn(turn_i=0))
+        self.assertTrue(self.main_loop_relevant.is_active_this_turn(turn_i=10))
+        self.assertTrue(self.main_loop_relevant.is_active_this_turn(turn_i=20))
+
+
+class PreparableHelper(Preparable):
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+    ) -> None:
+        pass
+
+
+class TestPreparable(BLonDTestCase):
+    def setUp(self):
+        self.preparable = PreparableHelper()
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    @unittest.skip("Abstract methods")
+    def test_on_init_simulation(self):
+        pass
+
+    @unittest.skip("Abstract methods")
+    def test_on_run_simulation(self):
+        pass
+
+    def test_configure_accepts_no_kwargs(self):
+        # base terminator must not raise when nothing is left over
+        self.preparable.configure()
+
+    def test_configure_raises_on_unexpected_kwargs(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            r"PreparableHelper\.configure\(\) received unexpected "
+            r"keyword arguments: \['typo'\]",
+        ):
+            self.preparable.configure(typo=1)
+
+    def test_configure_run_accepts_known_kwargs(self):
+        # beam and n_turns are consumed explicitly, nothing left over
+        self.preparable.configure_run(beam=None, n_turns=10)
+
+    def test_configure_run_raises_on_unexpected_kwargs(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            r"PreparableHelper\.configure_run\(\) received unexpected "
+            r"keyword arguments: \['typo'\]",
+        ):
+            self.preparable.configure_run(beam=None, n_turns=10, typo=1)
+
+
+class TestSchedulable(unittest.TestCase):
+    def setUp(self):
+        self.schedulable = Schedulable()
+        self.schedulable._register_schedulable_variables("voltage")
+        with self.assertRaisesRegex(AssertionError, "doesnt exist"):
+            self.schedulable.schedule_from_file(
+                attribute="voltage",
+                filename=callers_relative_path(
+                    "schedulable_testfile.txt", stacklevel=1
+                ),
+            )
+        self.schedulable.voltage = None
+
+        self.schedulable.schedule_from_file(
+            attribute="voltage",
+            filename=callers_relative_path(
+                "schedulable_testfile.txt", stacklevel=1
+            ),
+        )
+
+    def test___init__(self):
+        pass
+
+    def test_schedule(self):
+        schedulable = Schedulable()
+        schedulable.voltage = None
+        # `voltage` is not in `intended_for_scheduling`, so each call warns.
+        with self.assertWarns(UserWarning):
+            with self.assertRaises(TypeError):
+                schedulable.schedule("voltage", 1)
+            schedulable.schedule("voltage", np.ones(10))
+            schedulable.schedule(
+                "voltage",
+                ScheduledInterpolation(np.linspace(0, 10, 20), np.ones(20)),
+            )
+            schedulable.schedule(
+                "voltage",
+                ScheduledArray(np.ones(10)),
+            )
+            schedulable.schedule("voltage", np.ones(10))
+
+
+class TestUnsafeUserElement(BLonDTestCase):
+    def test_init(self):
+        class InvalidElement:
+            def not_track(self): ...
+
+        class ValidElement:
+            def track(self): ...
+
+        element = InvalidElement()
+        with self.assertRaises(TypeError):
+            UnsafeUserElement(element)
+
+        element = ValidElement()
+        with self.assertWarns(Warning):
+            wrapper = UnsafeUserElement(element)
+
+        self.assertTrue(wrapper._element is element)
+        self.assertIsInstance(wrapper, UserDefinedElement)
+        self.assertNotIsInstance(element, UserDefinedElement)
+        self.assertEqual(wrapper.section_index, 0)
+        self.assertTrue(wrapper.active)
+
+    def test_track(self):
+        called_with = []
+
+        class Element:
+            def track(self, beam):
+                called_with.append(beam)
+
+        element = Element()
+        with self.assertWarns(UserWarning):
+            wrapper = UnsafeUserElement(element)
+
+        call_args = [1, 2, 3]
+        for arg in call_args:
+            wrapper.track(arg)
+
+        self.assertListEqual(called_with, call_args)
+
+
+class TestPreparableHoldsSimulationWeakly(BLonDTestCase):
+    def setUp(self):
+        gc.disable()
+        self.addCleanup(gc.enable)
+
+    def test_preparable_holds_simulation_weakly(self):
+        class Element(Preparable):
+            pass
+
+        class FakeSimulation:
+            pass
+
+        simulation = FakeSimulation()
+        simulation.element = Element()
+        simulation.element._simulation = simulation
+        simulation_ref = weakref.ref(simulation)
+        del simulation
+        self.assertIsNone(simulation_ref())
+
+
+if __name__ == "__main__":
+    unittest.main()

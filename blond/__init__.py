@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -8,11 +8,15 @@
 
 """BLonD beam dynamics software."""
 
+# Imported first, and for its import-time side effect only: it defaults
+# OMP_WAIT_POLICY to "passive". This must happen before anything pulls
+# in an OpenMP runtime (numba, the compiled C++ library), because
+# libgomp reads the wait policy once at initialisation.
+from blond.core.backends import openmp_env  # noqa: F401  # isort: skip
+
 __all__ = [
     "BiGaussian",
-    "Cupy32Bit",
     "Cupy64Bit",
-    "Numpy32Bit",
     "Numpy64Bit",
     "backend",
     "UserDefinedElement",
@@ -31,18 +35,21 @@ __all__ = [
     "MagneticCyclePerTurn",
     "MagneticCyclePerTurnAllRFStations",
     "AllowPlotting",
+    "DerivativeInterpolator",
     "BeamObservationOncePerTurn",
     "RFStationPhaseObservation",
     "StaticProfileObservation",
     "BeamObservationInRingElement",
     "MultiHarmonicRFStation",
     "SingleHarmonicRFStation",
+    "BarrierRF",
     "DriftSimple",
     "ReferenceEnergyChange",
     "WakeField",
     "InductiveImpedanceSolver",
     "PeriodicFreqSolver",
     "TimeDomainFftSolver",
+    "MultiPoleSparseSolve",
     "ImpedanceTableFreq",
     "InductiveImpedance",
     "Resonators",
@@ -51,20 +58,50 @@ __all__ = [
     "StaticProfile",
     "DriftObservation",
     "SimulationObservation",
+    "make_multibunch_beam",
+    "momentum_compaction_factor",
+    "copy_to_cpu",
+    "EquidistantMultiProfile",
+    "setup_backend",
+    "BeamHist2dOncePerTurn",
+    "BeamStatisticsOncePerTurn",
+    "WakeFieldObservation",
+    "typing",
+    "Music",
+    "DynamicProfileConstNBinsObservation",
+    "SymbolicSeparatrixHelper",
+    "Coasting",
+    "ContinuousMultiTurnTimeDomainSolver",
+    "DriftExact",
+    "DynamicProfileConstCutoff",
+    "FilamentationMatcher",
+    "ImpedanceTableTime",
+    "MultiPassResonatorSolver",
+    "ParticleType",
+    "ScheduledArray",
+    "ScheduledFunctional",
+    "ScheduledInterpolation",
+    "SingleTurnResonatorConvolutionSolver",
+    "StaticMultiProfileObservation",
+    "SynchrotronRadiationMaster",
+    "TravelingWaveCavity",
+    "VariNoise",
 ]
-
-
+from blond.acc_math.analytic.simple_math import momentum_compaction_factor
 from blond.beam_preparation.bigaussian import BiGaussian
+from blond.beam_preparation.coasting import Coasting
+from blond.beam_preparation.filamentation_matcher import FilamentationMatcher
+from blond.beam_preparation.helpers import make_multibunch_beam
 from blond.core.backends.backend import (
-    Cupy32Bit,
     Cupy64Bit,
-    Numpy32Bit,
     Numpy64Bit,
     backend,
 )
+from blond.core.backends.helpers import setup_backend
 from blond.core.base import UserDefinedElement
 from blond.core.beam.beams import Beam, EmptyBeam
 from blond.core.beam.particle_types import (
+    ParticleType,
     electron,
     mu_minus,
     mu_plus,
@@ -73,6 +110,11 @@ from blond.core.beam.particle_types import (
     uranium_29,
 )
 from blond.core.ring.ring import Ring
+from blond.core.scheduling import (
+    ScheduledArray,
+    ScheduledFunctional,
+    ScheduledInterpolation,
+)
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import (
     ConstantMagneticCycle,
@@ -80,36 +122,60 @@ from blond.cycles.magnetic_cycle import (
     MagneticCyclePerTurn,
     MagneticCyclePerTurnAllRFStations,
 )
-from blond.generals.cupy.no_cupy_import import AllowPlotting
+from blond.cycles.noise_generators.vari_noise import VariNoise
+from blond.generals import typing_ as typing
+from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
+from blond.generals.interpolators import DerivativeInterpolator
 from blond.handle_results.observables import (
+    BeamHist2dOncePerTurn,
     BeamObservationOncePerTurn,
+    BeamStatisticsOncePerTurn,
     DriftObservation,
+    DynamicProfileConstNBinsObservation,
     RFStationPhaseObservation,
     SimulationObservation,
+    StaticMultiProfileObservation,
     StaticProfileObservation,
+    WakeFieldObservation,
 )
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
-from blond.physics.cavities import (
-    MultiHarmonicRFStation,
-    SingleHarmonicRFStation,
-)
-from blond.physics.drifts import DriftSimple
+from blond.physics.barrier_bucket import BarrierRF
+from blond.physics.drifts import DriftExact, DriftSimple
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 from blond.physics.impedances.base import WakeField
+from blond.physics.impedances.music_algorithm import Music
 from blond.physics.impedances.solvers import (
+    ContinuousMultiTurnTimeDomainSolver,
     InductiveImpedanceSolver,
+    MultiPassResonatorSolver,
+    MultiPoleSparseSolve,
     PeriodicFreqSolver,
+    SingleTurnResonatorConvolutionSolver,
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import (
     ImpedanceTableFreq,
+    ImpedanceTableTime,
     InductiveImpedance,
     Resonators,
+    TravelingWaveCavity,
 )
 from blond.physics.losses import BoxLosses
 from blond.physics.profiles import (
+    DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
+)
+from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
+from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
+    SynchrotronRadiationMaster,
+)
+from blond.utilities.separatrix.symbolic_separatrix import (
+    SymbolicSeparatrixHelper,
 )

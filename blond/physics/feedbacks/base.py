@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -21,22 +21,28 @@ Leonard Thiele
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
+
+import numpy as np
 
 from blond.core.base import BeamPhysicsRelevant
-from blond.core.ring.helpers import requires
+from blond.core.ordering import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
+
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         RFStationBaseClass,
         SingleHarmonicRFStation,
     )
-    from blond.physics.profiles import ProfileBaseClass
+
+T = TypeVar("T")
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
@@ -49,21 +55,24 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
         Section index of the feedback.
     name
         Name of the feedback.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
         self,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ):
-        super().__init__(section_index=section_index, name=name)
+        super().__init__(section_index=section_index, name=name, **kwargs)
 
 
 class LocalFeedback(FeedbackBaseClass):
     """
     Baseclass for implementation of local feedback elements.
 
-    Baseclass for implementation of local feedback elements.
     This will be attached to a specific multi- or single-harmonic
     cavity, which will act on the beam.
 
@@ -73,16 +82,6 @@ class LocalFeedback(FeedbackBaseClass):
         Profile the feedback should act on.
     name
         Name of the feedback.
-
-    Attributes
-    ----------
-    phase_correction
-        Correction to the rf phase, has to be defined on the
-        profile time grid.
-    relative_voltage_correction
-        Relative correction to the setpoint voltage
-        stemming from the feedback,
-        has to be defined on the profile time grid.
     """
 
     def __init__(
@@ -98,7 +97,9 @@ class LocalFeedback(FeedbackBaseClass):
         ) = None
 
         self.relative_voltage_correction: NumpyArray | None = None
+        """Relative correction to the setpoint voltage stemming from the feedback, has to be defined on the profile time grid."""
         self.phase_correction: NumpyArray | None = None
+        """Correction to the rf phase, has to be defined on the profile time grid."""
 
         self.profile = profile
 
@@ -113,7 +114,7 @@ class LocalFeedback(FeedbackBaseClass):
         rf_station
             Cavity to be the parent rf station.
         """
-        from blond.physics.cavities import (  # no cyclic import
+        from blond.physics.rf_station import (  # no cyclic import
             MultiHarmonicRFStation,
             SingleHarmonicRFStation,
         )
@@ -156,6 +157,9 @@ class GlobalFeedback(FeedbackBaseClass):
         Section index of the feedback.
     name
         Name of the feedback.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
     """
 
     def __init__(
@@ -163,10 +167,12 @@ class GlobalFeedback(FeedbackBaseClass):
         profile: ProfileBaseClass,
         section_index: int = 0,
         name: str | None = None,
+        **kwargs,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
+            **kwargs,
         )
         self.profile = profile
         self.cavities: list[RFStationBaseClass] | None = None
@@ -174,7 +180,7 @@ class GlobalFeedback(FeedbackBaseClass):
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
     @requires(["RFStationBaseClass"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
 
@@ -182,9 +188,66 @@ class GlobalFeedback(FeedbackBaseClass):
         ----------
         simulation
             `Simulation` context manager.
+        **kwargs
+            Configure parameters collected by the MRO chain.
         """
-        from blond.physics.cavities import RFStationBaseClass
+        from blond.physics.rf_station import RFStationBaseClass
 
-        self.cavities = simulation.ring.elements.get_elements(
-            RFStationBaseClass, recursive=False
+        super().on_init_simulation(
+            simulation,
+            cavities=simulation.ring.elements.get_elements(
+                RFStationBaseClass, recursive=False
+            ),
+            **kwargs,
         )
+
+    def configure(
+        self,
+        *,
+        cavities: list[SingleHarmonicRFStation | MultiHarmonicRFStation],
+        **kwargs,
+    ) -> None:
+        """
+        Store the RF station list.
+
+        Parameters
+        ----------
+        cavities
+            List of RF stations in the ring section.
+        **kwargs
+            Passed to the next level in the MRO chain.
+        """
+        super().configure(**kwargs)
+        self.cavities = cavities
+
+    def get_from_all_rf_stations(
+        self,
+        accessor: Callable[[RFStationBaseClass], T],
+        rf_station_list: list[RFStationBaseClass] | None = None,
+    ) -> NumpyArray:
+        """
+        Call `accessor` on all rf station instances.
+
+        This method calls a certain attribute or method from all
+        RF station instances associated with this beam feedback instance.
+
+        Parameters
+        ----------
+        accessor
+            A callable that takes an RF station instance and returns the
+            desired value, e.g. `lambda rf: rf.get_main_harmonic_cavity_feedback()`
+            or `lambda rf: rf.some_attribute`.
+        rf_station_list
+            List of rf station objects. If no list is passed, then the list of rf stations
+            associated with the global feedback instance will be used.
+
+        Returns
+        -------
+        output_per_station
+            Array containing the output of the method or attribute from
+            each rf station.
+        """
+        cavity_list = (
+            self.cavities if rf_station_list is None else rf_station_list
+        )
+        return np.array([accessor(obj) for obj in cavity_list])

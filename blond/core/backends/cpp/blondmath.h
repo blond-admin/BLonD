@@ -1,6 +1,6 @@
 // Copyright CERN. This software is distributed under the
 // terms of the GNU General Public Licence version 3 (GPL Version 3),
-// copied verbatim in the file LICENCE.txt.
+// copied verbatim in the file LICENSE.txt.
 // In applying this licence, CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization or
 // submit itself to any jurisdiction.
@@ -35,10 +35,10 @@ void where_more_less_than(const real_t *__restrict__ data, const int n,
 void where_less_thanf(const float *__restrict__ data, const int n,
                       const float c1, bool *__restrict__ res);
 
-int where(const real_t *__restrict__ dt, const int n_macroparticles,
+int where(const real_t *__restrict__ dt, const index_t n_macroparticles,
           const real_t constant1, const real_t constant2);
 
-// int wheref(const float *__restrict__ dt, const int n_macroparticles,
+// int wheref(const float *__restrict__ dt, const index_t n_macroparticles,
 //            const float constant1, const float constant2);
 
 void where_more_than(const real_t *__restrict__ data, const int n,

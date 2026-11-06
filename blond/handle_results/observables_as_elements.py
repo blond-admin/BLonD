@@ -1,6 +1,6 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -14,13 +14,19 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from blond.core.base import BeamObservationElement
+from blond.core.base import BeamObservationElement, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.simulation.simulation import Simulation
+from blond.core.beam.beams import ProbeBeam
+from blond.core.ordering import requires
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
+from blond.physics.impedances.base import WakeField
+
+if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.simulation.simulation import Simulation
 
 
 class BeamObservationInRingElement(
@@ -42,11 +48,14 @@ class BeamObservationInRingElement(
         Defaults to 0.
     n_turns : int, optional
         Number of turns to record. Defaults to 1.
-    folder : str or None, optional
-        Directory path where observation data will be stored. If ``None``,
-        data is kept in memory. Defaults to ``None``.
+    folder : str, optional
+        Directory that `to_disk` writes the observation data to. Data is
+        always recorded in memory. An empty string means the current
+        working directory. Defaults to ``""``.
     name : str or None, optional
         Optional name for this observation element. Defaults to ``None``.
+    beam : BeamBaseClass or None, optional
+        Beam to be observed by this element.
     """
 
     def __init__(
@@ -54,30 +63,21 @@ class BeamObservationInRingElement(
         each_turn_i: int = 1,
         section_index: int = 0,
         n_turns: int = 1,
-        folder: str | None = None,
+        folder: str = "",
         name: str | None = None,
+        beam: BeamBaseClass | None = None,
     ) -> None:
         super().__init__(section_index=section_index, name=name, folder=folder)
         self.each_turn_i = each_turn_i
         self.n_turns = n_turns
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            `Simulation` context manager.
-        """
-        pass
+        self._beam_id_filter = None if beam is None else id(beam)
 
     def on_run_simulation(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
-        obs_per_turn: int = 1,
         **kwargs: dict[
             str,
             Any,
@@ -94,12 +94,19 @@ class BeamObservationInRingElement(
             Simulation `Beam` object.
         n_turns
             Number of turns to simulate.
-        obs_per_turn
-            Number of observations per turn.
         **kwargs
             Additional keyword arguments.
         """
-        n_entries = n_turns // self.each_turn_i + 2
+        own_class_in_simulation_elements = (
+            simulation.ring.elements.get_elements(BeamObservationInRingElement)
+        )
+        num_elements_of_own_instance_in_pipeline = sum(
+            [1 if el is self else 0 for el in own_class_in_simulation_elements]
+        )
+        n_entries = (
+            num_elements_of_own_instance_in_pipeline
+            * self._calc_n_entries(n_turns)
+        )
 
         self._dEs = DenseArrayRecorder(
             self.common_filepath + "_dEs", (n_entries, beam.common_array_size)
@@ -127,11 +134,14 @@ class BeamObservationInRingElement(
         beam
             Beam class to interact with this element.
         """
-        self._dEs.write(beam.read_partial_dE())
-        self._dts.write(beam.read_partial_dt())
-        self._reference_time.write(beam.reference.time)
-        self._reference_total_energy.write(beam.reference.total_energy)
-        self._flags.write(beam.read_partial_flags())
+        if isinstance(beam, ProbeBeam):
+            return
+        if self._beam_id_filter is None or self._beam_id_filter == id(beam):
+            self._dEs.write(beam.read_partial_dE())
+            self._dts.write(beam.read_partial_dt())
+            self._reference_time.write(beam.reference.time)
+            self._reference_total_energy.write(beam.reference.total_energy)
+            self._flags.write(beam.read_partial_flags())
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -265,7 +275,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
         count = sum([el == self for el in simulation.ring.elements.elements])
 
-        n_entries = int(n_turns * count // self.each_turn_i)
+        n_entries = count * self._calc_n_entries(n_turns)
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
@@ -289,17 +299,6 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             shape,
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager.
-        """
-        pass
-
     def _track(
         self,
         beam: BeamBaseClass,
@@ -312,6 +311,8 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         beam
             Beam class to interact with this element.
         """
+        if isinstance(beam, ProbeBeam):
+            return
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
             self._sigma_dt.write(beam._dt.std())
             self._sigma_dE.write(beam._dE.std())
@@ -385,3 +386,169 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Root-Mean-Square emittance.
         """
         return self._rms_emittance.get_valid_entries()
+
+
+class InducedVoltageObservationCR(
+    BeamObservationElement, ObservablesBaseClass
+):
+    """
+    Observation object for induced voltages in counterrotation.
+
+    Observation object for induced voltages in counterrotation.
+    It is expected, that the observation object is
+    placed both behind and in-front of the cavity object.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    wake_field
+        Cavity object, which holds the wakefield to report the induced voltage of.
+    section_index : int, optional
+        Index of the pipeline section where this observation element is placed.
+        Defaults to 0.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        wake_field: WakeField,
+        section_index: int = 0,
+        folder: str = "",
+    ):
+        super().__init__(folder=folder, section_index=section_index)
+
+        self.each_turn_i = each_turn_i
+
+        self._induced_voltage: DenseArrayRecorder | None = None
+        self._beam_reference_time: DenseArrayRecorder | None = None
+        self._beam_profile: DenseArrayRecorder | None = None
+        self._wake_field = wake_field
+
+        self.beam_state: bool | None = None
+        self.last_turn: int | None = None
+        self.turn_counter: DynamicParameter | None = None
+
+    @requires(["RFStationBaseClass"])
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        **kwargs,
+    ) -> None:
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager.
+        beam
+            Simulation beam object.
+        n_turns
+            Number of turns to simulate.
+        **kwargs
+            Additional keyword arguments.
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+        )
+        self.turn_counter = simulation.turn_counter
+
+        count = 2  # 2 beams
+
+        ind_volt_len = len(self._wake_field._profile.hist_x)
+
+        n_entries = count * self._calc_n_entries(n_turns)
+        shape = (n_entries, ind_volt_len)
+
+        self._induced_voltage = DenseArrayRecorder(
+            f"{self.common_filepath}_induced_voltage",
+            shape,
+        )
+
+        self._beam_profile = DenseArrayRecorder(
+            f"{self.common_filepath}_beam_profile",
+            shape,
+        )
+
+        self._beam_reference_time = DenseArrayRecorder(
+            f"{self.common_filepath}_beam_reference_time",
+            n_entries,
+        )
+
+    @property  # as readonly attributes
+    def induced_voltage(self):
+        """
+        Induced voltage on the specified cavity object for both beams.
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage arrays for both beams.
+        """
+        return self._induced_voltage.get_valid_entries()
+
+    @property  # as readonly attributes
+    def beam_reference_time(self):
+        """
+        Beam reference time on the specified cavity object for both beams.
+
+        Returns
+        -------
+        beam_reference_time
+            Reference time according to the induced voltages for both beams.
+        """
+        return self._beam_reference_time.get_valid_entries()
+
+    @property  # as readonly attributes
+    def beam_profile(self):
+        """
+        Beam profile, the wakefield was calculated with.
+
+        Returns
+        -------
+        beam_profile
+            Beam profile array.
+        """
+        return self._beam_profile.get_valid_entries()
+
+    def _track(
+        self,
+        beam: BeamBaseClass,
+    ) -> None:
+        """
+        Update memory with new values.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        if (
+            self.beam_state != beam._is_counter_rotating
+            or self.last_turn != self.turn_counter.value
+        ):
+            # First passage of the beam should not be recorded.
+            # The architecture in the pipeline is generally OBS CAV OBS, meaning,
+            # that the observation will be hit first without the
+            # voltage having been calculated yet for the passing beam.
+            # For the next beam passing, it will be the other way around but
+            # with a different beam state.
+            self.beam_state = beam._is_counter_rotating
+            self.last_turn = self.turn_counter.value
+            return
+        try:
+            current_recorded = copy_to_cpu(self._wake_field.induced_voltage)
+        except AttributeError:
+            return
+        self._induced_voltage.write(current_recorded)
+        self._beam_reference_time.write(beam.reference.time)
+        self._beam_profile.write(self._wake_field.profile.hist_y)

@@ -1,12 +1,24 @@
 # Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.txt.
+# copied verbatim in the file LICENSE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds `PythonSpecials` and helper functions."""
+"""
+Holds `PythonSpecials` and helper functions.
+
+Precondition for every kernel in this module: coordinates are finite.
+The beam coordinates (`dt`, `dE`) and the profile coordinates
+(`bin_centers`, cut edges) must contain neither NaN nor +/-Inf. Nothing
+here checks for it. This backend is the readable reference
+implementation, so it holds the same contract as the compiled backends
+even where NumPy would merely give a silently wrong answer rather than
+the undefined behaviour of a C/CUDA index conversion. The caller must
+not produce non-finite coordinates. See `Specials` in
+`blond/core/backends/backend.py`.
+"""
 
 from __future__ import annotations
 
@@ -15,16 +27,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials
-from blond.core.beam.flags import BeamFlags
+from blond.core.backends.flags import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
 # The function definition is recycled by the numba backend.
 def _move_flagged_elements_to_end_py(
-    flag: int,
+    flag: np.int32,
     flags: NumpyArray,  # also purged
     dt: NumpyArray,
     dE: NumpyArray,
@@ -75,6 +86,18 @@ class PythonSpecials(Specials):
     """Implementation of backend functions in Python."""
 
     @staticmethod
+    def get_max_threads() -> int:  # pragma: no cover
+        """
+        Return the max number of threads this backend's kernels may use.
+
+        Returns
+        -------
+        max_threads
+            Maximum number of threads this backend's kernels may use.
+        """
+        return 1
+
+    @staticmethod
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
@@ -106,6 +129,10 @@ class PythonSpecials(Specials):
         beam_phase
             # TODO ported from blond2, was undocumented.
         """
+        assert len(hist_x) >= 2, (  # noqa: PLR2004
+            "beam_phase requires at least two bins for the trapezoidal rule, "
+            f"got {len(hist_x)}"
+        )
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
@@ -164,8 +191,8 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def kick_single_harmonic(
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
+        dt: NumpyArray,
+        dE: NumpyArray,
         voltage: float,
         omega_rf: float,
         phi_rf: float,
@@ -240,6 +267,42 @@ class PythonSpecials(Specials):
         dE[:] += acceleration_kick
 
     @staticmethod
+    def sum_1d_array(array: NumpyArray) -> float:
+        """
+        Return the sum of an 1d array.
+
+        Parameters
+        ----------
+        array
+            Input array 1.
+
+        Returns
+        -------
+        sum_1d_array
+            Sum of a 1d arrays.
+        """
+        return np.sum(array)
+
+    @staticmethod
+    def dot_product_1d_array(array_1: NumpyArray, array_2: NumpyArray):
+        """
+        Return the sum of dot product of two 1d arrays.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        array_2
+            Input array 2.
+
+        Returns
+        -------
+        dot_product_1d_array
+            Dot product of two 1d arrays.
+        """
+        return np.dot(array_1, array_2)
+
+    @staticmethod
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -273,19 +336,21 @@ class PythonSpecials(Specials):
         dt += T * coeff * dE
 
     @staticmethod
-    def drift_legacy(
+    def drift_like_line_segment(
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
-        alpha_order: int,
         eta_0: float,
-        eta_1: float,
-        eta_2: float,
         beta: float,
         energy: float,
-    ) -> None:  # pragma: no cover # TODO
+    ) -> None:
         r"""
-        Function to apply drift equation of motion.
+        Drift with the linear slip factor and the exact relativistic delta.
+
+        Reproduces the longitudinal drift of an xsuite ``LineSegmentMap``:
+        the first-order slip factor :math:`\eta_0` combined with the exact
+        relativistic momentum deviation :math:`\delta(dE)`, in contrast to
+        :meth:`drift_simple`, which linearises :math:`\delta`.
 
         Parameters
         ----------
@@ -294,36 +359,27 @@ class PythonSpecials(Specials):
         dE
             Macro-particle energy coordinates, in [eV].
         T
-            Revolution period, in [s].
-        alpha_order
-            Oder of the alpha parameter.
+            Time spend in the drift region, in [s].
+            :math:`T = L / (\beta c_0)`.
         eta_0
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        eta_1
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
-        eta_2
-            General synchrotron parameter (zeroth-order slippage factor) [unitless].
+            First-order slippage factor :math:`\eta_0` [unitless].
         beta
             Relativistic velocity factor :math:`\beta = v/c` [unitless].
         energy
             Total beam energy [eV].
         """
-        # solver_decoded = solver.decode(encoding='utf_8')
+        inv_beta_sq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
 
-        coeff = 1.0 / (beta * beta * energy)
-        eta0 = eta_0 * coeff
-        eta1 = eta_1 * coeff * coeff
-        eta2 = eta_2 * coeff * coeff * coeff
-
-        if alpha_order == 0:
-            dt += T * (1.0 / (1.0 - eta0 * dE) - 1.0)
-        elif alpha_order == 1:
-            dt += T * (1.0 / (1.0 - eta0 * dE - eta1 * dE * dE) - 1.0)
-        else:
-            dt += T * (
-                1.0 / (1.0 - eta0 * dE - eta1 * dE * dE - eta2 * dE * dE * dE)
-                - 1.0
+        beam_delta = (
+            np.sqrt(
+                1.0
+                + inv_beta_sq
+                * (dE * dE * inv_energy * inv_energy + 2.0 * dE * inv_energy)
             )
+            - 1.0
+        )
+        dt += T * eta_0 * beam_delta
 
     @staticmethod
     def drift_exact(
@@ -331,64 +387,71 @@ class PythonSpecials(Specials):
         dE: NumpyArray,
         T: float,
         alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
+        higher_alpha: NumpyArray,
         beta: float,
         energy: float,
-    ) -> None:  # pragma: no cover # TODO
+    ) -> None:  # pragma: no cover
         r"""
-        Function to apply drift equation of motion.
+        Exact drift equation of motion with higher order momentum compaction factors.
 
         Parameters
         ----------
-        dt
+        dt : NumpyArray
             Macro-particle time coordinates, in [s].
-        dE
+        dE : NumpyArray
             Macro-particle energy coordinates, in [eV].
-        T
+        T : float
             Revolution period, in [s].
-        alpha_0
+        alpha_0 : float
             Momentum compaction factor [unitless].
-        alpha_1
-            Momentum compaction factor [unitless].
-        alpha_2
-            Momentum compaction factor [unitless].
+        higher_alpha : NumpyArray
+            Momentum compaction factor to higher orders.
         beta
-            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+            Relativistic velocity factor :math:\beta = v/c [unitless].
         energy
             Total beam energy [eV].
         """
-        # solver_decoded = solver.decode(encoding='utf_8')
+        n_alpha = len(higher_alpha)
+        invbetasq = 1.0 / (beta * beta)
+        inv_energy = 1.0 / energy
+        inv_energy_sq = inv_energy * inv_energy
 
-        invbetasq = 1 / (beta * beta)
-        invenesq = 1 / (energy * energy)
-        # double beam_delta;
-
+        # delta (vectorized)
         beam_delta = (
-            np.sqrt(1.0 + invbetasq * (dE * dE * invenesq + 2.0 * dE / energy))
+            np.sqrt(
+                1.0
+                + invbetasq * (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)
+            )
             - 1.0
         )
 
-        dt += T * (
-            (
-                1.0
-                + alpha_0 * beam_delta
-                + alpha_1 * (beam_delta * beam_delta)
-                + alpha_2 * (beam_delta * beam_delta * beam_delta)
-            )
-            * (1.0 + dE / energy)
-            / (1.0 + beam_delta)
-            - 1.0
-        )
+        # ---- Polynomial evaluation ----
+        poly = 1.0 + alpha_0 * beam_delta
+
+        if n_alpha > 0:
+            delta_power = beam_delta * beam_delta  # δ²
+
+            for k in range(n_alpha):
+                poly += higher_alpha[k] * delta_power
+                delta_power *= beam_delta  # next power
+
+        # ---- Final update ----
+        dt += T * (poly * (1.0 + dE * inv_energy) / (1.0 + beam_delta) - 1.0)
 
     @staticmethod
-    def kick_induced_voltage(
+    def kick_interpolated(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
+        first_left_cut: float | None = None,
+        left_cut_distance: float | None = None,
+        cut_width: float | None = None,
+        bins_per_profile: int | None = None,
+        filling_pattern: NumpyArray | None = None,
+        bucket_index_to_memory_index: NumpyArray | None = None,
     ) -> None:
         """
         Interpolated kick method.
@@ -409,29 +472,154 @@ class PythonSpecials(Specials):
             Energy, in [eV], which is added to all particles.
             This is intended to subtract the target energy from the RF
             energy gain in one common call.
+        first_left_cut
+            Left edge of the first bucket's histogram. Pass this together
+            with the other sparse-metadata arguments below (e.g. via
+            `EquidistantMultiProfile.sparse_kick_metadata`) when
+            `bin_centers` is a gapped, multi-island array such as
+            `EquidistantMultiProfile.hist_x`. When omitted, `bin_centers`
+            must be uniformly spaced.
+        left_cut_distance
+            Distance between the left edge of each bucket's histogram.
+        cut_width
+            Distance between left and right edge of one bucket's
+            histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        filling_pattern
+            Filling pattern as a boolean array where `True` means filled
+            bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index, see
+            `_gen_array_bucket_index_to_memory_index`.
         """
+        sparse = first_left_cut is not None
         n_slices = len(bin_centers)
-        inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
-        fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
+        if sparse:
+            inv_bin_width = bins_per_profile / cut_width
+        else:
+            assert n_slices >= 2, (  # noqa: PLR2004
+                "kick_interpolated needs at least 2 bins to interpolate "
+                f"across, got {n_slices}"
+            )
+            inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
         helper2 = (
             charge * voltage[:-1] - bin_centers[:-1] * helper1
         ) + acceleration_kick
 
+        if not sparse:
+            # Range-check in floating point *before* casting to an
+            # integer index: a far-out particle scales past the integer
+            # range, where the cast is undefined (and warns).
+            fbin = np.floor((dt - bin_centers[0]) * inv_bin_width)
+            in_range = (fbin >= 0) & (fbin < n_slices - 1)
+            for i in range(len(dt)):
+                if in_range[i]:
+                    bin_i = int(fbin[i])
+                    dE[i] += dt[i] * helper1[bin_i] + helper2[bin_i]
+                else:
+                    # Only the interpolated voltage is undefined outside
+                    # the window. `acceleration_kick` carries the
+                    # reference energy change, which applies to the whole
+                    # beam, so it must still be applied here (`helper2`
+                    # already folds it in for in-window particles).
+                    dE[i] += acceleration_kick
+            return
+
+        n_buckets = len(filling_pattern)
+        inv_hist_dist = 1.0 / left_cut_distance
+        bin_width = cut_width / bins_per_profile
         for i in range(len(dt)):
-            # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
-            if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
-                dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+            # Range-check before the conversion -- see the dense
+            # branch above.
+            bucket_real = np.floor((dt[i] - first_left_cut) * inv_hist_dist)
+            # A particle with no interpolated voltage still receives
+            # `acceleration_kick` (the reference energy change applies to
+            # the whole beam) -- in particular one sitting in an *unfilled*
+            # bucket, which is fully inside the turn.
+            if not (0 <= bucket_real < n_buckets):
+                dE[i] += acceleration_kick
+                continue
+            bucket_i = int(bucket_real)
+            if not filling_pattern[bucket_i]:
+                dE[i] += acceleration_kick
+                continue
+            cut_left = first_left_cut + bucket_i * left_cut_distance
+            bucket_bin_center0 = cut_left + bin_width / 2.0
+            local_bin_real = np.floor(
+                (dt[i] - bucket_bin_center0) * inv_bin_width
+            )
+            if not (0 <= local_bin_real < bins_per_profile - 1):
+                dE[i] += acceleration_kick
+                continue
+            local_bin = int(local_bin_real)
+            fbin = bucket_index_to_memory_index[bucket_i] + local_bin
+            dE[i] += dt[i] * helper1[fbin] + helper2[fbin]
+
+    @staticmethod
+    def apply_synchrotron_radiation_and_quantum_excitation_energy_kick(
+        beam_dE: NumpyArray,
+        energy_lost: float,
+        longitudinal_damping_time: float,
+        natural_energy_spread: float,
+        total_energy: float,
+        disable_quantum_excitation: bool = False,
+    ) -> None:
+        """
+        Apply synchrotron radiation and quantum excitation energy kicks.
+
+        Parameters
+        ----------
+        beam_dE
+            Macro-particle energy coordinates, in [eV]. Modified in place.
+        energy_lost
+            Energy lost through the considered synchrotron segment,
+            in [eV per turn].
+        longitudinal_damping_time
+            Longitudinal damping time of the considered synchrotron segment,
+            in [turn].
+        natural_energy_spread
+            Natural energy spread of the considered synchrotron segment,
+            [dimensionless].
+        total_energy
+            Beam total reference energy, in [eV].
+        disable_quantum_excitation
+           Disables the quantum excitation kick.
+        """
+        damping_factor = 1.0 - 2.0 / longitudinal_damping_time
+        if disable_quantum_excitation:
+            beam_dE *= damping_factor
+            beam_dE -= energy_lost
+        else:
+            noise_scale = (
+                2.0
+                * natural_energy_spread
+                / float(np.sqrt(longitudinal_damping_time))
+                * total_energy
+            )
+            # Pre-combine the additive term in the noise buffer so that the
+            # final update over beam_dE is a single fused-multiply-add-like
+            # expression: beam_dE := damping_factor * beam_dE + noise_term.
+            # Legacy `np.random.standard_normal` is intentional: keeps
+            # `np.random.seed(...)` reproducibility on the Python reference
+            # backend.
+            noise_term = np.random.standard_normal(size=len(beam_dE))  # NOQA: NPY002
+            noise_term *= noise_scale
+            noise_term -= energy_lost
+            # One sweep on beam_dE: scale then add the prepared noise_term.
+            beam_dE *= damping_factor
+            beam_dE += noise_term
 
     @staticmethod
     def move_flagged_elements_to_end(
         flag: int,
-        flags: NumpyArray | CupyArray,  # also purged
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        ids: NumpyArray | CupyArray,
+        flags: NumpyArray,  # also purged
+        dt: NumpyArray,
+        dE: NumpyArray,
+        ids: NumpyArray,
     ):
         """
         Reorder entries where ``flags == flag`` to the array end.
@@ -466,3 +654,311 @@ class PythonSpecials(Specials):
             ids=ids,
         )
         return n_new
+
+    @staticmethod
+    def histogram_sparse(
+        x: NumpyArray,
+        out: NumpyArray,
+        first_left_cut: float,
+        left_cut_distance: float,
+        cut_width: float,
+        bins_per_profile: int,
+        n_active_profiles: int,
+        filling_pattern: NumpyArray,
+        bucket_index_to_memory_index: NumpyArray,
+    ) -> None:
+        """
+        Sparse histogram with strided memory layout (gaps between profiles).
+
+        Parameters
+        ----------
+        x
+            An array, e.g., the particle ``dt`` values.
+        out
+            Output histogram ``(n_filled_buckets * bins_per_profile)``.
+        first_left_cut
+            Start of the first histogram.
+        left_cut_distance
+            Distance between the start of each histogram.
+        cut_width
+            Distance between left and right edge of the histogram.
+        bins_per_profile
+            Number of bins per bucket.
+        n_active_profiles
+            Number of non-empty buckets.
+        filling_pattern
+            Filling pattern as a boolean array
+            where ``True`` means filled bucket.
+        bucket_index_to_memory_index
+            Maps bucket index to memory index.
+            For a ``filling_pattern = [1, 0, 0, 1]``
+            ``bucket_index_to_memory_index = [0, 0, 0, 8]`` with
+            ``bins_per_profile = 8``.
+            Use `_gen_array_bucket_index_to_memory_index` to generate this.
+        """
+        out[:] = 0
+        for bucket_i, active in enumerate(filling_pattern):
+            if not active:
+                continue
+            memory_i = bucket_index_to_memory_index[bucket_i]
+            sel = slice(
+                memory_i,
+                memory_i + bins_per_profile,
+            )
+            hist, _ = np.histogram(
+                x,
+                bins=bins_per_profile,
+                range=(
+                    first_left_cut + bucket_i * left_cut_distance,
+                    first_left_cut + bucket_i * left_cut_distance + cut_width,
+                ),
+            )
+            out[sel] = hist
+
+    @staticmethod
+    def wake_from_pole_residue(
+        # read
+        profile: NumpyArray,
+        profile_dts: NumpyArray,
+        poles: NumpyArray,
+        residues: NumpyArray,
+        is_counterrotating_beam: bool,
+        counterrotating_pole_signs: NumpyArray,
+        update_on_bin: NumpyArray,
+        factor: float,
+        # write
+        states: NumpyArray,
+        voltage: NumpyArray,
+        voltage_threaded: NumpyArray,
+    ) -> None:
+        """
+        Apply poles based on the `profile` to generate `voltage`.
+
+        Parameters
+        ----------
+        profile
+            Beam profile histogram.
+        profile_dts
+            Base for time step, connected to `update_on_bin`.
+        poles
+            Complex poles of an equivalent circuit model.
+        residues
+            Complex residues of an equivalent circuit model.
+        is_counterrotating_beam
+            If true, the current beam is counter-rotating.
+        counterrotating_pole_signs
+            Array per pole, -1 if the sign of the impedance is flipped
+            for a counter-rotating beam.
+        update_on_bin
+            Index when to trigger an update of dt. For speedup.
+            E.g. For profile no.: `0,0,0,1,1,1,1,2,2,2`
+            one needs `update_on_bin = [0,3,7]`.
+        factor
+            To convert `profile` to current per bin [A].
+        states
+            Complex state vector, initially ``(0 + 0j)``.
+        voltage
+            Output voltage, in [V].
+        voltage_threaded
+            Cached `voltage` array per thread. For speedup.
+        """
+        n_poles = len(poles)
+        two_factor = 2 * factor
+        n_bins = len(profile)
+
+        voltage[:] = 0
+        voltage_threaded[:, :] = 0
+
+        t_start = states[-1]
+
+        for pole_i in range(n_poles):
+            # `cr_pole_flip` is intentionally applied to BOTH the state
+            # injection and the output amplitude: for the counter-rotating
+            # beam's own wake the two factors cancel (flip**2 == 1); only
+            # contributions of the other beam, accumulated in the shared
+            # `states`, see a net sign flip.
+            cr_pole_flip = 1.0
+            if (
+                is_counterrotating_beam
+                and counterrotating_pole_signs[pole_i] == -1
+            ):
+                cr_pole_flip = -1.0
+
+            i_update = 0
+            # empty `update_on_bin` means "never update"; `decay` stays 0
+            update_on_bin_i = (
+                update_on_bin[0] if len(update_on_bin) > 0 else -1
+            )
+
+            pole = complex(poles[pole_i])
+            residue = complex(residues[pole_i])
+            state = complex(states[pole_i])
+
+            # A real pole has no implicit complex conjugate (vector-fitting
+            # convention): only a pole with imag != 0 stands in for an
+            # unstored conjugate partner and needs the doubled injection.
+            injection_factor = factor if pole.imag == 0 else two_factor
+
+            decay = 0.0 + 0j
+            for bin_i in range(n_bins):
+                profile_i_half = (
+                    cr_pole_flip * 0.5 * profile[bin_i] * injection_factor
+                )
+
+                if bin_i == update_on_bin_i:
+                    if bin_i == 0:
+                        t_jump = profile_dts[0] - t_start + 0j
+                    else:
+                        t_jump = (
+                            profile_dts[bin_i] - profile_dts[bin_i - 1] + 0j
+                        )
+                    state *= np.exp(pole * t_jump)
+                    dt = profile_dts[bin_i + 1] - profile_dts[bin_i]
+                    decay = np.exp(pole * dt)
+
+                    i_update += 1
+                    if i_update < len(update_on_bin):
+                        update_on_bin_i = update_on_bin[i_update]
+                else:
+                    state *= decay
+                state += profile_i_half
+                amp = float(np.real(residue * state))
+                voltage[bin_i] += cr_pole_flip * amp
+                state += profile_i_half
+            states[pole_i] = state
+
+        states[-1] = profile_dts[-1]
+
+    @staticmethod
+    def music_track(  # NOQA: D102 inherited from `Specials.music_track`
+        beam_dt: NumpyArray,
+        beam_dE: NumpyArray,
+        induced_voltage: NumpyArray,
+        parameter_array: NumpyArray,
+        alpha: float,
+        omega_bar: float,
+        const: float,
+        coeff1: float,
+        coeff2: float,
+        coeff3: float,
+        coeff4: float,
+        time_since_last_track: float,
+        multiturn: bool,
+    ) -> None:
+        if multiturn:
+            # Bridge the wake from the previous turn across the rev. gap.
+            time_difference_0 = (
+                beam_dt[0] + time_since_last_track - parameter_array[2]
+            )
+            exp_term = np.exp(-alpha * time_difference_0)
+            cos_term = np.cos(omega_bar * time_difference_0)
+            sin_term = np.sin(omega_bar * time_difference_0)
+            product_first = exp_term * (
+                (cos_term + coeff1 * sin_term) * parameter_array[0]
+                + coeff2 * sin_term * parameter_array[1]
+            )
+            product_second = exp_term * (
+                coeff3 * sin_term * parameter_array[0]
+                + (cos_term + coeff4 * sin_term) * parameter_array[1]
+            )
+        else:
+            # Turn 1: no previous-turn wake to bridge.
+            product_first = 0.0
+            product_second = 0.0
+
+        induced_voltage[0] = const * (0.5 + product_first)
+        beam_dE[0] += induced_voltage[0]
+
+        input_first, input_second = _music_recurrence(
+            beam_dt,
+            beam_dE,
+            induced_voltage,
+            product_first + 1.0,
+            product_second,
+            alpha,
+            omega_bar,
+            const,
+            coeff1,
+            coeff2,
+            coeff3,
+            coeff4,
+        )
+        parameter_array[0] = input_first
+        parameter_array[1] = input_second
+        parameter_array[2] = beam_dt[len(beam_dt) - 1]
+
+
+def _music_recurrence(
+    beam_dt: NumpyArray,
+    beam_dE: NumpyArray,
+    induced_voltage: NumpyArray,
+    input_first: float,
+    input_second: float,
+    alpha: float,
+    omega_bar: float,
+    const: float,
+    coeff1: float,
+    coeff2: float,
+    coeff3: float,
+    coeff4: float,
+) -> tuple[float, float]:
+    """
+    Run the MuSiC O(n) recurrence over the sorted macro-particles.
+
+    Updates ``beam_dE`` and ``induced_voltage`` in place (from index 1
+    onwards) and returns the carried state for the next turn.
+
+    Parameters
+    ----------
+    beam_dt
+        Macro-particle time coordinates [s], sorted ascending.
+    beam_dE
+        Macro-particle energy coordinates [eV]; updated in place.
+    induced_voltage
+        Output induced voltage [V]; written from index 1 onwards.
+    input_first
+        First component of the carried state at entry.
+    input_second
+        Second component of the carried state at entry.
+    alpha
+        Resonator damping ``omega_R / (2 Q)`` [rad/s].
+    omega_bar
+        Damped resonant angular frequency [rad/s].
+    const
+        MuSiC prefactor [V].
+    coeff1
+        Recurrence coefficient.
+    coeff2
+        Recurrence coefficient.
+    coeff3
+        Recurrence coefficient.
+    coeff4
+        Recurrence coefficient.
+
+    Returns
+    -------
+    input_first
+        First component of the carried state after the loop.
+    input_second
+        Second component of the carried state after the loop.
+    """
+    for i in range(len(beam_dt) - 1):
+        time_difference = beam_dt[i + 1] - beam_dt[i]
+        exp_term = np.exp(-alpha * time_difference)
+        cos_term = np.cos(omega_bar * time_difference)
+        sin_term = np.sin(omega_bar * time_difference)
+
+        product_first = exp_term * (
+            (cos_term + coeff1 * sin_term) * input_first
+            + coeff2 * sin_term * input_second
+        )
+        product_second = exp_term * (
+            coeff3 * sin_term * input_first
+            + (cos_term + coeff4 * sin_term) * input_second
+        )
+
+        induced_voltage[i + 1] = const * (0.5 + product_first)
+        beam_dE[i + 1] += induced_voltage[i + 1]
+        input_first = product_first + 1.0
+        input_second = product_second
+    return input_first, input_second
