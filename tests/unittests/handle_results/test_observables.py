@@ -20,14 +20,9 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
-from blond.core.backends.mpi_distributed.distributed_array import (
-    DistributedArray,
-)
 from blond.core.base import DynamicParameter
-from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.flags import BeamFlags
-from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
@@ -65,23 +60,14 @@ simulation.ring.circumference = 500
 simulation.turn_counter = DynamicParameter(None)
 simulation.turn_counter.value = 0
 simulation.current_t_rev = 123
-beam = Mock(BeamBaseClass)
-beam._dE = Mock(DistributedArray)
-beam._dt = Mock(DistributedArray)
-beam._flags = Mock(DistributedArray)
-beam.common_array_size = 128
-beam.reference = Mock(ReferenceCoordinates)
-beam.reference.time = 0.8
-beam.reference.beta = 0.9
-beam.reference.total_energy = 11
-beam._dt.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._dE.array_local = np.ones(beam.common_array_size, dtype=float)
-beam._flags.array_local = np.ones(beam.common_array_size, dtype=int)
-beam.read_partial_dt.return_value = beam._dt.array_local
-beam.read_partial_dE.return_value = beam._dE.array_local
-beam.read_partial_flags.return_value = beam._flags.array_local
-beam.dt_min = 1
-beam.dt_max = 2
+BEAM_COMMON_ARRAY_SIZE = 128
+beam = Beam(intensity=1, particle_type=proton)
+beam.setup_beam(
+    dt=np.ones(BEAM_COMMON_ARRAY_SIZE),
+    dE=np.append(np.ones(BEAM_COMMON_ARRAY_SIZE - 1), [2]),
+    reference_time=0.8,
+    reference_total_energy=11,
+)
 sep_helper = Mock(SymbolicSeparatrixHelper)
 dE_sep = np.ones(256)
 sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])
@@ -176,14 +162,12 @@ class TestObservables(BLonDTestCase):
             n_turns=100,
         )
 
-        assert len(self.observables._turns_array) == (
-            self.observables._n_turns
-        )
+        assert len(self.observables.turns_array) == (self.observables._n_turns)
         assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
+            np.where(np.diff(self.observables.turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array[:])), 1
+        assert np.mean(np.diff(self.observables.turns_array[:])), 1
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -247,14 +231,12 @@ class TestBeamObservation(BLonDTestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference.time = 0.8
-        # self.beam.reference.beta = 0.9
-        self.beam.reference.total_energy = 11
         self.beam.setup_beam(
-            dE=np.ones(common_array_size, dtype=float),
-            dt=np.ones(common_array_size, dtype=float),
             reference_time=0.8,
             reference_total_energy=11,
+            dt=np.ones(common_array_size),
+            dE=np.ones(common_array_size),
+            flags=np.ones(common_array_size),
         )
 
     def test___init__(self) -> None:
@@ -411,16 +393,17 @@ class TestBeamObservation(BLonDTestCase):
                 ),
             )
             plt.plot(phase_observation.phases)
-            fig = plt.figure()
-            for i in range(bunch_observation.dts.shape[0]):
-                plt.clf()
-                sel = ~np.isnan(bunch_observation.dts[i, :])
-                plt.hist2d(
-                    bunch_observation.dts[i, sel],
-                    bunch_observation.dEs[i, sel],
-                    bins=256,
-                    # range=[[0, 2.5e-9], [-4e8, 4e8]],
-                )
+            if DEV_DRAW:  # one plot per observed turn, only for inspection
+                plt.figure()
+                for i in range(bunch_observation.dts.shape[0]):
+                    plt.clf()
+                    sel = ~np.isnan(bunch_observation.dts[i, :])
+                    plt.hist2d(
+                        bunch_observation.dts[i, sel],
+                        bunch_observation.dEs[i, sel],
+                        bins=256,
+                        # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                    )
             obs_beam_hist2d.plot(
                 result_idx=-1
             )  # tests that the plots are functional
@@ -488,21 +471,9 @@ class TestBunchStatistics(BLonDTestCase):
             particle_type=electron,
         )
         common_array_size = 128
-        self.beam.reference._time = 0.8
-        self.beam.reference._beta = 0.9
-        self.beam.reference._total_energy = 11
-        self.beam._dt = DistributedArray(
-            np.ones(common_array_size, dtype=float)
-        )
-        self.beam._dE = DistributedArray(
-            np.ones(common_array_size, dtype=float)
-        )
-        self.beam._flags = DistributedArray(
-            np.ones(common_array_size, dtype=int)
-        )
         self.beam.setup_beam(
-            dE=np.ones(common_array_size, dtype=float),
-            dt=np.ones(common_array_size, dtype=float),
+            dE=np.ones(common_array_size),
+            dt=np.ones(common_array_size),
             reference_time=0.8,
             reference_total_energy=11,
         )
@@ -989,7 +960,8 @@ class TestStaticMultiProfileObservation(BLonDTestCase):
 
     def test_on_run_simulation_each_turn_i_2(self) -> None:
         """With ``each_turn_i=2`` every one of the ``n_turns / 2``
-        observations must fit into the recorder."""
+        observations must fit into the recorder.
+        """
         obs = StaticMultiProfileObservation(
             each_turn_i=2,
             profiles=[self.profile, self.profile_2],
@@ -1129,7 +1101,8 @@ class TestDriftObservation(BLonDTestCase):
 
     def test_update_drift_exact(self):
         """``DriftExact`` is a ``DriftSimple``; observing it after a track
-        must record its ``eta_0``."""
+        must record its ``eta_0``.
+        """
         drift = DriftExact.headless(
             orbit_length=100,
             section_index=0,

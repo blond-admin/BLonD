@@ -1,12 +1,8 @@
 import os
-import unittest
 
 import numpy as np
 
-from blond import Beam, proton
-from blond.core.backends.mpi_distributed.distributed_array import (
-    DistributedArray,
-)
+from blond import Beam, copy_to_cpu, proton
 from blond.specifics.muon_collider.beam_preparation import (
     copy_beam_data_from_other_beam,
     load_beam_coordinates_counterrot_from_file,
@@ -58,12 +54,10 @@ class TestBeamPreparationMuCol(BLonDTestCase):
         beam = Beam(
             intensity=1, particle_type=proton, is_counter_rotating=True
         )
-
-        filename = "testfile.npz"
-        beam._dt = DistributedArray(np.linspace(-50e-9, 50e-9, num=100))
-        beam._dE = DistributedArray(np.linspace(-50e9, 50e9, num=100))
-        beam._flags = DistributedArray(np.ones(100, dtype=np.int32))
-        beam._ids = DistributedArray(np.arange(100))
+        beam.setup_beam(
+            dt=np.linspace(-50e-9, 50e-9, num=100),
+            dE=np.linspace(-50e9, 50e9, num=100),
+        )
 
         beam_CR = Beam(
             intensity=2, particle_type=proton, is_counter_rotating=False
@@ -71,11 +65,22 @@ class TestBeamPreparationMuCol(BLonDTestCase):
 
         copy_beam_data_from_other_beam(beam_CR, beam)
 
-        for name in ("_dt", "_dE", "_flags", "_ids"):
-            np.testing.assert_allclose(
-                getattr(beam, name).array_local,
-                getattr(beam_CR, name).array_local,
-            )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.dE.array_local),
+            copy_to_cpu(beam_CR.dE.array_local),
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.flags.array_local),
+            copy_to_cpu(beam_CR.flags.array_local),
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.ids.array_local),
+            copy_to_cpu(beam_CR.ids.array_local),
+        )
+        np.testing.assert_allclose(
+            copy_to_cpu(beam.dt.array_local),
+            copy_to_cpu(beam_CR.dt.array_local),
+        )
         self.assertEqual(beam.intensity, beam_CR.intensity)
 
         beam._is_distributed = True

@@ -33,10 +33,10 @@ import numpy as np
 from numba import boolean, complex128, int32, njit, prange, void
 
 from blond.core.backends.backend import INDEX_DTYPE, Specials
+from blond.core.backends.flags import BeamFlags
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
-from blond.core.beam.flags import BeamFlags
 
 from .fastmath import fast_sin
 
@@ -319,7 +319,7 @@ def _kick_interpolated_sparse_nb(  # NOQA PLR0915 # pragma: no cover
     first_left_cut: float,
     left_cut_distance: float,
     cut_width: float,
-    bins_per_profile: int,
+    bins_per_profile: np.int32,
     filling_pattern: NumpyArray,
     bucket_index_to_memory_index: NumpyArray,
 ) -> None:

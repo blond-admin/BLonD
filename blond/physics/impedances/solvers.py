@@ -27,6 +27,7 @@ from copy import copy
 from typing import TYPE_CHECKING
 
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
@@ -42,7 +43,10 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.impedances.sources import (
+    InductiveImpedance,
+    Resonators,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -80,11 +84,23 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             `Simulation` context manager.
         parent_wakefield
             Wakefield that this solver affiliated to.
+
+        Raises
+        ------
+        TypeError
+            If a source is no `InductiveImpedance`.
         """
         self._parent_wakefield = parent_wakefield
-        assert all(
-            isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
-        )
+        others = [
+            type(source).__name__
+            for source in parent_wakefield.sources
+            if not isinstance(source, InductiveImpedance)
+        ]
+        if others:
+            raise TypeError(
+                "`InductiveImpedanceSolver` only accepts `InductiveImpedance`"
+                f" sources, but got {others}."
+            )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = float(sum(o.Z_over_n for o in impedances))
         self._turn_counter = simulation.turn_counter
@@ -342,8 +358,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 self._freq_y += backend.array(freq_y, dtype=backend.complex)
                 # potentially on gpu
             else:
-                raise Exception(
-                    "Can only accept impedance that support `FreqDomain`"
+                raise TypeError(
+                    "Can only accept impedance that support `FreqDomain`,"
+                    f" but got {type(source).__name__}."
                 )
         # Factor relating Fourier transform and DFT
         self._freq_y /= self._parent_wakefield.profile.hist_step
@@ -423,6 +440,30 @@ class PeriodicFreqSolver(WakeFieldSolver):
         return self._induced_voltage_buffer[key][
             : self._parent_wakefield.profile.n_bins
         ]
+
+    def _plot_debug_internal_state(self):  # pragma: no cover
+        plt.subplot(2, 1, 1)
+        plt.ylabel("Impedance")
+        plt.xlabel("Frequency")
+        plt.plot(self._freq_x, self._freq_y, label="Machine")
+        plt.plot(
+            self._freq_x,
+            self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+            label="Beam",
+        )
+        plt.legend()
+        plt.subplot(2, 1, 2)
+
+        key = self._n_time
+
+        plt.plot(self._induced_voltage_buffer[key])
+        plt.plot(
+            self._induced_voltage_buffer[key][
+                : self._parent_wakefield.profile.n_bins
+            ]
+        )
+        plt.ylabel("Voltage")
+        plt.xlabel("Time")
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
@@ -556,8 +597,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
                     dtype=backend.complex,
                 )
             else:
-                raise Exception(
-                    "Can only accept impedance that support `TimeDomain`"
+                raise TypeError(
+                    "Can only accept impedance that support `TimeDomain`,"
+                    f" but got {type(source).__name__}."
                 )
 
         self._impedance_from_wake_y_needs_update = False
@@ -1119,7 +1161,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what what we expect
             if not hasattr(source, "get_wake"):
-                raise AttributeError(
+                raise TypeError(
                     f"The {source=} should implement `TimeDomain.get_wake`."
                 )
 

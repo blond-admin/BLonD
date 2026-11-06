@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, backend
+from blond.core.backends.flags import BeamFlags
 from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
@@ -28,7 +29,6 @@ from blond.core.backends.mpi_distributed.helpers import (
     mpi_local_size,
 )
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.generals.cupy_.no_cupy_import import AllowPlotting
 from blond.generals.plotting_ import DEFAULT_CMAP

@@ -6,4 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Beam physics classes for interfacing XSuite."""
+"""
+Bin-averaged wakes of the time-domain wakefield sources.
+
+A wake averaged with the quadratic B-spline of one bin width, instead of
+sampled at the bin centres;
+:mod:`~blond.physics.impedances.wake_per_bin.bin_average` holds that average
+in closed form.
+"""

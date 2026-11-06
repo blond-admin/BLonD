@@ -75,9 +75,12 @@ profile2 = StaticProfile(
 )
 
 
-R_over_Q = 315.2
+# One 6-cell 800 MHz cavity of the FCC-ee booster (SRF'25, FRA05,
+# Table 1). The real booster has 112 such cavities (448 at ttbar).
+# This bare open-loop resonator ignores detuning and LLRF feedback.
+R_over_Q = 315.2  # [Ohm], circuit convention (half the linac R/Q)
 Q_factor = Q_loaded = 1e7
-R_shunt = R_over_Q / Q_loaded
+R_shunt = R_over_Q * Q_loaded  # [Ohm]
 f_res = 1 / t_rf
 
 wakefield = WakeField(

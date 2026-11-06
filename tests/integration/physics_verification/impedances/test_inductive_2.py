@@ -64,7 +64,8 @@ def _calc_induced_voltage(solver, profile_y) -> np.ndarray:
     )
     ring = Ring(circumference=circumference)
     ring.add_elements([profile, wakefield])
-    Simulation(
+    # kept alive: elements hold their simulation only weakly
+    simulation = Simulation(  # noqa: F841
         ring=ring,
         magnetic_cycle=ConstantMagneticCycle(
             reference_particle=beam.particle_type,

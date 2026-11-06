@@ -25,6 +25,7 @@ Authors: Simon Lauber
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterable
 from pathlib import Path
 
 from blond.testing.backend_testing import BLonDTestCase
@@ -101,20 +102,34 @@ def _is_eagerly_formatted(message: ast.expr) -> bool:
     )
 
 
-def _find_offenders() -> list[str]:
+def _find_offenders(paths: Iterable[Path] | None = None) -> list[str]:
     """
     Collect every eagerly formatted logging call under ``blond/``.
+
+    Parameters
+    ----------
+    paths
+        Files to scan. Defaults to every ``*.py`` file under ``blond/``.
 
     Returns
     -------
     offenders
         ``file:line`` locations, one per offending logging call.
     """
+    if paths is None:
+        paths = sorted(_BLOND_ROOT.rglob("*.py"))
     offenders: list[str] = []
-    for path in sorted(_BLOND_ROOT.rglob("*.py")):
+    for path in paths:
         if any(part in _EXCLUDED_PARTS for part in path.parts):
             continue
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        try:
+            source = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            # A transient file deleted by another pytest-xdist worker
+            # after globbing, e.g. the ``.py`` that the notebook
+            # integration tests generate inside ``blond/examples``.
+            continue
+        tree = ast.parse(source, filename=str(path))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not _is_logger_call(node):
                 continue
@@ -143,3 +158,12 @@ class TestLoggingIsLazy(BLonDTestCase):
                 + "\n  ".join(offenders)
             ),
         )
+
+    def test_file_vanishing_during_scan_is_skipped(self):
+        """A file deleted between globbing and reading is not an error.
+
+        Under pytest-xdist another worker may delete a transient file
+        (e.g. the ``.py`` generated from a notebook) mid-scan.
+        """
+        vanished = _BLOND_ROOT / "does_not_exist_anymore.py"
+        self.assertEqual([], _find_offenders([vanished]))

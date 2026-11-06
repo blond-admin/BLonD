@@ -23,6 +23,7 @@ from blond.core.base import (
     AltersReference,
     BeamPhysicsRelevant,
     DynamicParameter,
+    HasOrbitLength,
     HasSymbolicHamiltonian,
     Schedulable,
 )
@@ -37,7 +38,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
+class DriftBaseClass(
+    BeamPhysicsRelevant, AltersReference, HasOrbitLength, ABC
+):
     r"""
     Base class of a drift.
 
@@ -93,14 +96,14 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         orbit_length: float,
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ) -> None:
         super().__init__(
             section_index=section_index,
+            orbit_length=orbit_length,
             **kwargs,  # for MRO of fused elements
         )
 
-        self.orbit_length = orbit_length
         self._radiation_integrals = radiation_integrals
 
     @property
@@ -116,7 +119,7 @@ class DriftBaseClass(BeamPhysicsRelevant, AltersReference, ABC):
         return self._radiation_integrals
 
     @abc.abstractmethod  # pragma: no cover
-    def eta_0(self, gamma: float) -> backend.float:
+    def eta_0(self, gamma: float) -> float:
         """
         Drift in arc parameter eta for one turn in synchrotron.
 
@@ -186,7 +189,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
         momentum_compaction_factor: float | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ) -> None:
         """
         Simple, fully linearised longitudinal drift (fastest solver).
@@ -224,8 +227,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
             radiation_integrals=radiation_integrals,
             **kwargs,  # for MRO of fused elements
         )
-
-        self._turn_counter: DynamicParameter | None = None
 
         self._register_schedulable_variables("momentum_compaction_factor")
 
@@ -327,14 +328,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
         """
         super()._track(beam=beam)
 
-        if self.schedule_active:
-            assert self._turn_counter is not None, (
-                "Turn counter must be set with active scheduling."
-            )
-            self.apply_schedules(
-                turn_i=self._turn_counter.value,
-                reference_time=beam.reference.time,
-            )
+        self.apply_active_schedules(reference_time=float(beam.reference.time))
 
         dt = self.track_reference(beam.reference)
         gamma = beam.reference.gamma
@@ -391,14 +385,15 @@ class DriftSimple(DriftBaseClass, Schedulable, HasSymbolicHamiltonian):
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
-    def alpha_0(self) -> float:
+    def alpha_0(self) -> float | None:
         """
         Momentum compaction factor.
 
         Returns
         -------
         alpha_0
-            Momentum compaction factor.
+            Momentum compaction factor, ``None`` while it is neither set nor
+            applied by a schedule.
 
         See Also
         --------
@@ -514,7 +509,7 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         section_index: int = 0,
         momentum_compaction_factor: float | None = None,
         higher_order_alpha: NumpyArray | None = None,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             orbit_length=orbit_length,
@@ -668,12 +663,10 @@ class DriftExact(DriftSimple, HasSymbolicHamiltonian):
         beam
             Beam.
         """
-        # Apply schedules if active
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._turn_counter.value,
-                reference_time=beam.reference.time,
-            )
+        # The bound turn counter (not ``self._simulation``) drives the
+        # schedules, so the exact drift also works outside a Simulation
+        # (e.g. wrapped for an xsuite-owned loop).
+        self.apply_active_schedules(reference_time=float(beam.reference.time))
 
         # Advance reference
         dt = self.track_reference(beam.reference)
@@ -749,7 +742,7 @@ class _DriftLikeLineSegment(DriftSimple):
         section_index: int = 0,
         radiation_integrals: NumpyArray | None = None,
         momentum_compaction_factor: float | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ) -> None:
         super().__init__(
             orbit_length=orbit_length,
@@ -811,14 +804,10 @@ class _DriftLikeLineSegment(DriftSimple):
         beam
             Beam class to interact with this element.
         """
-        if self.schedule_active:
-            assert self._turn_counter is not None, (
-                "Turn counter must be set with active scheduling."
-            )
-            self.apply_schedules(
-                turn_i=self._turn_counter.value,
-                reference_time=beam.reference.time,
-            )
+        # The bound turn counter (not ``self._simulation``) drives the
+        # schedules, so this drift also works outside a Simulation (e.g.
+        # cross-checked against an xsuite-owned loop).
+        self.apply_active_schedules(reference_time=float(beam.reference.time))
 
         dt = self.track_reference(beam.reference)
         gamma = beam.reference.gamma

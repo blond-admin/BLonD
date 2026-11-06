@@ -1,4 +1,6 @@
+import gc
 import unittest
+import weakref
 from unittest.mock import Mock
 
 import numpy as np
@@ -239,6 +241,24 @@ class TestFunctions(BLonDTestCase):
             logs.output[0],
         )
 
+    def test_find_instances_leaves_no_reference_cycle(self):
+        # Found instances must be freed by reference counting alone once the
+        # caller drops them. A reference cycle inside the search would keep
+        # them (e.g. a beam with GBs of arrays) alive until a full cyclic
+        # garbage collection, which loops creating simulations rarely
+        # trigger.
+        class Target:
+            def to_be_found(self):
+                pass
+
+        target = Target()
+        target_ref = weakref.ref(target)
+        gc.disable()
+        self.addCleanup(gc.enable)
+        find_instances_with_method(root=target, method_name="to_be_found")
+        del target
+        self.assertIsNone(target_ref())
+
     @unittest.skip
     def test_float_or_array_typesafe(self):
         # TODO: implement test for `float_or_array_typesafe`
@@ -288,10 +308,7 @@ class TestNestedMocksHashingBug(BLonDTestCase):
         beam = Beam(
             intensity=1, particle_type=mu_plus, is_counter_rotating=False
         )
-        beam._dt = DistributedArray(np.zeros(5))
-        beam._dE = DistributedArray(np.zeros(5))
-        beam._ids = DistributedArray(np.arange(5))
-        beam._flags = DistributedArray(np.zeros(5))
+        beam.setup_beam(dt=np.zeros(5), dE=np.zeros(5))
 
         cnst_cycle = ConstantMagneticCycle(
             reference_particle=mu_plus, value=63.0e9, in_unit="momentum"
