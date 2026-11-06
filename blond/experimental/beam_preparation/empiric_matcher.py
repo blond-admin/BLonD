@@ -28,6 +28,7 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
 )
+from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -76,6 +77,7 @@ class EmpiricMatcher(MatchingRoutine):
         maxiter_hamiltonian=20,
         atol_hamiltonian=1e-4,
         animate=False,
+        animate_pause_time: float = 0.1,
         hamiltonian_to_density_function: Callable[
             [NumpyArray], NumpyArray
         ] = normalize_as_density,
@@ -127,6 +129,8 @@ class EmpiricMatcher(MatchingRoutine):
             Absolute tolerance for Hamiltonian convergence.
         animate
             If True, display animation of matching process.
+        animate_pause_time
+            Time to pause after each animation frame, in [s].
         hamiltonian_to_density_function
             A function that converts from the 2D Hamiltonian to the 2D density.
             The 2D density is used to create the beam dt and dE coordinates.
@@ -196,6 +200,7 @@ class EmpiricMatcher(MatchingRoutine):
         self._atol_hamiltonian = atol_hamiltonian
 
         self.animate = animate
+        self.animate_pause_time = animate_pause_time
 
     def prepare_beam(
         self,
@@ -325,9 +330,10 @@ class EmpiricMatcher(MatchingRoutine):
                     users_beam._dt,
                     users_beam._dE,
                     bins=len(self._grid_base_dt),
+                    cmap=DEFAULT_CMAP,
                 )
                 plt.draw()
-                plt.pause(0.1)
+                plt.pause(self.animate_pause_time)
                 plt.clf()
 
         simulation.intensity_effect_manager.set_wakefields(active=True)

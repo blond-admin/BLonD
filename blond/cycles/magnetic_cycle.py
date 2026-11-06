@@ -26,7 +26,7 @@ from __future__ import annotations
 import warnings
 from abc import abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
@@ -92,7 +92,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -126,7 +126,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -154,7 +154,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         *,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Invalidate the property cache at the start of each simulation run.
@@ -380,12 +380,12 @@ class ConstantMagneticCycle(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._total_energy_cache: dict[int, float] | None = {}
+        self._total_energy_cache: dict[int, float] = {}
 
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -556,7 +556,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -597,7 +597,15 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 else None
             ),
         )
-        assert n_rf_stations > 0
+        if n_rf_stations < 1:
+            raise ValueError(
+                "`MagneticCyclePerTurn` requires at least one RF station in "
+                "the ring to apply the per-turn energy increment, but got "
+                f"{n_rf_stations=}. If your only cavity lives inside a "
+                "wrapped external element (e.g. `WrapXsuite4Blond`, which is "
+                "not an RF station by type), add a BLonD-side RF station to "
+                "drive the ramp, or use a constant magnetic cycle."
+            )
         shape = (n_rf_stations, n_turns_max)
         _magnetic_rigidity = np.empty(shape)
         stair_like = np.linspace(
@@ -810,7 +818,7 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -1079,7 +1087,7 @@ class MagneticCycleByTime(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called.
@@ -1214,10 +1222,12 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-        interpolator: Akima1DInterpolator
-        | PchipInterpolator
-        | interp1d
-        | AnyInterpolator = interp1d,
+        interpolator: type[
+            Akima1DInterpolator
+            | PchipInterpolator
+            | interp1d
+            | AnyInterpolator
+        ] = interp1d,
     ) -> MagneticCycleByTime:
         """
         Initialize object without simulation context.
@@ -1263,6 +1273,26 @@ class MagneticCycleByTime(MagneticCycleBase):
         )
         ret.configure()
         return ret
+
+
+@overload
+def _to_magnetic_rigidity(
+    data: int | float,
+    mass: float,
+    charge: float,
+    convert_from: SynchronousDataTypes = "momentum",
+    bending_radius: float | None = None,
+) -> float: ...
+
+
+@overload
+def _to_magnetic_rigidity(
+    data: NumpyArray,
+    mass: float,
+    charge: float,
+    convert_from: SynchronousDataTypes = "momentum",
+    bending_radius: float | None = None,
+) -> NumpyArray: ...
 
 
 def _to_magnetic_rigidity(
