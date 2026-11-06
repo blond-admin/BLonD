@@ -21,7 +21,16 @@ fi
 rm -f modules/*.rst
 rm -rf _build/*
 
-cp -r ../blond/examples/* ./examples/ # copy examples into the `docs` scope
+# Copy the examples into the `docs` scope. The trap removes the copy again
+# on every exit, also when a failing command aborts the build, so no stale
+# duplicate notebooks are left in docs/examples/.
+remove_copied_examples() {
+    rm -rf ./examples/
+    mkdir "examples"
+    touch ./examples/.gitkeep
+}
+trap remove_copied_examples EXIT
+cp -r ../blond/examples/* ./examples/
 
 
 shopt -s globstar nullglob
@@ -68,8 +77,3 @@ EOF
 done
 
 sphinx-build -b html . ./_build/html -W
-
-
-rm -rf ./examples/ # remove the previously copied examples
-mkdir "examples"
-touch ./examples/.gitkeep
