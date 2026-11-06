@@ -27,6 +27,7 @@ from copy import copy
 from typing import TYPE_CHECKING
 
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
@@ -42,7 +43,10 @@ from blond.physics.impedances.base import (
     WakeField,
     WakeFieldSolver,
 )
-from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.impedances.sources import (
+    InductiveImpedance,
+    Resonators,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -436,6 +440,30 @@ class PeriodicFreqSolver(WakeFieldSolver):
         return self._induced_voltage_buffer[key][
             : self._parent_wakefield.profile.n_bins
         ]
+
+    def _plot_debug_internal_state(self):  # pragma: no cover
+        plt.subplot(2, 1, 1)
+        plt.ylabel("Impedance")
+        plt.xlabel("Frequency")
+        plt.plot(self._freq_x, self._freq_y, label="Machine")
+        plt.plot(
+            self._freq_x,
+            self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+            label="Beam",
+        )
+        plt.legend()
+        plt.subplot(2, 1, 2)
+
+        key = self._n_time
+
+        plt.plot(self._induced_voltage_buffer[key])
+        plt.plot(
+            self._induced_voltage_buffer[key][
+                : self._parent_wakefield.profile.n_bins
+            ]
+        )
+        plt.ylabel("Voltage")
+        plt.xlabel("Time")
 
 
 class TimeDomainFftSolver(WakeFieldSolver):

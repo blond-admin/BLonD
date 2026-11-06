@@ -103,7 +103,7 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self,
         section_index: int,
         name: str | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         super().__init__(
             section_index=section_index,
@@ -292,7 +292,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
         main_harmonic_idx: int = 0,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         assert n_rf > 0, f"{n_rf=}"
 
@@ -465,7 +465,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -488,7 +488,7 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         *,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Update design RF frequencies and phases from the beam reference.
@@ -589,7 +589,9 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+    def get_main_harmonic_cavity_feedback(
+        self,
+    ) -> LocalFeedback | LocalFeedbackExp | None:
         """
         Return the LocalFeedback acting on the main harmonic.
 
@@ -1170,13 +1172,14 @@ class SingleHarmonicRFStation(
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
+        | LocalFeedbackExp
+        | list[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         if voltage is not None:
             assert voltage >= 0, f"{voltage=}"
@@ -1296,7 +1299,9 @@ class SingleHarmonicRFStation(
         """
         return self.omega_rf_design
 
-    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+    def get_main_harmonic_cavity_feedback(
+        self,
+    ) -> LocalFeedback | LocalFeedbackExp | None:
         """
         Return the LocalFeedback acting on the main harmonic.
 
@@ -1683,13 +1688,14 @@ class MultiHarmonicRFStation(
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
+        | LocalFeedbackExp
+        | list[LocalFeedback | LocalFeedbackExp | None]
         | None = None,
         beam_feedback: BeamFeedbackBase | None = None,
         name: str | None = None,
         delayed_kick: PooledInterpolationKick | None = None,
         delayed_kick_time_axis: NumpyArray | CupyArray | None = None,
-        **kwargs: dict[str, Any],  # for MRO of fused elements
+        **kwargs: Any,  # for MRO of fused elements
     ):
         if voltage is not None:
             assert np.all(voltage >= 0), f"{voltage=}"
@@ -1837,7 +1843,9 @@ class MultiHarmonicRFStation(
         """
         return self.omega_rf_design[self.main_harmonic_idx]
 
-    def get_main_harmonic_cavity_feedback(self) -> LocalFeedback:
+    def get_main_harmonic_cavity_feedback(
+        self,
+    ) -> LocalFeedback | LocalFeedbackExp | None:
         """
         Return the LocalFeedback acting on the main harmonic.
 

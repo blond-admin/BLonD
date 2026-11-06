@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.backends.mpi_distributed.distributed_array import (
@@ -342,7 +343,7 @@ class BeamBaseClass(Preparable, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -520,8 +521,16 @@ class BeamBaseClass(Preparable, ABC):
         return self._is_counter_rotating
 
     @abstractmethod  # pragma: no cover
-    def plot_hist2d(self) -> None:
-        """Plot 2D histogram of beam coordinates."""
+    def plot_hist2d(self) -> QuadMesh | None:
+        """
+        Plot 2D histogram of beam coordinates.
+
+        Returns
+        -------
+        image
+            `matplotlib.collections.QuadMesh` object, if the
+            implementation returns one.
+        """
         pass
 
     @property
