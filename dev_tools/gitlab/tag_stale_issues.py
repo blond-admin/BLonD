@@ -1,3 +1,5 @@
+"""Inspects all open work items on Gitlab and tags the ones, which haven't seen any updates in more than 90 days."""
+
 import os
 from datetime import datetime, timedelta
 
@@ -16,16 +18,18 @@ headers = {
     "PRIVATE-TOKEN": f"{TOKEN}",
 }
 
+DRAFT = True  # disables writing --> set false before trying to tag
+
 
 # Get all open issues from the repository
-def get_issues() -> list[dict]:
-    page = 0
+def _get_issues() -> list[dict]:
+    page = 1  # Gitlab numbering starts at 1
     issues = []
     while True:
         issues_url = f"{GITLAB_URL}/projects/{OWNER}%2F{REPO}/issues?state=opened&page={page}&per_page=100"
         response = requests.get(issues_url, headers=headers)
 
-        if response.status_code != 200:
+        if response.status_code != 200:  # noqa: PLR2004
             raise ValueError(f"{response.status_code=}")
         if not response.json():
             break
@@ -35,69 +39,85 @@ def get_issues() -> list[dict]:
 
 
 # Get the current date minus three months
-def get_datetime_three_months_ago():
+def _get_datetime_three_months_ago():
     return datetime.now() - timedelta(days=90)
 
 
-# Add the "stale" label to the issue
-def add_stale_label(issue_number):
+# Add the "Stale" label to the issue
+def _add_stale_label(issue_number):
     url = f"{GITLAB_URL}/projects/{OWNER}%2F{REPO}/issues/{issue_number}"
 
-    response = requests.put(
-        url,
-        headers=headers,
-        data={"labels": "Stale"},  # comma-separated string
-    )
-
-    if response.status_code == 200:
-        print(f"Label 'stale' added to issue #{issue_number}")
-    else:
-        print(
-            f"Failed to add label to issue #{issue_number} with "
-            f"{response.status_code=}"
+    if not DRAFT:
+        response = requests.put(
+            url,
+            headers=headers,
+            data={"add_labels": "Stale"},  # comma-separated string
         )
+
+        if response.status_code == 200:  # noqa: PLR2004
+            print(f"Label 'Stale' added to issue #{issue_number}")
+        else:
+            print(
+                f"Failed to add label to issue #{issue_number} with "
+                f"{response.status_code=}"
+            )
+    else:
+        print(f"Would label 'Stale' added to issue #{issue_number}")
 
 
 # Post a comment to the issue creator
-def post_comment(issue_number, creator_login):
-    comment_url = f"{GITLAB_URL}/projects/{OWNER}%2F{REPO}/issues/{issue_number}/comments"
+def _post_comment(issue_number, creator_login):
+    comment_url = (
+        f"{GITLAB_URL}/projects/{OWNER}%2F{REPO}/issues/{issue_number}/notes"
+    )
     comment_body = (
-        f"Hello @{creator_login},\n\n"
-        "This issue has not been updated in the last 3 months. Please provide an update on the status of this issue. "
-        "If no update is provided within 3 months, we may have to close this issue.\n\n"
-        "Thank you!"
+        f"Hi @{creator_login},\n\n"
+        "This issue hasn't seen any activity in the past 3 months, so it was automatically tagged. "
+        "Is this work item still relevant, or can it be closed?\n\n"
+        "Thanks for taking the time to provide an update!"
     )
-    response = requests.post(
-        comment_url, headers=headers, json={"body": comment_body}
-    )
-    if response.status_code == 201:
-        print(f"Comment posted on issue #{issue_number}")
+    if not DRAFT:
+        response = requests.post(
+            comment_url, headers=headers, json={"body": comment_body}
+        )
+        if response.status_code == 201:  # noqa: PLR2004
+            print(f"Comment posted on issue #{issue_number}")
+        else:
+            print(f"Failed to post comment on issue #{issue_number}")
     else:
-        print(f"Failed to post comment on issue #{issue_number}")
+        print(f"Would post comment\n{comment_body} \non issue #{issue_number}")
 
 
 # Main function to process issues
-def process_issues():
-    issues = get_issues()
-    three_months_ago = get_datetime_three_months_ago()
+def _process_issues():
+    issues = _get_issues()
+    three_months_ago = _get_datetime_three_months_ago()
+
+    tagged = 0
 
     for issue in tqdm(issues):
         # Skip issues that are closed
         if issue["state"] == "closed":
             continue
 
+        # Skip issues that were already marked as stale
+        if "Stale" in issue["labels"]:
+            continue
         # Check if the issue's last update was older than 3 months
         updated_at = datetime.strptime(
             issue["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ"
         )
         if updated_at < three_months_ago:
+            tagged += 1
             # Add "stale" label
-            add_stale_label(issue["iid"])
+            _add_stale_label(issue["iid"])
 
             # Post a comment to the issue creator
             creator_login = issue["author"]["username"]
-            post_comment(issue["iid"], creator_login)
+            _post_comment(issue["iid"], creator_login)
+
+    print(f"Would've tagged / tagged  {tagged} issues with stale labels")
 
 
 if __name__ == "__main__":
-    process_issues()
+    _process_issues()
