@@ -19,6 +19,7 @@ headers = {
 }
 
 DRAFT = True  # disables writing --> set false before trying to tag
+NON_UPDATED_DAYS_AFTER_WHICH_TAGGED = 90
 
 
 # Get all open issues from the repository
@@ -40,7 +41,7 @@ def _get_issues() -> list[dict]:
 
 # Get the current date minus three months
 def _get_datetime_three_months_ago():
-    return datetime.now() - timedelta(days=90)
+    return datetime.now() - timedelta(days=NON_UPDATED_DAYS_AFTER_WHICH_TAGGED)
 
 
 # Add the "Stale" label to the issue
