@@ -60,7 +60,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         SingleHarmonicRFStation,
     )
