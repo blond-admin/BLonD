@@ -1,7 +1,6 @@
-import importlib
-import os.path
 import unittest
 
+import matplotlib
 import pytest
 
 from blond.core.backends.backend import (
@@ -9,52 +8,24 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
-from blond.examples import notebooks
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.notebooks import ipynb_to_py
-
-NOTEBOOK_DIR = os.path.dirname(notebooks.__file__)
-import matplotlib
 
 matplotlib.use("agg")
 
 
 class TestGettingStarted(BLonDTestCase):
-    @classmethod
-    def setUpClass(cls):
-        # the notebook is converted to a python file
-        # so that debugging is easily possible
-        ipynb_to_py(
-            os.path.join(
-                NOTEBOOK_DIR,
-                "getting_started.ipynb",
-            ),
-            os.path.join(
-                NOTEBOOK_DIR,
-                "getting_started.py",
-            ),
-        )
+    def run_notebook(self):
+        from blond.examples.notebooks import getting_started
 
-    @classmethod
-    def tearDownClass(cls):
-        os.remove(
-            os.path.join(
-                NOTEBOOK_DIR,
-                "getting_started.py",
-            )
-        )
+        getting_started.app.run()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         self.skipTest("Too slow.")
-
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
-        # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import getting_started  # NOQA
-
-        importlib.reload(getting_started)  # make sure the script is executed
+        self.run_notebook()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -66,7 +37,8 @@ class TestGettingStarted(BLonDTestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
 
-        # this file is only created by `setUpClass` and deleted by `tearDownClass`tearDownClass`
-        from blond.examples.notebooks import getting_started  # NOQA
+        self.run_notebook()
 
-        importlib.reload(getting_started)  # make sure the script is executed
+
+if __name__ == "__main__":
+    unittest.main()
