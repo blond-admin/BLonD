@@ -93,7 +93,7 @@ def _process_issues():
     issues = _get_issues()
     three_months_ago = _get_datetime_three_months_ago()
 
-    tagged = 0
+    num_tagged = 0
 
     for issue in tqdm(issues):
         # Skip issues that are closed
@@ -108,15 +108,15 @@ def _process_issues():
             issue["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ"
         )
         if updated_at < three_months_ago:
-            tagged += 1
+            num_tagged += 1
             # Add "stale" label
             _add_stale_label(issue["iid"])
 
             # Post a comment to the issue creator
             creator_login = issue["author"]["username"]
             _post_comment(issue["iid"], creator_login)
-
-    print(f"Would've tagged / tagged  {tagged} issues with stale labels")
+    tagstring = "Would've tagged" if DRAFT else "Tagged"
+    print(f"{tagstring} {num_tagged} issues with stale labels")
 
 
 if __name__ == "__main__":
