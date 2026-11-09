@@ -1,0 +1,11 @@
+# Runs from a pipeline schedule (Build > Pipeline schedules).
+# Needs the CI/CD variable GITLAB_ACCESS_TOKEN (scope `api`, role Reporter).
+# Only writes to GitLab if the schedule sets STALE_ISSUES_DRAFT=false.
+tag_stale_issues:
+  image: registry.cern.ch/docker.io/library/python:3.14
+  stage: test
+  interruptible: false  # a push must not cancel it between label and comment
+  before_script:
+    - pip install requests tqdm
+  script:
+    - python dev_tools/gitlab/tag_stale_issues.py

@@ -56,6 +56,7 @@ dev = [
   "pytest-xdist>=3",     # parallel test workers (`-n N`)
   "marimo>=0.25.1",      # example notebooks (blond/examples/notebooks)
   "nbformat>=5.7",       # needed by `marimo export ipynb`
+  "requests>=2",         # for stale issue tagging
 ]
 doc = [
   "sphinx>=6",                   # documentation generator
