@@ -18,7 +18,8 @@ headers = {
     "PRIVATE-TOKEN": f"{TOKEN}",
 }
 
-DRAFT = True  # disables writing --> set false before trying to tag
+# disables writing --> set STALE_ISSUES_DRAFT=false before trying to tag
+DRAFT = os.environ.get("STALE_ISSUES_DRAFT", "true") != "false"
 NON_UPDATED_DAYS_AFTER_WHICH_TAGGED = 90
 
 
