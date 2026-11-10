@@ -113,7 +113,11 @@ class MainloopCounterRotatingBeams(ExecutionModel):
 
         logger.info("Starting simulation mainloop...")
         iterator = range(n_turns)
-        if show_progressbar:
+        # Imported here, as other code may re-import the helpers module.
+        from blond.core.backends.mpi_distributed.helpers import mpi_is_root
+
+        # Under MPI, one progress bar instead of one per rank.
+        if show_progressbar and mpi_is_root():
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         simulation.turn_counter.value = 0
 

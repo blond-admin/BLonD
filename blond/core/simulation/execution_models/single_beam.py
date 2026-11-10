@@ -105,8 +105,15 @@ class MainloopSingleBeam(ExecutionModel):
             simulation.turn_counter.value + n_turns,
         )
         if show_progressbar:
-            # Get particle count for throughput calculation
+            # Get particle count for throughput calculation. Every rank
+            # calls this, as `global_size` is an MPI collective.
             n_particles = beam._dt.global_size
+        # Imported here, as other code may re-import the helpers module.
+        from blond.core.backends.mpi_distributed.helpers import mpi_is_root
+
+        # Under MPI, one progress bar instead of one per rank.
+        show_progressbar = show_progressbar and mpi_is_root()
+        if show_progressbar:
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
         for turn_i in iterator:
