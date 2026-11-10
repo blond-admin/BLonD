@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond import Beam, Simulation, proton, uranium_29
+from blond import Beam, Simulation, backend, proton, uranium_29
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
@@ -450,6 +450,63 @@ class TestBeamSetupBeamArguments(BLonDTestCase):
             dt=np.zeros(4), dE=np.zeros(4), reference_time=0.0
         )
         self.assertEqual(self.beam.reference.time, 0.0)
+
+
+@pytest.mark.mpi
+class TestSetupBeamRootDistributes(BLonDTestCase):
+    """Only rank 0 needs the full beam; the other ranks may pass `None`."""
+
+    def setUp(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+
+    def _expected_chunk(self, array):
+        # chunk sizes as `np.array_split`, in rank order
+        return np.array_split(array, MPI_SIZE)[MPI_RANK]
+
+    def test_other_ranks_may_pass_none(self) -> None:
+        dt = np.arange(13, dtype=float)  # not divisible: uneven chunks
+        dE = 10 * np.arange(13, dtype=float)
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=dt if MPI_RANK == 0 else None,
+            dE=dE if MPI_RANK == 0 else None,
+            mpi_mode="root-distributes",
+        )
+        for actual, expected in (
+            (beam.dt, dt),
+            (beam.dE, dE),
+            (beam.ids, np.arange(13)),
+            (beam.flags, np.full(13, BeamFlags.ACTIVE.value)),
+        ):
+            np.testing.assert_array_equal(
+                actual.copy_as_numpy(), self._expected_chunk(expected)
+            )
+        self.assertEqual(beam.dt.array_local.dtype, backend.float)
+        self.assertEqual(beam.flags.array_local.dtype, np.int32)
+        self.assertEqual(beam.common_array_size, 13)
+
+    def test_flags_from_rank_zero_are_scattered(self) -> None:
+        flags = np.array([1, 0, 1, 1, 0, 1, 0, 1], dtype=np.int32)
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=np.zeros(8) if MPI_RANK == 0 else None,
+            dE=np.zeros(8) if MPI_RANK == 0 else None,
+            flags=flags if MPI_RANK == 0 else None,
+            mpi_mode="root-distributes",
+        )
+        np.testing.assert_array_equal(
+            beam.flags.copy_as_numpy(), self._expected_chunk(flags)
+        )
+
+    def test_invalid_input_on_rank_zero_raises_on_every_rank(self) -> None:
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with self.assertRaises(AssertionError):
+            beam.setup_beam(
+                dt=np.zeros(8) if MPI_RANK == 0 else None,
+                dE=np.zeros(9) if MPI_RANK == 0 else None,  # length mismatch
+                mpi_mode="root-distributes",
+            )
 
 
 if __name__ == "__main__":

@@ -325,19 +325,40 @@ class TestScatterRootFailure(BLonDTestCase):
         from mpi4py import MPI
 
         rank = MPI.COMM_WORLD.Get_rank()
+        # only 1D arrays can be scattered; rank 0 must say so to everyone
         distributed_array = DistributedArray(
-            backend.array(np.arange(128), dtype=backend.float)
+            backend.zeros((4, 4), dtype=backend.float)
         )
 
-        with (
-            patch.object(
-                backend, "array_split", side_effect=ValueError("boom")
-            ),
-            self.assertRaises(Exception) as caught,
-        ):
+        with self.assertRaises(Exception) as caught:
             distributed_array.mpi_scatter()
 
         if rank == 0:
             self.assertIsInstance(caught.exception, ValueError)
         else:
             self.assertIn("Rank 0 failed", str(caught.exception))
+
+    @unittest.skipUnless(mpi_is_distributed(), "Runs only with `mpirun`")
+    def test_scatter_keeps_dtype_and_uses_backend_arrays(self):
+        from mpi4py import MPI
+
+        comm = MPI.COMM_WORLD
+        array = backend.arange(13, dtype=np.int32)
+        distributed_array = DistributedArray(
+            array if comm.Get_rank() == 0 else None
+        )
+        distributed_array.mpi_scatter()
+
+        local = distributed_array.array_local
+        self.assertEqual(local.dtype, np.int32)
+        self.assertIs(type(local), type(backend.zeros(1)))
+        np.testing.assert_array_equal(
+            copy_to_cpu(local),
+            np.array_split(np.arange(13), comm.Get_size())[comm.Get_rank()],
+        )
+
+    @unittest.skipUnless(mpi_is_distributed(), "Runs only with `mpirun`")
+    def test_scatter_of_none_gives_none_on_every_rank(self):
+        distributed_array = DistributedArray(None)
+        distributed_array.mpi_scatter()
+        self.assertIsNone(distributed_array.array_local)
