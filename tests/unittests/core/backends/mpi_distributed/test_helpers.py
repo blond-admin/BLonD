@@ -1,3 +1,4 @@
+import copy
 import importlib
 import os
 import subprocess
@@ -15,6 +16,7 @@ from blond.core.backends.mpi_distributed.helpers import (
     mpi_is_distributed,
     mpi_is_root,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase
 
 
@@ -76,32 +78,151 @@ class TestCallablesWithMPI(BLonDTestCase):
         if da._rank == 1:
             self.assertFalse(mpi_is_root())
 
-    def test_mpi_aware_random_generator_cpu(self):
-        seed = 1
-        size_global = 12
-        size_local = 6  # assume `mpirun -n 2`
-        # not distributed
-        random_generator_not_distributed = np.random.default_rng(
-            seed=seed,
+    def test_simple_gaussian_shares_no_values_across_ranks(self):
+        from mpi4py import MPI
+
+        from blond import Beam, proton
+
+        beam = Beam.simple_gaussian(
+            n_macroparticles=200_000,
+            intensity=1e10,
+            particle_type=proton,
+            dt_scale=1e-9,
+            dE_scale=1e6,
+            seed=0,
         )
-        array_expected = random_generator_not_distributed.standard_normal(
-            size=size_global
+        for coordinate in (beam.dt, beam.dE):
+            local = coordinate.copy_as_numpy()
+            gathered = MPI.COMM_WORLD.allgather(local)
+            n_global = sum(array.size for array in gathered)
+            n_unique = np.unique(np.concatenate(gathered)).size
+            self.assertEqual(n_unique, n_global)
+
+
+def _run_as_rank(function, rank: int, size: int, call):
+    """Run `call` while `function` sees itself as `rank` of `size` ranks."""
+    # Patch the globals the production function really uses: another
+    # test re-imports the helpers module, so a fresh import could differ.
+    with patch.dict(
+        function.__globals__, {"MPI_RANK": rank, "MPI_SIZE": size}
+    ):
+        return call()
+
+
+class TestRandomStreamsAcrossRanks(BLonDTestCase):
+    """Each MPI rank must draw from its own, non-overlapping stream."""
+
+    N_MACROPARTICLES = 200_000
+
+    def setUp(self):
+        if mpi_is_distributed():
+            self.skipTest("Simulates ranks by patching; only without MPI")
+
+    def test_rank_zero_reproduces_serial_stream(self):
+        rng = _run_as_rank(
+            mpi_aware_random_generator_cpu,
+            rank=0,
+            size=2,
+            call=lambda: mpi_aware_random_generator_cpu(seed=42),
+        )
+        np.testing.assert_equal(
+            rng.standard_normal(1000),
+            np.random.default_rng(42).standard_normal(1000),
         )
 
-        # distributed
-        random_generator_distributed = mpi_aware_random_generator_cpu(
-            seed=seed, n_forward_per_rank=size_local
+    def test_seed_none_still_works(self):
+        rng = _run_as_rank(
+            mpi_aware_random_generator_cpu,
+            rank=1,
+            size=2,
+            call=lambda: mpi_aware_random_generator_cpu(seed=None),
         )
-        array_local = random_generator_distributed.standard_normal(
-            size=size_local
+        self.assertEqual(rng.standard_normal(10).shape, (10,))
+
+    def _simple_gaussian_as_rank(self, rank):
+        from blond import Beam, proton
+        from blond.core.beam import beams
+
+        return _run_as_rank(
+            beams.mpi_aware_random_generator_cpu,
+            rank=rank,
+            size=2,
+            call=lambda: Beam.simple_gaussian(
+                n_macroparticles=self.N_MACROPARTICLES,
+                intensity=1e10,
+                particle_type=proton,
+                dt_scale=1e-9,
+                dE_scale=1e6,
+                seed=0,
+            ),
         )
 
-        # compare
+    def test_simple_gaussian_ranks_share_no_values(self):
+        beam_rank_0 = self._simple_gaussian_as_rank(0)
+        beam_rank_1 = self._simple_gaussian_as_rank(1)
+        for name in ("dt", "dE"):
+            shared = np.intersect1d(
+                getattr(beam_rank_0, name).copy_as_numpy(),
+                getattr(beam_rank_1, name).copy_as_numpy(),
+            )
+            self.assertEqual(shared.size, 0, msg=f"shared {name} values")
 
-        if MPI_RANK == 0:
-            np.testing.assert_equal(array_expected[0:6], array_local)
-        if MPI_RANK == 1:
-            np.testing.assert_equal(array_expected[6:12], array_local)
+    def _generator_used_by_particle_coordinates(self, rank):
+        """Copy of the fresh generator `generate_particle_coordinates` got."""
+        from blond.beam_preparation import helpers as preparation_helpers
+
+        original = preparation_helpers.mpi_aware_random_generator_cpu
+        received = []
+
+        def recording(*args, **kwargs):
+            generator = original(*args, **kwargs)
+            received.append(copy.deepcopy(generator))
+            return generator
+
+        with patch.object(
+            preparation_helpers, "mpi_aware_random_generator_cpu", recording
+        ):
+            self._particle_coordinates_as_rank(rank, original)
+        self.assertEqual(len(received), 1)
+        return received[0]
+
+    def test_generate_particle_coordinates_streams_do_not_overlap(self):
+        # The routine draws ~3 numbers per particle (`choice` and two
+        # `triangular`) from one generator, so a rank's stream must not
+        # reappear within the next rank's first draws.
+        generator_rank_0 = self._generator_used_by_particle_coordinates(0)
+        generator_rank_1 = self._generator_used_by_particle_coordinates(1)
+        n_local = self.N_MACROPARTICLES // 2
+        raw_rank_0 = generator_rank_0.bit_generator.random_raw(4 * n_local)
+        raw_rank_1 = generator_rank_1.bit_generator.random_raw(4 * n_local)
+        shared = np.intersect1d(raw_rank_0, raw_rank_1)
+        self.assertEqual(shared.size, 0, msg="ranks share random draws")
+
+    def _particle_coordinates_as_rank(self, rank, patched_function=None):
+        from blond.beam_preparation import helpers as preparation_helpers
+
+        if patched_function is None:
+            patched_function = (
+                preparation_helpers.mpi_aware_random_generator_cpu
+            )
+        time_axis = np.linspace(-1e-9, 1e-9, 64)
+        energy_axis = np.linspace(-1e6, 1e6, 64)
+        time_grid, deltaE_grid = np.meshgrid(time_axis, energy_axis)
+        density_grid = np.exp(
+            -(time_grid**2) / 0.3e-18 - deltaE_grid**2 / 0.3e12
+        )
+        return _run_as_rank(
+            patched_function,
+            rank=rank,
+            size=2,
+            call=lambda: preparation_helpers.generate_particle_coordinates(
+                time_grid=time_grid,
+                deltaE_grid=deltaE_grid,
+                density_grid=density_grid,
+                n_macroparticles=self.N_MACROPARTICLES,
+                seed=0,
+            ),
+        )
 
 
 class TestCallablesNoMPI(BLonDTestCase):

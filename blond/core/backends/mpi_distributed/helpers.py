@@ -133,26 +133,31 @@ def mpi_local_size(global_size: int, warning_hint: str) -> int:
     return local_n_
 
 
-def mpi_aware_random_generator_cpu(
-    seed: int | None, n_forward_per_rank: int
-) -> NumpyGenerator:
+def mpi_aware_random_generator_cpu(seed: int | None) -> NumpyGenerator:
     """
     Get a random generator compatible with MPI.
+
+    Every rank gets its own stream of the seeded PCG64 generator, jumped
+    ahead by ``rank`` times ~2**127 draws, so the ranks never share random
+    numbers, however many each one draws. Rank 0 (and a serial run) gets
+    exactly ``np.random.default_rng(seed)``.
 
     Parameters
     ----------
     seed
         Random seed.
-    n_forward_per_rank
-        Considers that the other MPI-ranks also generate n samples.
 
     Returns
     -------
     random_generator_cpu
-        The random generator.
+        The random generator of this rank.
 
     Notes
     -----
+    A run on several ranks does not reproduce the serial random numbers:
+    a rank cannot know how many draws the ranks before it used, since
+    e.g. `standard_normal` and rejection loops take a varying number.
+
     As the Cupy random generators behave differently than the Numpy random
     generators, this routine returns only the CPU generators for consistency.
     The GPU interaction must be handled explicitly outside this function.
@@ -171,23 +176,12 @@ def mpi_aware_random_generator_cpu(
     ...     warning_hint="n_macroparticles",
     ... )
     >>> random_array = mpi_aware_random_generator_cpu(
-    ...     seed=None, n_forward_per_rank=local_size
+    ...     seed=None
     ... ).standard_normal(size=local_size)
     """
-    # Generate coordinates. For reproducibility,
-    # a separate random number stream is used for dt and dE
-
-    # All ranks have the same random generator.
-    random_generator_cpu = np.random.default_rng(seed)
-
-    # Consider the fact that the other ranks also produce particles.
-    random_generator_cpu.bit_generator.advance(MPI_RANK * n_forward_per_rank)
-
-    # Cupy doesn't implement the `advance` function (2025)
-    # When Cupy provides for the same random generators & `advance`,
-    # this function could be extended to GPU.
-
-    return random_generator_cpu
+    # `jumped(0)` is the unjumped generator, i.e. `default_rng(seed)`.
+    bit_generator = np.random.PCG64(seed).jumped(MPI_RANK)
+    return np.random.Generator(bit_generator)
 
 
 def distributed_arange(
