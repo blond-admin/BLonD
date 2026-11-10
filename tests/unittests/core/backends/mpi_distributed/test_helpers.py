@@ -166,6 +166,99 @@ class TestCallablesNoMPI(BLonDTestCase):
         self.assertIs(result, False)
 
 
+def _current_helpers():
+    """
+    Return the helpers module currently in `sys.modules`.
+
+    Other tests pop and re-import it, so a reference taken at
+    import time can be stale.
+    """
+    return importlib.import_module(
+        "blond.core.backends.mpi_distributed.helpers"
+    )
+
+
+class TestMpiRunOnRoot(BLonDTestCase):
+    """`mpi_run_on_root` runs on rank 0 and fails on all ranks together."""
+
+    def _patch_rank(self, rank: int, size: int, broadcast_result=None):
+        helpers = _current_helpers()
+        comm = MagicMock()
+        comm.bcast.return_value = broadcast_result
+        patches = (
+            patch.object(helpers, "MPI_RANK", rank),
+            patch.object(helpers, "MPI_SIZE", size),
+            patch.object(helpers, "MPI_COMM_WORLD", comm),
+        )
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return helpers, comm
+
+    def test_serial_runs_function_without_communication(self):
+        helpers, comm = self._patch_rank(rank=0, size=1)
+        function = MagicMock()
+        helpers.mpi_run_on_root(function)
+        function.assert_called_once_with()
+        comm.bcast.assert_not_called()
+
+    def test_serial_reraises_original_exception(self):
+        helpers, _ = self._patch_rank(rank=0, size=1)
+        function = MagicMock(side_effect=OSError("disk full"))
+        with self.assertRaisesRegex(OSError, "disk full"):
+            helpers.mpi_run_on_root(function)
+
+    def test_root_broadcasts_success(self):
+        helpers, comm = self._patch_rank(rank=0, size=2)
+        function = MagicMock()
+        helpers.mpi_run_on_root(function)
+        function.assert_called_once_with()
+        comm.bcast.assert_called_once_with(None, root=0)
+
+    def test_root_broadcasts_failure_and_reraises(self):
+        helpers, comm = self._patch_rank(rank=0, size=2)
+        function = MagicMock(side_effect=OSError("disk full"))
+        with self.assertRaisesRegex(OSError, "disk full"):
+            helpers.mpi_run_on_root(function)
+        comm.bcast.assert_called_once()
+        message = comm.bcast.call_args.args[0]
+        self.assertIn("disk full", message)
+        self.assertIn("OSError", message)
+
+    def test_non_root_skips_function(self):
+        helpers, comm = self._patch_rank(rank=1, size=2)
+        function = MagicMock()
+        helpers.mpi_run_on_root(function)
+        function.assert_not_called()
+        comm.bcast.assert_called_once_with(None, root=0)
+
+    def test_non_root_raises_when_root_failed(self):
+        helpers, _ = self._patch_rank(
+            rank=1, size=2, broadcast_result="OSError('disk full')"
+        )
+        with self.assertRaisesRegex(RuntimeError, "disk full"):
+            helpers.mpi_run_on_root(MagicMock())
+
+
+@pytest.mark.mpi
+class TestMpiRunOnRootWithMPI(BLonDTestCase):
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    def test_failure_on_root_raises_on_every_rank(self):
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_run_on_root,
+        )
+
+        def fail():
+            raise OSError("disk full")
+
+        expected = OSError if mpi_is_root() else RuntimeError
+        with self.assertRaisesRegex(expected, "disk full"):
+            mpi_run_on_root(fail)
+
+
 _LAUNCHER_ENV_KEYS = (
     "OMPI_COMM_WORLD_SIZE",
     "PMIX_RANK",

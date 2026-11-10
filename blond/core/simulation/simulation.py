@@ -1505,6 +1505,8 @@ class Simulation(Preparable):
         -----
         - Saved files are typically stored in the current working directory or a subdirectory defined by the observable.
         - Use ``load_results()`` to load saved data without re-running the simulation.
+        - Under MPI, only rank 0 writes the files; all ranks return once
+          they are written. If writing fails, every rank raises.
 
         Examples
         --------
@@ -1534,10 +1536,23 @@ class Simulation(Preparable):
         ...     common_name="simulation_450GeV_1000turns"
         ... )
         """
+        # Imported here, as other code may re-import the helpers module.
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_run_on_root,
+        )
+
+        # Every rank renames, so all ranks agree on the file paths.
         for observable in observe:
             if common_name is not None:
                 observable.rename(new_common_filepath=common_name)
-            observable.to_disk()
+
+        def write_to_disk() -> None:
+            for observable in observe:
+                observable.to_disk()
+
+        # Under MPI only rank 0 writes; the others would write the same
+        # paths at the same time.
+        mpi_run_on_root(write_to_disk)
 
     def load_results(
         self,
