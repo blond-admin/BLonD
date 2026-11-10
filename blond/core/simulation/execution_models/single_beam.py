@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
+from blond.core.backends.mpi_distributed.helpers import mpi_is_root
 from blond.core.simulation.execution_models.base import ExecutionModel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -108,9 +109,6 @@ class MainloopSingleBeam(ExecutionModel):
             # Get particle count for throughput calculation. Every rank
             # calls this, as `global_size` is an MPI collective.
             n_particles = beam._dt.global_size
-        # Imported here, as other code may re-import the helpers module.
-        from blond.core.backends.mpi_distributed.helpers import mpi_is_root
-
         # Under MPI, one progress bar instead of one per rank.
         show_progressbar = show_progressbar and mpi_is_root()
         if show_progressbar:

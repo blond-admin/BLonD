@@ -30,6 +30,7 @@ import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.helpers import mpi_run_on_root
 from blond.core.base import (
     AltersReference,
     DynamicParameter,
@@ -1536,11 +1537,6 @@ class Simulation(Preparable):
         ...     common_name="simulation_450GeV_1000turns"
         ... )
         """
-        # Imported here, as other code may re-import the helpers module.
-        from blond.core.backends.mpi_distributed.helpers import (
-            mpi_run_on_root,
-        )
-
         # Every rank renames, so all ranks agree on the file paths.
         for observable in observe:
             if common_name is not None:
