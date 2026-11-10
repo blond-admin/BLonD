@@ -447,10 +447,13 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._consider_intensity = beam.intensity != 0
 
         n_entries = self._calc_n_entries(n_turns)
-        if mpi_is_distributed():  # pragma: no cover
+        if mpi_is_distributed():
             warnings.warn(
-                "Saving beam with `BeamHist2dOncePerTurn` only from "
-                "MPI-rank 0.",
+                "`BeamHist2dOncePerTurn` histograms only the macroparticles "
+                "local to each MPI rank, and "
+                "`save_results` writes the data of rank 0 only. The "
+                "results are incomplete: they cover rank 0's share of "
+                "the beam, not the whole beam.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -878,8 +881,11 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         n_macroparticles = int(beam._dt.local_size)
         if mpi_is_distributed():
             warnings.warn(
-                "Saving beam with `BeamObservationOncePerTurn` only from "
-                "MPI-rank 0.",
+                "`BeamObservationOncePerTurn` records only the macroparticles "
+                "local to each MPI rank, and "
+                "`save_results` writes the data of rank 0 only. The "
+                "results are incomplete: they cover rank 0's share of "
+                "the beam, not the whole beam.",
                 UserWarning,
                 stacklevel=2,
             )

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
     from types import ModuleType
 
     from numpy.random import Generator as NumpyGenerator
@@ -304,3 +305,50 @@ def mpi_is_root() -> bool:
         Whether the current worker is the root worker.
     """
     return MPI_RANK == 0
+
+
+def mpi_run_on_root(function: Callable[[], object]) -> None:
+    """
+    Run `function` on rank 0 only, and raise on every rank if it failed.
+
+    Used for side effects that must happen exactly once, e.g. writing
+    result files, which would collide if every rank wrote them. The other
+    ranks wait until rank 0 is done, so they can read what it wrote. If
+    rank 0 raises, every other rank raises too instead of waiting for it
+    forever.
+
+    Parameters
+    ----------
+    function
+        Callable without arguments, called on rank 0 only.
+
+    Raises
+    ------
+    RuntimeError
+        On ranks other than 0, if `function` raised on rank 0.
+        Rank 0 re-raises the original exception.
+
+    Notes
+    -----
+    In non-distributed mode (single process), this just calls `function`.
+    """
+    if not mpi_is_distributed():
+        function()
+        return
+    error = None
+    if mpi_is_root():
+        try:
+            function()
+        except Exception as exc:
+            error = exc
+    # The broadcast doubles as the synchronisation point: the other ranks
+    # block until rank 0 has finished `function`.
+    error_message = MPI_COMM_WORLD.bcast(
+        None if error is None else repr(error), root=0
+    )
+    if error is not None:
+        raise error
+    if error_message is not None:
+        raise RuntimeError(
+            f"MPI rank 0 failed, so rank {MPI_RANK} stops too: {error_message}"
+        )

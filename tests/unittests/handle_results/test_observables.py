@@ -79,6 +79,19 @@ sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])
 simulation._get_separatrix_helper.return_value = sep_helper
 
 
+def _patch_mpi_size_two(test_case):
+    """Make `mpi_is_distributed()` report two MPI ranks."""
+    import importlib
+    from unittest.mock import patch
+
+    helpers = importlib.import_module(
+        "blond.core.backends.mpi_distributed.helpers"
+    )
+    patcher = patch.object(helpers, "MPI_SIZE", 2)
+    patcher.start()
+    test_case.addCleanup(patcher.stop)
+
+
 class ObservablesHelper(ObservablesOncePerTurnBase):
     def _update(self) -> None:
         pass
@@ -250,6 +263,14 @@ class TestBeamObservation(BLonDTestCase):
             self.bunch_observation.common_filepath,
             callers_relative_path("results/", stacklevel=1) + "last",
         )
+
+    def test_mpi_warns_about_incomplete_data(self) -> None:
+        _patch_mpi_size_two(self)
+        self.bunch_observation.on_init_simulation(simulation=simulation)
+        with self.assertWarnsRegex(UserWarning, "incomplete"):
+            self.bunch_observation.on_run_simulation(
+                simulation=simulation, beam=self.beam, n_turns=10
+            )
 
     def test_from_disk(self) -> None:
         self.bunch_observation.on_init_simulation(
@@ -441,6 +462,15 @@ class TestBeamHist2dOncePerTurn(BLonDTestCase):
             simulation=simulation, beam=self.beam, n_turns=10
         )
         self.obs.update()
+
+    def test_mpi_warns_about_incomplete_data(self) -> None:
+        _patch_mpi_size_two(self)
+        obs = BeamHist2dOncePerTurn(each_turn_i=1, bins=(16, 8))
+        obs.on_init_simulation(simulation=simulation)
+        with self.assertWarnsRegex(UserWarning, "incomplete"):
+            obs.on_run_simulation(
+                simulation=simulation, beam=self.beam, n_turns=10
+            )
 
     def test_getters_match_numpy_histogram2d(self) -> None:
         hist2d, xedges, yedges = np.histogram2d(
