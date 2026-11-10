@@ -341,3 +341,55 @@ class TestScatterRootFailure(BLonDTestCase):
             self.assertIsInstance(caught.exception, ValueError)
         else:
             self.assertIn("Rank 0 failed", str(caught.exception))
+
+
+class TestMinMaxWithoutElements(BLonDTestCase):
+    """`min`/`max` of an array without elements raise, as NumPy does."""
+
+    def setUp(self):
+        if mpi_is_distributed():
+            self.skipTest("Runs only without `mpirun`")
+
+    def test_min_and_max_of_empty_array_raise(self):
+        empty = DistributedArray(backend.zeros(0, dtype=backend.float))
+        for reduction in ("min", "max"):
+            with (
+                self.subTest(reduction=reduction),
+                self.assertRaises(ValueError),
+            ):
+                getattr(empty, reduction)()
+
+
+@pytest.mark.mpi
+class TestMinMaxEmptyRank(BLonDTestCase):
+    """A rank without particles (e.g. all lost) must not strand the others.
+
+    `min`/`max` used to reduce the local array before the `allreduce`: an
+    empty rank raised there while every other rank waited in the
+    `allreduce` forever.
+    """
+
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+        from mpi4py import MPI
+
+        self.rank = MPI.COMM_WORLD.Get_rank()
+
+    def test_min_and_max_skip_empty_rank(self):
+        # `mpirun -n 2`: rank 1 holds no elements
+        local = np.zeros(0) if self.rank == 1 else np.array([3.0, -2.0, 7.0])
+        distributed_array = DistributedArray(
+            backend.array(local, dtype=backend.float)
+        )
+        self.assertEqual(distributed_array.min(), -2.0)
+        self.assertEqual(distributed_array.max(), 7.0)
+
+    def test_min_and_max_raise_on_every_rank_without_elements(self):
+        empty = DistributedArray(backend.zeros(0, dtype=backend.float))
+        for reduction in ("min", "max"):
+            with (
+                self.subTest(reduction=reduction),
+                self.assertRaises(ValueError),
+            ):
+                getattr(empty, reduction)()

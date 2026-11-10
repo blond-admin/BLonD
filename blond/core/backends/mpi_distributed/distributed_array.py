@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from math import sqrt
+from math import inf, sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
@@ -196,37 +196,82 @@ class DistributedArray:
         """
         Compute the global minimum across all processes.
 
+        A rank without elements (e.g. after all its particles were lost)
+        takes part with ``+inf``, so the other ranks still get the minimum
+        instead of waiting for it forever.
+
         Returns
         -------
         float
             The minimum value across all distributed array chunks.
+
+        Raises
+        ------
+        ValueError
+            On every rank, if no rank holds any element.
         """
-        local_min = float(backend.min(self.array_local))
+        local_min = (
+            float(backend.min(self.array_local)) if self.local_size else inf
+        )
 
         if self._is_distributed:
             global_min = self._comm.allreduce(local_min, op=MPI.MIN)
         else:
             global_min = local_min
 
+        if global_min == inf:  # same on all ranks, so is the collective
+            self._raise_if_without_elements("min")
         return global_min
 
     def max(self):
         """
         Compute the global maximum across all processes.
 
+        A rank without elements (e.g. after all its particles were lost)
+        takes part with ``-inf``, so the other ranks still get the maximum
+        instead of waiting for it forever.
+
         Returns
         -------
         float
             The maximum value across all distributed array chunks.
+
+        Raises
+        ------
+        ValueError
+            On every rank, if no rank holds any element.
         """
-        local_max = float(backend.max(self.array_local))
+        local_max = (
+            float(backend.max(self.array_local)) if self.local_size else -inf
+        )
 
         if self._is_distributed:
             global_max = self._comm.allreduce(local_max, op=MPI.MAX)
         else:
             global_max = local_max
 
+        if global_max == -inf:  # same on all ranks, so is the collective
+            self._raise_if_without_elements("max")
         return global_max
+
+    def _raise_if_without_elements(self, reduction: str) -> None:
+        """
+        Raise if no rank holds any element; collective under MPI.
+
+        Parameters
+        ----------
+        reduction
+            Name of the reduction, for the error message.
+
+        Raises
+        ------
+        ValueError
+            If the array has no elements on any rank.
+        """
+        if self.global_size == 0:
+            raise ValueError(
+                f"`{reduction}` of an array without elements on any rank."
+            )
 
     def mean(self):
         """
