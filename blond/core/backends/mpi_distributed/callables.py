@@ -16,8 +16,10 @@ import numpy as np
 
 from blond.core.backends.mpi_distributed.helpers import (
     MPI,
+    mpi_cuda_aware,
     mpi_is_distributed,
 )
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -50,11 +52,48 @@ def _global_sum(local_value: float) -> float:
     return local_value
 
 
+# Page-locked host buffers for `global_sum_array`, one per array shape
+# and dtype; reused every turn, and copies from/to them are ~2x faster.
+_PINNED_HOST_BUFFERS: dict[tuple, NumpyArray] = {}
+
+
+def _pinned_host_buffer(like: CupyArray) -> NumpyArray:
+    """
+    Return a reusable page-locked host array shaped like `like`.
+
+    Parameters
+    ----------
+    like
+        CuPy array whose shape and dtype the buffer gets.
+
+    Returns
+    -------
+    buffer
+        Host array in pinned memory, shared by every call with the same
+        shape and dtype.
+    """
+    key = (like.shape, like.dtype.str)
+    buffer = _PINNED_HOST_BUFFERS.get(key)
+    if buffer is None:
+        import cupy as cp  # only reached for CuPy arrays
+
+        memory = cp.cuda.alloc_pinned_memory(like.nbytes)
+        buffer = np.frombuffer(memory, like.dtype, like.size)
+        buffer = buffer.reshape(like.shape)
+        _PINNED_HOST_BUFFERS[key] = buffer
+    return buffer
+
+
 def global_sum_array(
     local_array: NumpyArray | CupyArray,
 ) -> NumpyArray | CupyArray:
     """
     Sum a per-rank array element-wise over all MPI ranks, in place.
+
+    By default a CuPy array is summed via a pinned host copy: handing
+    device memory to an MPI library that is not CUDA-aware crashes or
+    gives wrong sums. With `BLOND_MPI_CUDA_AWARE=True`, MPI gets the
+    device memory directly, which skips both copies.
 
     Parameters
     ----------
@@ -66,8 +105,23 @@ def global_sum_array(
     global_array
         `local_array`, now holding the sum over all ranks.
     """
-    if mpi_is_distributed():
+    if not mpi_is_distributed():
+        return local_array
+    assert local_array.flags.c_contiguous, "MPI needs a contiguous buffer"
+    if not is_cupy_array(local_array):
         MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, local_array, op=MPI.SUM)
+    elif mpi_cuda_aware():
+        import cupy as cp  # only reached for CuPy arrays
+
+        # MPI cannot see CuPy's queued kernels: wait until the array
+        # is written before MPI reads it.
+        cp.cuda.get_current_stream().synchronize()
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, local_array, op=MPI.SUM)
+    else:
+        host_array = _pinned_host_buffer(local_array)
+        local_array.get(out=host_array)  # blocking: waits for the kernels
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, host_array, op=MPI.SUM)
+        local_array.set(host_array)
     return local_array
 
 
