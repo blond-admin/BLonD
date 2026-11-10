@@ -116,7 +116,7 @@ class TestDriftSimple(BLonDTestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock()
-        beam.common_array_size = 1
+        beam.n_macroparticles_partial.return_value = 1
         beam.reference.time = 0.0
         beam.reference.gamma = 1.0
         beam.reference.velocity = 0.5
@@ -179,7 +179,7 @@ class TestDriftSimple(BLonDTestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
+        beam.n_macroparticles_partial.return_value = 1
         beam.reference.time = float(0)
         beam.reference.beta = 0.5
         beam.reference.velocity = float(beam.reference.beta * c0)
@@ -308,7 +308,7 @@ class TestDriftExact(BLonDTestCase):
     def test_track(self):
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
+        beam.n_macroparticles_partial.return_value = 1
         beam.reference.time = float(0)
         beam.reference.beta = 0.5
         beam.reference.velocity = float(beam.reference.beta * c0)
@@ -337,7 +337,7 @@ class TestDriftExact(BLonDTestCase):
 
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 0
+        beam.n_macroparticles_partial.return_value = 0
         beam.reference.time = float(0)
         beam.reference.beta = 0.5
         beam.reference.velocity = float(0.5 * c0)
@@ -364,7 +364,7 @@ class TestDriftExact(BLonDTestCase):
         )
         beam = Mock(BeamBaseClass)
         beam.reference = Mock(ReferenceCoordinates)
-        beam.common_array_size = 1
+        beam.n_macroparticles_partial.return_value = 1
         beam.reference.time = float(0)
         beam.reference.beta = 0.5
         beam.reference.velocity = float(beam.reference.beta * c0)

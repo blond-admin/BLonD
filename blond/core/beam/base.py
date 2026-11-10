@@ -786,6 +786,10 @@ class BeamBaseClass(Preparable, ABC):
         from blond.core.backends.mpi_distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
+        if n_before_truncation_global == 0:
+            # Nothing left to purge (the whole beam was lost before). The
+            # global size is the same on every rank, so all ranks return.
+            return
 
         n_after_truncation_local = (
             backend.specials.move_flagged_elements_to_end(

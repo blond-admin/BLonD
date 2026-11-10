@@ -1358,7 +1358,7 @@ class SingleHarmonicRFStation(
             reference, beam.is_counter_rotating
         )
 
-        if beam.common_array_size > 0:
+        if beam.n_macroparticles_partial() > 0:
             if self.any_feedback_not_none:
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float
@@ -1936,7 +1936,7 @@ class MultiHarmonicRFStation(
             reference, beam.is_counter_rotating
         )
 
-        if beam.common_array_size > 0:
+        if beam.n_macroparticles_partial() > 0:
             if self.any_feedback_not_none:
                 voltage = backend.array(
                     self.calc_gap_voltage_with_feedbacks(), dtype=backend.float

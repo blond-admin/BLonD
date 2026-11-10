@@ -206,7 +206,7 @@ class BoxLosses(LossesBaseClass, Schedulable):
                 turn_i=self._turn_counter.value,
                 reference_time=beam.reference.time,
             )
-        if beam.common_array_size > 0:
+        if beam.n_macroparticles_partial() > 0:
             backend.specials.loss_box(
                 e_max=backend.float(self.e_max),
                 e_min=backend.float(self.e_min),
@@ -216,4 +216,6 @@ class BoxLosses(LossesBaseClass, Schedulable):
                 dE=beam.read_partial_dE(),
                 flags=beam.write_partial_flags(),
             )
-            self._purge_particles(beam=beam, force=False)
+        # Outside the local check: purging is collective under MPI, so a
+        # rank without particles must take part too.
+        self._purge_particles(beam=beam, force=False)
