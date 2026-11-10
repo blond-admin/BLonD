@@ -50,6 +50,27 @@ def _global_sum(local_value: float) -> float:
     return local_value
 
 
+def global_sum_array(
+    local_array: NumpyArray | CupyArray,
+) -> NumpyArray | CupyArray:
+    """
+    Sum a per-rank array element-wise over all MPI ranks, in place.
+
+    Parameters
+    ----------
+    local_array
+        The contiguous array on this rank; overwritten with the sum.
+
+    Returns
+    -------
+    global_array
+        `local_array`, now holding the sum over all ranks.
+    """
+    if mpi_is_distributed():
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, local_array, op=MPI.SUM)
+    return local_array
+
+
 def _global_dot(
     array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray
 ) -> float:
