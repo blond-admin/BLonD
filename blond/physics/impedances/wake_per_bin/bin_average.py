@@ -773,7 +773,10 @@ def bspline_stencil(
 
     On a uniform grid that is the stencil
     ``(w[n-2] + 76 w[n-1] + 230 w[n] + 76 w[n+1] + w[n+2]) / 384``; the
-    edges repeat the boundary sample.
+    edges repeat the boundary sample. The weights are the quartic
+    B-spline at the integers: linear interpolation is a convolution with
+    the hat (two boxes), and averaging with the quadratic B-spline adds
+    three more, so the samples are weighted by five boxes convolved.
 
     Parameters
     ----------

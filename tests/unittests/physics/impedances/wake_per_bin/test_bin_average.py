@@ -39,6 +39,7 @@ from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.impedances.wake_per_bin import bin_average
 from blond.physics.impedances.wake_per_bin.bin_average import (
     bspline_kink_kernel,
+    bspline_stencil,
     bspline_step_kernel,
     quadratic_bspline,
     triple_box_average_linear_pole,
@@ -186,6 +187,63 @@ class TestQuadraticBspline(BLonDTestCase):
                 * np.sum(weights * [quadratic_bspline(e) for e in x])
             )
         self.assertAlmostEqual(total, 1.0, delta=1e-15)
+
+
+def _reference_bspline_average(wake: np.ndarray) -> np.ndarray:
+    """
+    Quadratic B-spline average of the linear interpolant of ``wake``.
+
+    Independent of the five-point stencil: it integrates ``B_2`` against
+    ``np.interp`` of the samples, which repeats the boundary sample beyond
+    the grid. Between the breakpoints (the samples and the knots of
+    ``B_2``) the integrand is a cubic, so four Gauss-Legendre nodes per
+    piece are exact.
+    """
+    nodes, weights = np.polynomial.legendre.leggauss(4)
+    grid = np.arange(len(wake), dtype=float)
+    breakpoints = np.arange(-1.5, 1.5 + 0.25, 0.5)
+    average = np.zeros(len(wake))
+    for bin_i in range(len(wake)):
+        for lower, upper in zip(breakpoints[:-1], breakpoints[1:]):
+            x = 0.5 * (upper - lower) * nodes + 0.5 * (upper + lower)
+            spline = np.array([quadratic_bspline(entry) for entry in x])
+            interpolant = np.interp(bin_i + x, grid, wake)
+            average[bin_i] += (
+                0.5 * (upper - lower) * np.sum(weights * spline * interpolant)
+            )
+    return average
+
+
+class TestBsplineStencil(BLonDTestCase):
+    """The five-point stencil that bin-averages a sampled wake."""
+
+    def test_is_the_bspline_average_of_the_linear_interpolant(self):
+        """Every bin, edges included, against direct integration."""
+        wake = np.random.default_rng(seed=7).normal(size=12)
+        result = bspline_stencil(backend.array(wake, dtype=backend.float))
+        self.assertEqual(result.dtype, backend.float)
+        np.testing.assert_allclose(
+            copy_to_cpu(result),
+            _reference_bspline_average(wake),
+            rtol=0,
+            atol=1e-14,
+        )
+
+    def test_keeps_a_constant_wake(self):
+        wake = 3.25 * backend.ones(9, dtype=backend.float)
+        np.testing.assert_allclose(
+            copy_to_cpu(bspline_stencil(wake)), 3.25, rtol=0, atol=1e-14
+        )
+
+    def test_keeps_a_linear_wake_away_from_the_edges(self):
+        """A symmetric unit-mass kernel maps a ramp onto itself."""
+        wake = 2.0 * np.arange(9.0) - 5.0
+        result = copy_to_cpu(
+            bspline_stencil(backend.array(wake, dtype=backend.float))
+        )
+        np.testing.assert_allclose(
+            result[2:-2], wake[2:-2], rtol=0, atol=1e-13
+        )
 
 
 def reference_triple_box_average(
