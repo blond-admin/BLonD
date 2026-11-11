@@ -509,6 +509,53 @@ class TestSetupBeamRootDistributes(BLonDTestCase):
             )
 
 
+@pytest.mark.mpi
+class TestBadInputOnOneRank(BLonDTestCase):
+    """Input wrong on one rank only must raise on every rank, not hang."""
+
+    def setUp(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+
+    def tearDown(self) -> None:
+        # a rank that skipped a collective the others made is out of step
+        tags = MPI_COMM_WORLD.allgather(self.id())
+        self.assertEqual(set(tags), {self.id()})
+
+    def test_invalid_flags_on_one_rank(self) -> None:
+        flags = np.full(4, BeamFlags.ACTIVE.value, dtype=np.int32)
+        if MPI_RANK == MPI_SIZE - 1:
+            flags[0] = BeamFlags.ACTIVE.value + 1
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with self.assertRaises(AssertionError):
+            beam.setup_beam(
+                dt=np.zeros(4),
+                dE=np.zeros(4),
+                flags=flags,
+                mpi_mode="all-ranks",
+            )
+
+    def test_local_lengths_mismatched_with_equal_totals(self) -> None:
+        # rank 0: 3 dt, 2 dE; rank 1: 2 dt, 3 dE -> equal totals
+        n_dt, n_dE = {0: (3, 2), 1: (2, 3)}.get(MPI_RANK, (4, 4))
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with self.assertRaises(AssertionError):
+            beam.setup_beam(
+                dt=np.zeros(n_dt), dE=np.zeros(n_dE), mpi_mode="all-ranks"
+            )
+
+    def test_add_particles_mismatched_on_one_rank(self) -> None:
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(dt=np.zeros(4), dE=np.zeros(4), mpi_mode="all-ranks")
+        # ranks 0 and 1 mismatch but cancel out; others match locally
+        n_dt, n_dE = {0: (2, 3), 1: (3, 2)}.get(MPI_RANK, (2, 2))
+        with self.assertRaises(ValueError):
+            beam.add_particles(
+                dt=DistributedArray(backend.zeros(n_dt, dtype=backend.float)),
+                dE=DistributedArray(backend.zeros(n_dE, dtype=backend.float)),
+            )
+
+
 class TestBeamIsDistributed(BLonDTestCase):
     """`is_distributed` tells whether the particles are split over ranks."""
 

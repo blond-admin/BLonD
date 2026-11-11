@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import warnings
+from math import inf
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -18,7 +19,10 @@ import numpy as np
 
 from blond.core.backends.backend import INDEX_DTYPE, backend
 from blond.core.backends.flags import BeamFlags
-from blond.core.backends.mpi_distributed.callables import rms_emittance
+from blond.core.backends.mpi_distributed.callables import (
+    global_reduce,
+    rms_emittance,
+)
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
@@ -181,14 +185,21 @@ class Beam(BeamBaseClass):
             self._flags.array_local, dtype=np.int32
         )
         # global checks, so that a bad input fails on all ranks together
-        n_dt, n_dE, n_flags = (
-            array.global_size for array in (self._dt, self._dE, self._flags)
+        arrays = (self._dt, self._dE, self._flags)
+        n_dt, n_dE, n_flags = (array.global_size for array in arrays)
+        local_sizes_differ = len({array.local_size for array in arrays}) > 1
+        local_flags_max = (
+            float(backend.max(self._flags.array_local))
+            if self._flags.local_size
+            else -inf
         )
-        assert n_dt == n_dE == n_flags, f"{n_dt=}, {n_dE=}, {n_flags=}"
-        assert (
-            self._flags.local_size == 0
-            or backend.max(self._flags.array_local) <= BeamFlags.ACTIVE.value
+        sizes_differ, flags_max = global_reduce(
+            float(local_sizes_differ), local_flags_max, op="MAX"
         )
+        assert n_dt == n_dE == n_flags and not sizes_differ, (
+            f"{n_dt=}, {n_dE=}, {n_flags=}, or local lengths differ"
+        )
+        assert flags_max <= BeamFlags.ACTIVE.value, f"{flags_max=}"
 
         if reference_time is not None:
             self.reference.time = reference_time

@@ -184,7 +184,14 @@ class BeamBaseClass(Preparable, ABC):
             Raised if the local or global sizes of the `dt` and `dE`
             arrays do not match.
         """
-        if (dt.local_size != dE.local_size) or (
+        from blond.core.backends.mpi_distributed.callables import (
+            global_reduce,  # prevent cyclic import
+        )
+
+        # Reduced over all ranks, so that they raise together: local
+        # mismatches can cancel out in the global sizes.
+        local_mismatch = float(dt.local_size != dE.local_size)
+        if global_reduce(local_mismatch, op="MAX")[0] or (
             dt.global_size != dE.global_size
         ):
             raise ValueError(
