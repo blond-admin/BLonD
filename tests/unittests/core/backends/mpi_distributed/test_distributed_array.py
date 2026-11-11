@@ -67,6 +67,22 @@ class TestDistributedArray(BLonDTestCase):
         array.mpi_scatter()
         self.assertEqual(array.global_size, 128)
 
+    def test_reductions_with_data_on_root_only(self):
+        """Ranks holding None take part as empty ranks, not raise."""
+        on_root = self.distributed_array._rank == 0
+        array = DistributedArray(
+            backend.array(self.array.copy()) if on_root else None
+        )
+        self.assertEqual(array.global_size, 128)
+        self.assertEqual(array.min_max(), (self.array.min(), self.array.max()))
+        self.assertAlmostEqual(array.sum(), self.array.sum(), places=10)
+        self.assertAlmostEqual(array.mean(), self.array.mean(), places=12)
+        self.assertAlmostEqual(array.std(), self.array.std(), places=12)
+        expected, _ = np.histogram(self.array, bins=8, range=(-3.0, 3.0))
+        np.testing.assert_allclose(
+            copy_to_cpu(array.histogram(bins=8, range=(-3.0, 3.0))), expected
+        )
+
     def test_copy_as_numpy(self):
         array = self.distributed_array.copy_as_numpy()
         assert array.device == "cpu"
@@ -532,6 +548,21 @@ class TestReductionsCollectives(BLonDTestCase):
         with identical_mpi_ranks(n_ranks=2):
             array = DistributedArray(None)
             self.assertEqual(array.global_size, 0)
+
+    def test_rank_holding_none_takes_part_as_empty(self):
+        """Before a root scatter, a rank holding None has no elements."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            array = DistributedArray(None)
+            self.assertEqual(array.local_size, 0)
+            self.assertEqual(array.sum(), 0.0)
+            with self.assertRaises(ValueError):  # no element on any rank
+                array.min_max()
+            histogram = array.histogram(bins=4, range=(0.0, 1.0))
+            np.testing.assert_array_equal(copy_to_cpu(histogram), 0.0)
+            # each reduction still took part in its collective
+            self.assertEqual(fake_mpi.COMM_WORLD.Allreduce.call_count, 3)
 
     def test_min_max_in_one_collective(self):
         result, n_collectives = self._reduce("min_max")

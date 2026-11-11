@@ -228,16 +228,36 @@ class DistributedArray:
         return array_global
 
     @property
+    def _array_or_empty(self) -> NumpyArray | CupyArray:
+        """
+        `array_local`, or an empty array on a rank holding None.
+
+        Before a root-distributes scatter, the other ranks hold None. In
+        a reduction they must take part as empty ranks: raising instead
+        would leave the ranks with data waiting in the collective.
+
+        Returns
+        -------
+        array
+            `array_local`, or an empty array if it is None.
+        """
+        if self.array_local is None:
+            return backend.zeros(0, dtype=backend.float)
+        return self.array_local
+
+    @property
     def local_size(self) -> int:
         """
-        Get the number of elements on the local processes.
+        Get the number of elements on this rank.
+
+        A rank holding None has no elements.
 
         Returns
         -------
         int
-            The total size of the distributed array across all processes.
+            The number of elements on this rank.
         """
-        return self.array_local.size
+        return 0 if self.array_local is None else self.array_local.size
 
     @property
     def global_size(self) -> int:
@@ -255,9 +275,7 @@ class DistributedArray:
             The total size of the distributed array across all processes.
         """
         if self._global_size is None:
-            array = self.array_local
-            local_size = 0 if array is None else array.size
-            self._global_size = int(global_reduce(local_size)[0])
+            self._global_size = int(global_reduce(self.local_size)[0])
         return self._global_size
 
     def min_max(self) -> tuple[float, float]:
@@ -347,7 +365,7 @@ class DistributedArray:
         float
             The standard deviation across all distributed array chunks.
         """
-        centred = self.array_local - self.mean()
+        centred = self._array_or_empty - self.mean()
         # dot(x, x) is a faster sum(x**2)
         local_sum_sq = float(backend.dot(centred, centred))
         return sqrt(global_reduce(local_sum_sq)[0] / self.global_size)
@@ -361,7 +379,8 @@ class DistributedArray:
         float
             The sum of all values across all distributed array chunks.
         """
-        return float(global_reduce(float(backend.sum(self.array_local)))[0])
+        local_sum = float(backend.sum(self._array_or_empty))
+        return float(global_reduce(local_sum)[0])
 
     def histogram(
         self,
@@ -401,7 +420,7 @@ class DistributedArray:
         hist_range = self.min_max() if range is None else range
 
         backend.specials.histogram(
-            array_read=self.array_local,
+            array_read=self._array_or_empty,
             array_write=array_write_local,
             start=hist_range[0],
             stop=hist_range[1],
@@ -458,7 +477,7 @@ class DistributedArray:
         array_write_local = out
 
         backend.specials.histogram_sparse(
-            x=self.array_local,
+            x=self._array_or_empty,
             out=array_write_local,
             first_left_cut=first_left_cut,
             left_cut_distance=left_cut_distance,
