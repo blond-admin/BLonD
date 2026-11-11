@@ -385,20 +385,18 @@ class TestCallablesCollectives(BLonDTestCase):
 
         with identical_mpi_ranks(n_ranks=2) as fake_mpi:
             distributed = [DistributedArray(backend.array(a)) for a in arrays]
-            # assigning an array reduces its size, outside of `function`
-            fake_mpi.COMM_WORLD.reset_mock()
             result = function(*distributed)
         comm = fake_mpi.COMM_WORLD
         self.assertEqual(comm.allreduce.call_count, 0, "pickled collective")
         return result, comm.Allreduce.call_count
 
-    def test_rms_emittance_in_two_collectives(self):
+    def test_rms_emittance_in_three_collectives(self):
         rng = np.random.default_rng(1)
         dt = rng.normal(scale=1e-9, size=100)
         dE = 1e8 * dt + rng.normal(scale=1e6, size=100)
         rms, n_collectives = self._run_on_two_ranks(rms_emittance, dt, dE)
-        # the two means, the three second moments; size known already
-        self.assertEqual(n_collectives, 2)
+        # size, the two means, the three second moments
+        self.assertEqual(n_collectives, 3)
         expected = _two_pass_rms_emittance(dt, dE)
         self.assertAlmostEqual(rms, expected, delta=1e-12 * expected)
 

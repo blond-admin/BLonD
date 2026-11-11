@@ -52,16 +52,20 @@ class TestDistributedArray(BLonDTestCase):
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
 
-    def test_global_size_read_on_root_only(self):
-        """Reading the size after a replacement needs no other rank."""
+    def test_global_size_read_on_root_only_after_scatter(self):
+        """The scatter knows the global size, so reading needs no rank."""
         self.distributed_array.mpi_scatter()
-        self.distributed_array.array_local = (
-            self.distributed_array.array_local[:16]
-        )
         if self.distributed_array._rank == 0:
-            n_ranks = self.distributed_array._size
-            self.assertEqual(self.distributed_array.global_size, 16 * n_ranks)
+            self.assertEqual(self.distributed_array.global_size, 128)
         mpi_barrier()
+
+    def test_assignment_on_root_only(self):
+        """Filling rank 0 alone before a scatter must not block it."""
+        array = DistributedArray(None)
+        if self.distributed_array._rank == 0:
+            array.array_local = backend.array(self.array.copy())
+        array.mpi_scatter()
+        self.assertEqual(array.global_size, 128)
 
     def test_copy_as_numpy(self):
         array = self.distributed_array.copy_as_numpy()
@@ -492,20 +496,34 @@ class TestReductionsCollectives(BLonDTestCase):
             self.assertEqual(array.global_size, 2)
         self.assertEqual(fake_mpi.COMM_WORLD.allreduce.call_count, 0)
 
-    def test_global_size_is_reduced_on_assignment(self):
-        """Every rank assigns, so reading never waits on the others."""
+    def test_assignment_is_not_a_collective(self):
+        """Rank 0 may fill an array alone before a root scatter."""
         from blond.testing.mocks import identical_mpi_ranks
 
         with identical_mpi_ranks(n_ranks=2) as fake_mpi:
-            comm = fake_mpi.COMM_WORLD
             array = DistributedArray(backend.array(self.values))
-            self.assertEqual(comm.Allreduce.call_count, 1)
-            self.assertEqual(array.global_size, 8)
             array.array_local = array.array_local[:1]
-            self.assertEqual(comm.Allreduce.call_count, 2)
-            comm.reset_mock()
-            self.assertEqual(array.global_size, 2)
-            self.assertEqual(comm.Allreduce.call_count, 0)
+            self.assertEqual(fake_mpi.COMM_WORLD.Allreduce.call_count, 0)
+
+    def test_concatenate_adds_known_global_sizes(self):
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            array_1 = DistributedArray(backend.array(self.values))
+            array_2 = DistributedArray(backend.array(self.values[:1]))
+            self.assertEqual(array_1.global_size + array_2.global_size, 10)
+            fake_mpi.COMM_WORLD.reset_mock()
+            joined = concatenate(array_1, array_2)
+            self.assertEqual(joined.global_size, 10)
+            self.assertEqual(fake_mpi.COMM_WORLD.Allreduce.call_count, 0)
+
+    def test_concatenate_of_unknown_sizes_is_not_a_collective(self):
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            array = DistributedArray(backend.array(self.values))
+            concatenate(array, array)
+            self.assertEqual(fake_mpi.COMM_WORLD.Allreduce.call_count, 0)
 
     def test_global_size_of_none_is_zero(self):
         """Non-root ranks hold None before a root-distributes scatter."""

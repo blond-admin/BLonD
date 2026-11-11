@@ -66,11 +66,9 @@ class DistributedArray:
         """
         The array data on this rank.
 
-        Every rank must replace its array together (e.g. when purging
-        lost particles): replacing it reduces the new global size over
-        all ranks right away, so that reading `global_size` later needs
-        no other rank. A rank holding None (before a root-distributes
-        scatter) counts as holding no elements.
+        Replacing it is local to this rank (rank 0 may fill an array
+        alone before `mpi_scatter`) and forgets the global size, so the
+        next read of `global_size` is a collective.
 
         Returns
         -------
@@ -82,8 +80,7 @@ class DistributedArray:
     @array_local.setter
     def array_local(self, array: NumpyArray | CupyArray | None) -> None:
         self._array_local = array
-        local_size = 0 if array is None else array.size
-        self._global_size = int(global_reduce(local_size)[0])
+        self._global_size: int | None = None
 
     def copy_as_numpy(self) -> NumpyArray:
         """
@@ -183,6 +180,7 @@ class DistributedArray:
 
         if header is None:
             self.array_local = None
+            self._global_size = 0
             return
         n_global, dtype_str = header
         chunk_sizes = [
@@ -201,6 +199,7 @@ class DistributedArray:
             self._comm.Recv(chunk, source=0)
         # `backend.array` copies, so rank 0 drops the global array
         self.array_local = backend.array(chunk, dtype=chunk.dtype)
+        self._global_size = n_global
 
     def mpi_gather(self) -> NumpyArray | CupyArray | None:
         """
@@ -245,14 +244,20 @@ class DistributedArray:
         """
         Get the total number of elements across all processes.
 
-        Reduced when `array_local` is assigned, so reading it is not a
-        collective and may happen on a single rank.
+        Known without communication after `mpi_scatter` and
+        `concatenate`. Otherwise, the first read after `array_local` was
+        replaced is a collective, which every rank must make. A rank
+        holding None counts as holding no elements.
 
         Returns
         -------
         int
             The total size of the distributed array across all processes.
         """
+        if self._global_size is None:
+            array = self.array_local
+            local_size = 0 if array is None else array.size
+            self._global_size = int(global_reduce(local_size)[0])
         return self._global_size
 
     def min_max(self) -> tuple[float, float]:
@@ -521,6 +526,10 @@ def concatenate(
             f"Second type: {type(array_2.array_local)}"
         )
 
-    return DistributedArray(
+    joined = DistributedArray(
         backend.concatenate((array_1.array_local, array_2.array_local))
     )
+    # only sizes known already: a reduction here might run on one rank
+    if array_1._global_size is not None and array_2._global_size is not None:
+        joined._global_size = array_1._global_size + array_2._global_size
+    return joined
