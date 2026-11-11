@@ -155,26 +155,39 @@ class Beam(BeamBaseClass):
               can generate its share independently (e.g., random distributions drawn
               with a different random stream on each rank).
         """
-        assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
-        n_macroparticles = len(dt)
-        if flags is None:
-            flags = np.int32(BeamFlags.ACTIVE.value) * backend.ones(
-                n_macroparticles, dtype=np.int32
-            )
-        else:
-            assert flags.max() <= BeamFlags.ACTIVE.value
-            assert len(dt) == len(flags)
+        if mpi_mode not in ("root-distributes", "all-ranks"):
+            raise NameError(f"Unknown {mpi_mode=}")
+        self._dE: DistributedArray = DistributedArray(dE)
+        self._dt: DistributedArray = DistributedArray(dt)
+        self._flags: DistributedArray = DistributedArray(flags)
+        if mpi_mode == "root-distributes":
+            # before moving to the backend, so no GPU holds the whole beam
+            self._dE.mpi_scatter()
+            self._dt.mpi_scatter()
+            self._flags.mpi_scatter()
 
-        self._dE: DistributedArray = DistributedArray(
-            backend.array(dE, dtype=backend.float)
+        self._dE.array_local = backend.array(
+            self._dE.array_local, dtype=backend.float
         )
-        self._dt: DistributedArray = DistributedArray(
-            backend.array(dt, dtype=backend.float)
+        self._dt.array_local = backend.array(
+            self._dt.array_local, dtype=backend.float
         )
-
+        if self._flags.array_local is None:
+            self._flags.array_local = np.int32(
+                BeamFlags.ACTIVE.value
+            ) * backend.ones(self._dt.local_size, dtype=np.int32)
         # intentionally 32 bit, this should be enough for all thinkable flags
-        self._flags: DistributedArray = DistributedArray(
-            backend.array(flags, dtype=np.int32)
+        self._flags.array_local = backend.array(
+            self._flags.array_local, dtype=np.int32
+        )
+        # global checks, so that a bad input fails on all ranks together
+        n_dt, n_dE, n_flags = (
+            array.global_size for array in (self._dt, self._dE, self._flags)
+        )
+        assert n_dt == n_dE == n_flags, f"{n_dt=}, {n_dE=}, {n_flags=}"
+        assert (
+            self._flags.local_size == 0
+            or backend.max(self._flags.array_local) <= BeamFlags.ACTIVE.value
         )
 
         if reference_time is not None:
@@ -182,22 +195,10 @@ class Beam(BeamBaseClass):
         if reference_total_energy is not None:
             self.reference.total_energy = reference_total_energy
 
-        if mpi_mode == "root-distributes":
-            self._dE.mpi_scatter()
-            self._dt.mpi_scatter()
-            self._flags.mpi_scatter()
-            # IDs need special treatment
-            self._ids: DistributedArray = DistributedArray(
-                backend.arange(len(dt), dtype=INDEX_DTYPE)
-            )
-            self._ids.mpi_scatter()
-        elif mpi_mode == "all-ranks":
-            # IDs need special treatment
-            self._ids: DistributedArray = distributed_arange(
-                len(dt), dtype=INDEX_DTYPE
-            )
-        else:
-            raise NameError(f"Unknown {mpi_mode=}")
+        # chunks are in rank order, so the ids are 0, 1, ... in both modes
+        self._ids: DistributedArray = distributed_arange(
+            self._dt.local_size, dtype=INDEX_DTYPE
+        )
 
     @property
     def ratio(self) -> float:
