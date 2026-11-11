@@ -140,9 +140,7 @@ def generate_particle_coordinates(
     n_macroparticles_local = mpi_local_size(
         n_macroparticles, warning_hint="n_macroparticles"
     )
-    random_generator_cpu = mpi_aware_random_generator_cpu(
-        seed=seed, n_forward_per_rank=n_macroparticles_local
-    )
+    random_generator_cpu = mpi_aware_random_generator_cpu(seed=seed)
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
     indexes = random_generator_cpu.choice(
