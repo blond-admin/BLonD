@@ -419,3 +419,68 @@ class TestDistributedArrayCupyMPI(BLonDTestCase):
         actual = distributed_array.histogram(bins=8)
         self.assertTrue(is_cupy_array(actual))
         np.testing.assert_allclose(copy_to_cpu(actual), expected)
+
+
+class TestReductionsCollectives(BLonDTestCase):
+    """Each reduction costs one buffer `Allreduce` over the ranks.
+
+    mpi4py's lowercase `allreduce` pickles its Python object and sends a
+    length first; called ~10 times per turn, that dominated the MPI cost
+    of a turn on GPUs.
+    """
+
+    def setUp(self):
+        if mpi_is_distributed():
+            self.skipTest("Emulates two ranks, runs only without `mpirun`")
+        self.values = np.array([3.0, -2.0, 7.0, 0.5])
+
+    def _reduce(self, reduction: str, warm_global_size: bool = True):
+        """`reduction` of the values on two ranks, and its collectives."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            array = DistributedArray(backend.array(self.values))
+            if warm_global_size:
+                array.global_size  # noqa: B018
+            fake_mpi.COMM_WORLD.reset_mock()
+            result = getattr(array, reduction)()
+        comm = fake_mpi.COMM_WORLD
+        self.assertEqual(comm.allreduce.call_count, 0, "pickled collective")
+        return result, comm.Allreduce.call_count
+
+    def test_global_size_is_reduced_once(self):
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            array = DistributedArray(backend.array(self.values))
+            self.assertEqual(array.global_size, 8)
+            self.assertEqual(array.global_size, 8)
+            self.assertEqual(fake_mpi.COMM_WORLD.Allreduce.call_count, 1)
+            array.array_local = array.array_local[:1]
+            self.assertEqual(array.global_size, 2)
+        self.assertEqual(fake_mpi.COMM_WORLD.allreduce.call_count, 0)
+
+    def test_min_max_in_one_collective(self):
+        result, n_collectives = self._reduce("min_max")
+        self.assertEqual(result, (-2.0, 7.0))
+        self.assertEqual(n_collectives, 1)
+
+    def test_one_collective_per_reduction(self):
+        values = self.values
+        expected = {
+            "min": (values.min(), 1),
+            "max": (values.max(), 1),
+            "sum": (2 * values.sum(), 1),  # two ranks
+            "mean": (values.mean(), 1),
+            "std": (values.std(), 2),  # two passes: mean, then spread
+        }
+        for reduction, (value, n_collectives) in expected.items():
+            with self.subTest(reduction=reduction):
+                result, n_calls = self._reduce(reduction)
+                self.assertAlmostEqual(result, value, places=12)
+                self.assertEqual(n_calls, n_collectives)
+
+    def test_min_max_of_empty_array_raises(self):
+        empty = DistributedArray(backend.zeros(0, dtype=backend.float))
+        with self.assertRaises(ValueError):
+            empty.min_max()

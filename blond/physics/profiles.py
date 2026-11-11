@@ -737,8 +737,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         beam
             Simulation `Beam` object.
         """
-        cut_left = beam.dt_min  # TODO caching of attribute access
-        cut_right = beam.dt_max  # TODO caching of attribute access
+        cut_left, cut_right = beam._dt.min_max()  # one MPI collective
         n_bins = _n_bins_covering(cut_right - cut_left, self.timestep)
         self._set_window(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
 
@@ -790,8 +789,7 @@ class DynamicProfileConstNBins(DynamicProfile):
         beam
             Simulation `Beam` object.
         """
-        cut_left = beam.dt_min  # TODO caching of attribute access
-        cut_right = beam.dt_max  # TODO caching of attribute access
+        cut_left, cut_right = beam._dt.min_max()  # one MPI collective
         self._set_window(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
