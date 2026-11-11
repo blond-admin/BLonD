@@ -1,4 +1,6 @@
+import os
 import unittest
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -12,10 +14,27 @@ from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
 from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
-from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.backend_testing import BLonDTestCase, skip_if_no_cupy
 
 is_distributed = mpi_is_distributed()
 not_distributed = not is_distributed
+
+
+def _mpi_library_reports_cuda_support() -> bool:
+    """
+    Ask the loaded MPI library whether it is CUDA-aware.
+
+    mpi4py does not wrap this query, so it is called via ctypes. Only
+    Open MPI provides `MPIX_Query_cuda_support`; with any other MPI
+    library the answer is False, and the CUDA-aware tests skip.
+    """
+    import ctypes
+
+    try:
+        query = getattr(ctypes.CDLL(None), "MPIX_Query_cuda_support", None)
+    except (OSError, TypeError):  # e.g. Windows has no `CDLL(None)`
+        return False
+    return query is not None and query() == 1
 
 
 class TestCallables(BLonDTestCase):
@@ -208,3 +227,149 @@ class TestGlobalSumArray(BLonDTestCase):
         self.assertIs(result, array)
         expected = sum(range(MPI_SIZE))
         np.testing.assert_array_equal(result, np.full((2, 3), expected))
+
+
+@pytest.mark.cupy
+class TestGlobalSumArrayCupy(BLonDTestCase):
+    """A CuPy array is reduced on the host, as MPI may not be CUDA-aware."""
+
+    @skip_if_no_cupy
+    def test_mpi_receives_host_memory(self):
+        import cupy as cp
+
+        from blond.core.backends.mpi_distributed import callables
+
+        received = []
+
+        def fake_allreduce(_in_place, buffer, op):  # two identical ranks
+            received.append(type(buffer))
+            buffer *= 2
+
+        fake_mpi = MagicMock()
+        fake_mpi.COMM_WORLD.Allreduce.side_effect = fake_allreduce
+        array = cp.arange(6.0).reshape(2, 3)
+        with (
+            patch.object(callables, "MPI", fake_mpi),
+            patch.object(callables, "mpi_is_distributed", return_value=True),
+        ):
+            result = callables.global_sum_array(array)
+        self.assertEqual(received, [np.ndarray])
+        self.assertIs(result, array)
+        np.testing.assert_array_equal(
+            copy_to_cpu(result), 2 * np.arange(6.0).reshape(2, 3)
+        )
+
+    def _sum_with_fake_mpi(self, array, cuda_aware: bool):
+        """Run `global_sum_array` as one of two identical MPI ranks."""
+        from blond.core.backends.mpi_distributed import callables
+
+        events = []
+
+        def fake_allreduce(_in_place, buffer, op):
+            events.append(("allreduce", buffer))
+            buffer *= 2
+
+        fake_mpi = MagicMock()
+        fake_mpi.COMM_WORLD.Allreduce.side_effect = fake_allreduce
+        environ = {"BLOND_MPI_CUDA_AWARE": str(cuda_aware)}
+        with (
+            patch.object(callables, "MPI", fake_mpi),
+            patch.object(callables, "mpi_is_distributed", return_value=True),
+            patch.dict(os.environ, environ),
+        ):
+            result = callables.global_sum_array(array)
+        return result, events
+
+    @skip_if_no_cupy
+    def test_host_buffer_is_pinned_and_reused(self):
+        import cupy as cp
+
+        from blond.core.backends.mpi_distributed import callables
+
+        first = cp.ones(16)
+        second = cp.ones(16)
+        _, events_first = self._sum_with_fake_mpi(first, cuda_aware=False)
+        _, events_second = self._sum_with_fake_mpi(second, cuda_aware=False)
+        buffer = events_first[0][1]
+        self.assertIs(events_second[0][1], buffer)
+        attributes = cp.cuda.runtime.pointerGetAttributes(buffer.ctypes.data)
+        self.assertEqual(attributes.type, cp.cuda.runtime.memoryTypeHost)
+        np.testing.assert_array_equal(copy_to_cpu(second), np.full(16, 2.0))
+        other_shape, _ = self._sum_with_fake_mpi(cp.ones(8), cuda_aware=False)
+        np.testing.assert_array_equal(
+            copy_to_cpu(other_shape), np.full(8, 2.0)
+        )
+        self.assertIsNot(callables._pinned_host_buffer(cp.ones(8)), buffer)
+
+    @skip_if_no_cupy
+    def test_cuda_aware_mpi_receives_device_memory_after_sync(self):
+        import cupy as cp
+
+        array = cp.arange(6.0)
+        stream = MagicMock()
+        events = []
+        stream.synchronize.side_effect = lambda: events.append(("sync",))
+        with patch("cupy.cuda.get_current_stream", return_value=stream):
+            result, allreduce_events = self._sum_with_fake_mpi(
+                array, cuda_aware=True
+            )
+        self.assertEqual(stream.synchronize.call_count, 1)
+        self.assertEqual(len(allreduce_events), 1)
+        self.assertIs(allreduce_events[0][1], array)
+        self.assertIs(result, array)
+        np.testing.assert_array_equal(copy_to_cpu(result), 2 * np.arange(6.0))
+
+    @pytest.mark.mpi
+    @unittest.skipIf(not_distributed, "Runs only with `mpirun`")
+    @skip_if_no_cupy
+    def test_sums_cupy_array_over_ranks(self):
+        import cupy as cp
+
+        from blond.core.backends.mpi_distributed.helpers import (
+            MPI_RANK,
+            MPI_SIZE,
+        )
+
+        array = cp.full((2, 3), float(MPI_RANK))
+        result = global_sum_array(array)
+        self.assertIs(result, array)
+        expected = np.full((2, 3), float(sum(range(MPI_SIZE))))
+        np.testing.assert_array_equal(copy_to_cpu(result), expected)
+
+
+@pytest.mark.mpi
+@pytest.mark.cupy
+class TestGlobalSumArrayCudaAwareMPI(BLonDTestCase):
+    """The CUDA-aware path with a real MPI library, where it is one."""
+
+    def setUp(self):
+        if not_distributed:
+            self.skipTest("Runs only with `mpirun`")
+        if not _mpi_library_reports_cuda_support():
+            self.skipTest(
+                "MPI library does not report CUDA support"
+                " (`MPIX_Query_cuda_support`)"
+            )
+
+    @skip_if_no_cupy
+    def test_sums_device_arrays_directly(self):
+        import cupy as cp
+
+        from blond.core.backends.mpi_distributed import callables
+        from blond.core.backends.mpi_distributed.helpers import (
+            MPI_RANK,
+            MPI_SIZE,
+        )
+
+        array = cp.full((2, 3), float(MPI_RANK))
+        no_host_copy = patch.object(
+            callables,
+            "_pinned_host_buffer",
+            side_effect=AssertionError("took the host-copy path"),
+        )
+        environ = {"BLOND_MPI_CUDA_AWARE": "True"}
+        with no_host_copy, patch.dict(os.environ, environ):
+            result = callables.global_sum_array(array)
+        self.assertIs(result, array)
+        expected = np.full((2, 3), float(sum(range(MPI_SIZE))))
+        np.testing.assert_array_equal(copy_to_cpu(result), expected)

@@ -93,15 +93,41 @@ def _import_mpi() -> ModuleType | None:
     return mpi_module
 
 
+def _node_local_rank(comm_world) -> int:
+    """
+    Rank of this process among the ranks on the same node.
+
+    Asks MPI which ranks share memory, so it needs no launcher-specific
+    environment variable. It is a collective, run once at import, which
+    every rank does.
+
+    Parameters
+    ----------
+    comm_world
+        The `MPI.COMM_WORLD` communicator.
+
+    Returns
+    -------
+    local_rank
+        Node-local rank, from 0 to the number of ranks on the node - 1.
+    """
+    node_comm = comm_world.Split_type(MPI.COMM_TYPE_SHARED)
+    local_rank = node_comm.Get_rank()
+    node_comm.Free()
+    return local_rank
+
+
 MPI = _import_mpi()
 if MPI is None:
     MPI_COMM_WORLD = None
     MPI_RANK = 0
     MPI_SIZE = 1
+    MPI_LOCAL_RANK = 0
 else:
     MPI_COMM_WORLD = MPI.COMM_WORLD
     MPI_RANK = MPI_COMM_WORLD.Get_rank()
     MPI_SIZE = MPI_COMM_WORLD.Get_size()
+    MPI_LOCAL_RANK = _node_local_rank(MPI_COMM_WORLD)
 
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
@@ -352,3 +378,57 @@ def mpi_run_on_root(function: Callable[[], object]) -> None:
         raise RuntimeError(
             f"MPI rank 0 failed, so rank {MPI_RANK} stops too: {error_message}"
         )
+
+
+def mpi_local_gpu_index(n_devices: int) -> int | None:
+    """
+    Index of the GPU this MPI rank should use.
+
+    The ranks of a node share out its GPUs. The node-local rank is used, not the global one, which would pick
+    the wrong GPU on every node but the first. If the launcher already
+    gives each rank one GPU (`CUDA_VISIBLE_DEVICES`), `n_devices` is 1
+    and the index is 0.
+
+    Parameters
+    ----------
+    n_devices
+        Number of GPUs visible to this process.
+
+    Returns
+    -------
+    device_index
+        Index of the GPU to use, or None without MPI, so that the
+        current device stays as it is.
+    """
+    if not mpi_is_distributed():
+        return None
+    return MPI_LOCAL_RANK % n_devices
+
+
+def mpi_cuda_aware() -> bool:
+    """
+    Whether GPU arrays may be passed to MPI directly.
+
+    Set `BLOND_MPI_CUDA_AWARE=True` only with a CUDA-aware MPI library.
+    Neither mpi4py nor the MPI standard can tell at runtime, and handing
+    GPU memory to an MPI that is not CUDA-aware crashes or corrupts data.
+
+    Returns
+    -------
+    cuda_aware
+        True if `BLOND_MPI_CUDA_AWARE` is ``True``; False if it is
+        ``False`` or unset (the default).
+
+    Raises
+    ------
+    ValueError
+        If `BLOND_MPI_CUDA_AWARE` is set to anything but ``True`` or
+        ``False``.
+    """
+    value = os.environ.get("BLOND_MPI_CUDA_AWARE", "False")
+    if value not in ("True", "False"):
+        raise ValueError(
+            "BLOND_MPI_CUDA_AWARE environment variable must be either True"
+            f" or False, not {value}"
+        )
+    return value == "True"

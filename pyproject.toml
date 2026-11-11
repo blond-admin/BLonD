@@ -199,6 +199,7 @@ env-vars = [
   "BLOND_FORCE_TEST_ALL_BACKENDS: True makes backend-aware tests run on every registered backend, not only the available ones.",
   "BLOND_COMPILED_CACHE_KEEP_N: Number of compiled-backend builds to keep in the cache (default 100).",
   "BLOND_LOAD_MPI: True or False overrides whether blond initialises MPI on import; unset (default), MPI is loaded only when an MPI launcher such as mpirun is detected.",
+  "BLOND_MPI_CUDA_AWARE: True passes GPU (CuPy) arrays directly to MPI, which needs a CUDA-aware MPI library; False or unset (default) sums them via a pinned host copy.",
 ]
 
 [tool.numpydoc_validation]
