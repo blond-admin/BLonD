@@ -1186,5 +1186,135 @@ class TestSimulationFreedWithoutCyclicGC(BLonDTestCase):
                     gc.enable()
 
 
+def _two_section_simulation_with_losses(profile=None):
+    """Both RF station types, both drift types and purging `BoxLosses`."""
+    from blond import BoxLosses, DriftExact, MultiHarmonicRFStation
+
+    circumference = 26658.883  # [m]
+    alpha = momentum_compaction_factor(transition_gamma=55.759505)
+    multi_harmonic_rf_station = MultiHarmonicRFStation(
+        n_harmonics=2, main_harmonic_idx=0, section_index=1
+    )
+    multi_harmonic_rf_station.harmonic = np.array([35640, 71280])
+    multi_harmonic_rf_station.voltage = np.array([1e6, 0.1e6])
+    multi_harmonic_rf_station.phi_rf_design = np.array([0.0, 0.0])
+    elements = [
+        SingleHarmonicRFStation(
+            harmonic=35640, voltage=6e6, phi_rf=0, section_index=0
+        ),
+        DriftSimple(
+            orbit_length=circumference / 2,
+            momentum_compaction_factor=alpha,
+            section_index=0,
+        ),
+        multi_harmonic_rf_station,
+        DriftExact(
+            orbit_length=circumference / 2,
+            momentum_compaction_factor=alpha,
+            section_index=1,
+        ),
+        BoxLosses(purge_flagged_macroparticles=True, t_min=0, t_max=2.5e-9),
+    ]
+    if profile is not None:
+        elements.append(profile)
+    ring = Ring(circumference)
+    ring.add_elements(elements)
+    return Simulation(
+        ring=ring,
+        magnetic_cycle=ConstantMagneticCycle(
+            value=450e9, reference_particle=proton
+        ),
+    )
+
+
+class TestNoGlobalCollectivesInTracking(BLonDTestCase):
+    """Per-turn tracking must not synchronise the MPI ranks needlessly.
+
+    `Beam.common_array_size` is an `allreduce` over all ranks; drifts,
+    RF kicks and losses only need the rank-local particle count.
+    """
+
+    def _common_array_size_calls(self, n_turns: int) -> int:
+        from unittest.mock import PropertyMock, patch
+
+        simulation = _two_section_simulation_with_losses()
+        beam = Beam.simple_gaussian(
+            n_macroparticles=1000,
+            intensity=1e9,
+            particle_type=proton,
+            dt_scale=0.1e-9,
+            dE_scale=1e8,
+            dt_offset=1.25e-9,
+        )
+        with patch.object(
+            Beam,
+            "common_array_size",
+            new_callable=PropertyMock,
+            side_effect=lambda: beam.dt.global_size,
+        ) as common_array_size:
+            simulation.run_simulation(
+                beams=(beam,), n_turns=n_turns, show_progressbar=False
+            )
+        return common_array_size.call_count
+
+    def test_tracking_queries_no_global_size_per_turn(self):
+        self.assertEqual(
+            self._common_array_size_calls(n_turns=3),
+            self._common_array_size_calls(n_turns=1),
+        )
+
+    def test_fully_lost_beam_keeps_tracking(self):
+        """Purging a beam without particles left must not divide by 0."""
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_is_distributed,
+        )
+
+        if mpi_is_distributed():
+            self.skipTest("Runs only without `mpirun`")
+        simulation = _two_section_simulation_with_losses()
+        beam = Beam(intensity=1e9, particle_type=proton)
+        # all outside the loss window: purged on the first turn
+        beam.setup_beam(dt=np.full(100, 10e-9), dE=np.zeros(100))
+        simulation.run_simulation(
+            beams=(beam,), n_turns=3, show_progressbar=False
+        )
+        self.assertEqual(beam.common_array_size, 0)
+        self.assertEqual(beam.intensity, 0)
+
+    @pytest.mark.mpi
+    def test_rank_without_particles_still_joins_purge_and_profile(self):
+        """An empty rank must still enter the collectives of the others."""
+        from blond.core.backends.mpi_distributed.helpers import (
+            MPI_RANK,
+            mpi_is_distributed,
+        )
+
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+        simulation = _two_section_simulation_with_losses(
+            profile=StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=64)
+        )
+        n_per_rank = 1000
+        rng = np.random.default_rng(0)
+        # `mpirun -n 2`: rank 1 particles are outside the loss window,
+        # so they are purged on the first turn.
+        dt = np.concatenate(
+            (
+                1.25e-9 + 0.1e-9 * rng.standard_normal(n_per_rank),
+                np.full(n_per_rank, 10e-9),
+            )
+        )
+        beam = Beam(intensity=1e9, particle_type=proton)
+        beam.setup_beam(
+            dt=dt, dE=np.zeros(dt.size), mpi_mode="root-distributes"
+        )
+        simulation.run_simulation(
+            beams=(beam,), n_turns=5, show_progressbar=False
+        )
+        self.assertEqual(
+            beam.dt.local_size, 0 if MPI_RANK == 1 else n_per_rank
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
