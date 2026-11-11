@@ -435,11 +435,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        if beam.is_distributed:
-            raise NotImplementedError(
-                "This needs to be implemented."
-                " Contact the devs if you need it."
-            )
         self._beam = beam
         self._consider_intensity = beam.intensity != 0
 
@@ -868,11 +863,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        if beam.is_distributed:
-            raise NotImplementedError(
-                "This needs to be implemented."
-                " Contact the devs if you need it."
-            )
         self._beam = beam
         n_entries = self._calc_n_entries(n_turns)
         n_macroparticles = int(beam._dt.local_size)

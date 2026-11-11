@@ -394,24 +394,6 @@ class TestBeamObservation(BLonDTestCase):
             obs_beam_hist2d = BeamHist2dOncePerTurn(
                 each_turn_i=2, bins=128 if intensity == 0 else (128, 64)
             )
-            beam1._is_distributed = True
-            with self.assertRaisesRegex(
-                NotImplementedError, "This needs to be implement"
-            ):
-                sim.run_simulation(
-                    beams=(beam1,),
-                    n_turns=N_TURNS // 50,
-                    observe=(obs_beam_hist2d,),
-                )
-            with self.assertRaisesRegex(
-                NotImplementedError, "This needs to be implement"
-            ):
-                sim.run_simulation(
-                    beams=(beam1,),
-                    n_turns=N_TURNS // 50,
-                    observe=(bunch_observation,),
-                )
-            beam1._is_distributed = False
             sim.run_simulation(
                 beams=(beam1,),
                 n_turns=N_TURNS,
