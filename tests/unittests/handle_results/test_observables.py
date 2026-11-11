@@ -267,6 +267,43 @@ class TestBeamObservation(BLonDTestCase):
             callers_relative_path("results/", stacklevel=1) + "last",
         )
 
+    def _observe_after_losing_first_particle(self, id_offset: int = 0):
+        """Rows of an observation of 4 particles, after losing the first.
+
+        `id_offset` shifts the ids, as on MPI ranks after the first.
+        """
+        beam = Beam(intensity=100, particle_type=electron)
+        beam.setup_beam(
+            reference_time=0.8,
+            reference_total_energy=11,
+            dt=np.array([0.0, 1.0, 2.0, 3.0]),
+            dE=np.array([10.0, 11.0, 12.0, 13.0]),
+        )
+        beam._ids.array_local += id_offset
+        self.bunch_observation.on_init_simulation(simulation=simulation)
+        self.bunch_observation.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=2
+        )
+        self.addCleanup(setattr, simulation.turn_counter, "value", 0)
+        simulation.turn_counter.value = 0
+        self.bunch_observation.update()
+        beam._flags.array_local[0] = BeamFlags.LOST.value
+        beam.purge_flagged_entries()  # moves the last particle forward
+        simulation.turn_counter.value = 1
+        self.bunch_observation.update()
+        return self.bunch_observation.dts, self.bunch_observation.dEs
+
+    def test_purged_particles_keep_their_columns(self) -> None:
+        dts, dEs = self._observe_after_losing_first_particle()
+        np.testing.assert_array_equal(dts[0], [0.0, 1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(dts[1], [np.nan, 1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(dEs[1], [np.nan, 11.0, 12.0, 13.0])
+
+    def test_ids_not_starting_at_zero(self) -> None:
+        """Ranks after the first hold ids offset by the ranks before."""
+        dts, _ = self._observe_after_losing_first_particle(id_offset=4)
+        np.testing.assert_array_equal(dts[1], [np.nan, 1.0, 2.0, 3.0])
+
     def test_mpi_warns_about_incomplete_data(self) -> None:
         _patch_mpi_size_two(self)
         self.bunch_observation.on_init_simulation(simulation=simulation)
@@ -535,6 +572,43 @@ class TestBeamHist2dOncePerTurnMPI(BLonDTestCase):
         np.testing.assert_allclose(obs.xedges[0], xedges)
         np.testing.assert_allclose(obs.yedges[0], yedges)
         np.testing.assert_allclose(obs.hist2d[0], hist2d)
+
+
+@pytest.mark.mpi
+class TestBeamObservationMPI(BLonDTestCase):
+    def setUp(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    def test_each_rank_records_its_chunk_after_losses(self) -> None:
+        from blond.core.backends.mpi_distributed.helpers import (
+            MPI_RANK,
+            MPI_SIZE,
+        )
+
+        n_per_rank = 4
+        n_total = n_per_rank * MPI_SIZE
+        dt = np.arange(n_total, dtype=float)
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=dt.copy(),
+            dE=-dt,
+            reference_time=0.8,
+            reference_total_energy=11,
+            mpi_mode="root-distributes",
+        )
+        obs = BeamObservationOncePerTurn(each_turn_i=1, warn=False)
+        obs.on_init_simulation(simulation=simulation)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)  # incomplete data
+            obs.on_run_simulation(simulation=simulation, beam=beam, n_turns=2)
+        beam._flags.array_local[0] = BeamFlags.LOST.value
+        beam.purge_flagged_entries()  # collective, every rank
+        obs.update()
+        chunk = dt[MPI_RANK * n_per_rank : (MPI_RANK + 1) * n_per_rank]
+        expected = chunk.copy()
+        expected[0] = np.nan
+        np.testing.assert_array_equal(obs.dts[0], expected)
 
 
 class TestBunchStatistics(BLonDTestCase):
