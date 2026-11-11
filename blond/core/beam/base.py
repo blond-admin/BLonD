@@ -52,7 +52,9 @@ class BeamBaseClass(Preparable, ABC):
     is_counter_rotating
         If this is a normal or counter-rotating beam.
     is_distributed
-        Developer option to allow distributed computing.
+        Whether the macro-particles are split across MPI ranks.
+        `Beam` sets it from the MPI run, i.e. when more than one rank is
+        used.
     """
 
     def __init__(
@@ -499,12 +501,12 @@ class BeamBaseClass(Preparable, ABC):
     @property  # as readonly attributes
     def is_distributed(self) -> bool:
         """
-        Developer option to allow distributed computing.
+        Whether the macro-particles are split across MPI ranks.
 
         Returns
         -------
         is_distributed
-            Developer option to allow distributed computing.
+            True if every rank holds only its share of the particles.
         """
         return self._is_distributed
 
