@@ -134,7 +134,7 @@ class TestBoxLosses(BLonDTestCase):
 
     def test_track_empty_beam_skips_loss_box(self):
         beam = Mock(BeamBaseClass)
-        beam.common_array_size = 0
+        beam.n_macroparticles_partial.return_value = 0
         self.box_losses.track(beam=beam)
 
     def test_wrong_args(self):
