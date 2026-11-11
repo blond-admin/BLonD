@@ -11,12 +11,18 @@
 
 from __future__ import annotations
 
-from math import sqrt
+from math import inf, sqrt
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.callables import (
+    global_reduce,
+    global_sum_array,
+)
 from blond.core.backends.mpi_distributed.helpers import MPI
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -54,6 +60,26 @@ class DistributedArray:
             self._is_distributed = self._size > 1
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
+
+    @property
+    def array_local(self) -> NumpyArray | CupyArray:
+        """
+        The array data on this rank.
+
+        Every rank replaces its array together (e.g. when purging lost
+        particles), so replacing it forgets the global size on all ranks.
+
+        Returns
+        -------
+        array_local
+            The array data on this rank.
+        """
+        return self._array_local
+
+    @array_local.setter
+    def array_local(self, array: NumpyArray | CupyArray) -> None:
+        self._array_local = array
+        self._global_size: int | None = None
 
     def copy_as_numpy(self) -> NumpyArray:
         """
@@ -96,11 +122,14 @@ class DistributedArray:
 
     def mpi_scatter(self) -> None:
         """
-        Scatter a 1D NumPy array.
+        Scatter rank 0's 1D array; each rank keeps its contiguous chunk.
 
-        Scatter a 1D NumPy array.
-        Rank 0 owns the global array before scatter.
-        After scatter, each rank owns its local chunk.
+        Only rank 0's array is read; the other ranks' may be None. If
+        rank 0's array is None, every rank ends up with None. Chunk
+        sizes and order are those of `np.array_split`. The chunks travel
+        as host buffers, not pickled, so no GPU holds more than its own
+        chunk and a chunk may exceed 2 GiB. Afterwards each rank holds an
+        array of the active backend, with the dtype of rank 0's array.
         """
         if not self._is_distributed:
             return
@@ -108,32 +137,66 @@ class DistributedArray:
         size = self._comm.Get_size()
         rank = self._comm.Get_rank()
 
-        chunks = None
+        host_array = None
+        header = None
         root_exception: Exception | None = None
         root_error: str | None = None
 
         if rank == 0:
-            # Split array into `size` chunks. Any failure here must be
-            # announced before the scatter below: every other rank is
-            # already blocking inside it, so raising straight away would
-            # deadlock the whole run instead of reporting the problem.
+            # Any failure here must be announced before the transfer
+            # below: every other rank is already blocking in it, so
+            # raising straight away would deadlock the whole run.
             try:
-                chunks = backend.array_split(self.array_local, size)
+                array = self.array_local
+                host_array = (
+                    None
+                    if array is None
+                    else (
+                        copy_to_cpu(array)
+                        if is_cupy_array(array)
+                        else np.ascontiguousarray(array)
+                    )
+                )
+                if host_array is not None and host_array.ndim != 1:
+                    raise ValueError(
+                        f"Only 1D arrays can be scattered, "
+                        f"got {host_array.ndim}D."
+                    )
+                if host_array is not None:
+                    header = (host_array.size, host_array.dtype.str)
             except Exception as exc:
                 root_exception = exc
                 root_error = f"{type(exc).__name__}: {exc}"
 
-        root_error = self._comm.bcast(root_error, root=0)
+        header, root_error = self._comm.bcast((header, root_error), root=0)
         if root_error is not None:
             if root_exception is not None:
                 raise root_exception
             raise RuntimeError(  # pragma: no cover # only non-root ranks
-                f"Rank 0 failed to split the array before `mpi_scatter`, "
+                f"Rank 0 failed to prepare the array for `mpi_scatter`, "
                 f"so there is nothing to scatter: {root_error}"
             )
 
-        # Each rank receives one chunk
-        self.array_local = self._comm.scatter(chunks, root=0)
+        if header is None:
+            self.array_local = None
+            return
+        n_global, dtype_str = header
+        chunk_sizes = [
+            n_global // size + (1 if r < n_global % size else 0)
+            for r in range(size)
+        ]
+        if rank == 0:
+            start = chunk_sizes[0]
+            for dest in range(1, size):
+                stop = start + chunk_sizes[dest]
+                self._comm.Send(host_array[start:stop], dest=dest)
+                start = stop
+            chunk = host_array[: chunk_sizes[0]]
+        else:  # pragma: no cover # only non-root ranks
+            chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
+            self._comm.Recv(chunk, source=0)
+        # `backend.array` copies, so rank 0 drops the global array
+        self.array_local = backend.array(chunk, dtype=chunk.dtype)
 
     def mpi_gather(self) -> NumpyArray | CupyArray | None:
         """
@@ -178,21 +241,51 @@ class DistributedArray:
         """
         Get the total number of elements across all processes.
 
+        Reduced once, and again only after `array_local` was replaced.
+
         Returns
         -------
         int
             The total size of the distributed array across all processes.
         """
-        local_size = self.array_local.size
+        if self._global_size is None:
+            self._global_size = int(global_reduce(self.local_size)[0])
+        return self._global_size
 
-        if self._is_distributed:
-            total_size = self._comm.allreduce(local_size, op=MPI.SUM)
-        else:
-            total_size = local_size
+    def min_max(self) -> tuple[float, float]:
+        """
+        Compute the global minimum and maximum in one collective.
 
-        return total_size
+        A rank without elements (e.g. after all its particles were lost)
+        takes part with ``+inf`` and ``-inf``, so the other ranks still get
+        the extrema instead of waiting for them forever.
 
-    def min(self):
+        Returns
+        -------
+        global_min
+            The minimum value across all distributed array chunks.
+        global_max
+            The maximum value across all distributed array chunks.
+
+        Raises
+        ------
+        ValueError
+            On every rank, if no rank holds any element.
+        """
+        local = (-inf, -inf)  # negated minimum, so that MAX reduces both
+        if self.local_size:
+            local = (
+                -float(backend.min(self.array_local)),
+                float(backend.max(self.array_local)),
+            )
+        negative_min, global_max = global_reduce(*local, op="MAX")
+        if global_max == -inf:  # same on all ranks, so is the raise
+            raise ValueError(
+                "`min`/`max` of an array without elements on any rank."
+            )
+        return -float(negative_min), float(global_max)
+
+    def min(self) -> float:
         """
         Compute the global minimum across all processes.
 
@@ -200,17 +293,14 @@ class DistributedArray:
         -------
         float
             The minimum value across all distributed array chunks.
+
+        See Also
+        --------
+        min_max : Both extrema, at the cost of one.
         """
-        local_min = float(backend.min(self.array_local))
+        return self.min_max()[0]
 
-        if self._is_distributed:
-            global_min = self._comm.allreduce(local_min, op=MPI.MIN)
-        else:
-            global_min = local_min
-
-        return global_min
-
-    def max(self):
+    def max(self) -> float:
         """
         Compute the global maximum across all processes.
 
@@ -218,17 +308,14 @@ class DistributedArray:
         -------
         float
             The maximum value across all distributed array chunks.
+
+        See Also
+        --------
+        min_max : Both extrema, at the cost of one.
         """
-        local_max = float(backend.max(self.array_local))
+        return self.min_max()[1]
 
-        if self._is_distributed:
-            global_max = self._comm.allreduce(local_max, op=MPI.MAX)
-        else:
-            global_max = local_max
-
-        return global_max
-
-    def mean(self):
+    def mean(self) -> float:
         """
         Compute the global mean across all processes.
 
@@ -237,19 +324,9 @@ class DistributedArray:
         float
             The mean value across all distributed array chunks.
         """
-        local_sum = float(backend.sum(self.array_local))
-        local_count = self.array_local.size
+        return self.sum() / self.global_size
 
-        if self._is_distributed:
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
-            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
-        else:
-            global_sum = local_sum
-            global_count = local_count
-
-        return global_sum / global_count
-
-    def std(self):
+    def std(self) -> float:
         """
         Compute the global standard deviation across all processes.
 
@@ -262,19 +339,12 @@ class DistributedArray:
         float
             The standard deviation across all distributed array chunks.
         """
-        global_mean = self.mean()
-        centred = self.array_local - global_mean
+        centred = self.array_local - self.mean()
         # dot(x, x) is a faster sum(x**2)
         local_sum_sq = float(backend.dot(centred, centred))
+        return sqrt(global_reduce(local_sum_sq)[0] / self.global_size)
 
-        if self._is_distributed:
-            global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
-        else:
-            global_sum_sq = local_sum_sq
-
-        return sqrt(global_sum_sq / self.global_size)
-
-    def sum(self):
+    def sum(self) -> float:
         """
         Compute the global sum across all processes.
 
@@ -283,14 +353,7 @@ class DistributedArray:
         float
             The sum of all values across all distributed array chunks.
         """
-        local_sum = float(backend.sum(self.array_local))
-
-        if self._is_distributed:
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
-        else:
-            global_sum = local_sum
-
-        return global_sum
+        return float(global_reduce(float(backend.sum(self.array_local)))[0])
 
     def histogram(
         self,
@@ -327,7 +390,7 @@ class DistributedArray:
             assert out.dtype == backend.float
             array_write_local = out
 
-        hist_range = (self.min(), self.max()) if range is None else range
+        hist_range = self.min_max() if range is None else range
 
         backend.specials.histogram(
             array_read=self.array_local,
@@ -337,12 +400,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
-
-            return array_write_local
-        else:
-            return array_write_local
+        return global_sum_array(array_write_local)
 
     def histogram_sparse(
         self,
@@ -404,12 +462,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
-
-            return array_write_local
-        else:
-            return array_write_local
+        return global_sum_array(array_write_local)
 
 
 def concatenate(

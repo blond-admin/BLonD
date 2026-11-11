@@ -207,7 +207,7 @@ class PooledInterpolationKick(BeamPhysicsRelevant):
             The beam object whose state will be updated by this element.
         """
         for key in self._buffer_voltage.keys():
-            if beam.common_array_size > 0:
+            if beam.n_macroparticles_partial() > 0:
                 voltage = self._buffer_voltage[key]
                 time = self._buffer_time_axis[key]
                 sparse_metadata = self._buffer_sparse_metadata[key]

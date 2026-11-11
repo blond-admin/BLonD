@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
     from types import ModuleType
 
     from numpy.random import Generator as NumpyGenerator
@@ -92,15 +93,41 @@ def _import_mpi() -> ModuleType | None:
     return mpi_module
 
 
+def _node_local_rank(comm_world) -> int:
+    """
+    Rank of this process among the ranks on the same node.
+
+    Asks MPI which ranks share memory, so it needs no launcher-specific
+    environment variable. It is a collective, run once at import, which
+    every rank does.
+
+    Parameters
+    ----------
+    comm_world
+        The `MPI.COMM_WORLD` communicator.
+
+    Returns
+    -------
+    local_rank
+        Node-local rank, from 0 to the number of ranks on the node - 1.
+    """
+    node_comm = comm_world.Split_type(MPI.COMM_TYPE_SHARED)
+    local_rank = node_comm.Get_rank()
+    node_comm.Free()
+    return local_rank
+
+
 MPI = _import_mpi()
 if MPI is None:
     MPI_COMM_WORLD = None
     MPI_RANK = 0
     MPI_SIZE = 1
+    MPI_LOCAL_RANK = 0
 else:
     MPI_COMM_WORLD = MPI.COMM_WORLD
     MPI_RANK = MPI_COMM_WORLD.Get_rank()
     MPI_SIZE = MPI_COMM_WORLD.Get_size()
+    MPI_LOCAL_RANK = _node_local_rank(MPI_COMM_WORLD)
 
 
 def mpi_local_size(global_size: int, warning_hint: str) -> int:
@@ -133,26 +160,31 @@ def mpi_local_size(global_size: int, warning_hint: str) -> int:
     return local_n_
 
 
-def mpi_aware_random_generator_cpu(
-    seed: int | None, n_forward_per_rank: int
-) -> NumpyGenerator:
+def mpi_aware_random_generator_cpu(seed: int | None) -> NumpyGenerator:
     """
     Get a random generator compatible with MPI.
+
+    Every rank gets its own stream of the seeded PCG64 generator, jumped
+    ahead by ``rank`` times ~2**127 draws, so the ranks never share random
+    numbers, however many each one draws. Rank 0 (and a serial run) gets
+    exactly ``np.random.default_rng(seed)``.
 
     Parameters
     ----------
     seed
         Random seed.
-    n_forward_per_rank
-        Considers that the other MPI-ranks also generate n samples.
 
     Returns
     -------
     random_generator_cpu
-        The random generator.
+        The random generator of this rank.
 
     Notes
     -----
+    A run on several ranks does not reproduce the serial random numbers:
+    a rank cannot know how many draws the ranks before it used, since
+    e.g. `standard_normal` and rejection loops take a varying number.
+
     As the Cupy random generators behave differently than the Numpy random
     generators, this routine returns only the CPU generators for consistency.
     The GPU interaction must be handled explicitly outside this function.
@@ -171,23 +203,12 @@ def mpi_aware_random_generator_cpu(
     ...     warning_hint="n_macroparticles",
     ... )
     >>> random_array = mpi_aware_random_generator_cpu(
-    ...     seed=None, n_forward_per_rank=local_size
+    ...     seed=None
     ... ).standard_normal(size=local_size)
     """
-    # Generate coordinates. For reproducibility,
-    # a separate random number stream is used for dt and dE
-
-    # All ranks have the same random generator.
-    random_generator_cpu = np.random.default_rng(seed)
-
-    # Consider the fact that the other ranks also produce particles.
-    random_generator_cpu.bit_generator.advance(MPI_RANK * n_forward_per_rank)
-
-    # Cupy doesn't implement the `advance` function (2025)
-    # When Cupy provides for the same random generators & `advance`,
-    # this function could be extended to GPU.
-
-    return random_generator_cpu
+    # `jumped(0)` is the unjumped generator, i.e. `default_rng(seed)`.
+    bit_generator = np.random.PCG64(seed).jumped(MPI_RANK)
+    return np.random.Generator(bit_generator)
 
 
 def distributed_arange(
@@ -304,3 +325,104 @@ def mpi_is_root() -> bool:
         Whether the current worker is the root worker.
     """
     return MPI_RANK == 0
+
+
+def mpi_run_on_root(function: Callable[[], object]) -> None:
+    """
+    Run `function` on rank 0 only, and raise on every rank if it failed.
+
+    Used for side effects that must happen exactly once, e.g. writing
+    result files, which would collide if every rank wrote them. The other
+    ranks wait until rank 0 is done, so they can read what it wrote. If
+    rank 0 raises, every other rank raises too instead of waiting for it
+    forever.
+
+    Parameters
+    ----------
+    function
+        Callable without arguments, called on rank 0 only.
+
+    Raises
+    ------
+    RuntimeError
+        On ranks other than 0, if `function` raised on rank 0.
+        Rank 0 re-raises the original exception.
+
+    Notes
+    -----
+    In non-distributed mode (single process), this just calls `function`.
+    """
+    if not mpi_is_distributed():
+        function()
+        return
+    error = None
+    if mpi_is_root():
+        try:
+            function()
+        except Exception as exc:
+            error = exc
+    # The broadcast doubles as the synchronisation point: the other ranks
+    # block until rank 0 has finished `function`.
+    error_message = MPI_COMM_WORLD.bcast(
+        None if error is None else repr(error), root=0
+    )
+    if error is not None:
+        raise error
+    if error_message is not None:
+        raise RuntimeError(
+            f"MPI rank 0 failed, so rank {MPI_RANK} stops too: {error_message}"
+        )
+
+
+def mpi_local_gpu_index(n_devices: int) -> int | None:
+    """
+    Index of the GPU this MPI rank should use.
+
+    The ranks of a node share out its GPUs. The node-local rank is used, not the global one, which would pick
+    the wrong GPU on every node but the first. If the launcher already
+    gives each rank one GPU (`CUDA_VISIBLE_DEVICES`), `n_devices` is 1
+    and the index is 0.
+
+    Parameters
+    ----------
+    n_devices
+        Number of GPUs visible to this process.
+
+    Returns
+    -------
+    device_index
+        Index of the GPU to use, or None without MPI, so that the
+        current device stays as it is.
+    """
+    if not mpi_is_distributed():
+        return None
+    return MPI_LOCAL_RANK % n_devices
+
+
+def mpi_cuda_aware() -> bool:
+    """
+    Whether GPU arrays may be passed to MPI directly.
+
+    Set `BLOND_MPI_CUDA_AWARE=True` only with a CUDA-aware MPI library.
+    Neither mpi4py nor the MPI standard can tell at runtime, and handing
+    GPU memory to an MPI that is not CUDA-aware crashes or corrupts data.
+
+    Returns
+    -------
+    cuda_aware
+        True if `BLOND_MPI_CUDA_AWARE` is ``True``; False if it is
+        ``False`` or unset (the default).
+
+    Raises
+    ------
+    ValueError
+        If `BLOND_MPI_CUDA_AWARE` is set to anything but ``True`` or
+        ``False``.
+    """
+    value = os.environ.get("BLOND_MPI_CUDA_AWARE", "False")
+    if value not in ("True", "False"):
+        raise ValueError(
+            "BLOND_MPI_CUDA_AWARE environment variable must be either True"
+            f" or False, not {value}"
+        )
+    return value == "True"

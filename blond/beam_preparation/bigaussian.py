@@ -327,11 +327,9 @@ class BiGaussian(MatchingRoutine):
 
         rng_dt_cpu_only = mpi_aware_random_generator_cpu(
             seed=(self._seed + 0) if self._seed is not None else None,
-            n_forward_per_rank=self._n_macroparticles_local,
         )
         rng_dE_cpu_only = mpi_aware_random_generator_cpu(
             seed=(self._seed + 1) if self._seed is not None else None,
-            n_forward_per_rank=self._n_macroparticles_local,
         )
 
         dt = backend.array(  # potentially on GPU

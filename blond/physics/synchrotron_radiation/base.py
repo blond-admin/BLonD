@@ -76,7 +76,9 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, Schedulable):
                 "cannot be plumbed through uniformly today, so we refuse it "
                 "instead of silently ignoring it. Pass `seed=None` and (for "
                 "the Python backend only) call `np.random.seed(...)` before "
-                "tracking if you need reproducibility."
+                "tracking if you need reproducibility. Under MPI, give each "
+                "rank a different seed, e.g. `seed + rank`, or all ranks "
+                "draw the same noise."
             )
 
         super().__init__(name=name, section_index=section_index)

@@ -16,8 +16,10 @@ import numpy as np
 
 from blond.core.backends.mpi_distributed.helpers import (
     MPI,
+    mpi_cuda_aware,
     mpi_is_distributed,
 )
+from blond.generals.cupy_.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -31,45 +33,103 @@ from blond.core.backends.backend import backend
 from blond.core.backends.flags import BeamFlags
 
 
-def _global_sum(local_value: float) -> float:
+def global_reduce(*local_values: float, op: str = "SUM") -> NumpyArray:
     """
-    Sum a per-rank value over all MPI ranks.
+    Reduce a few per-rank scalars over all MPI ranks in one collective.
+
+    The values travel as one float64 buffer, not as pickled Python
+    objects: one `Allreduce` instead of a length and a payload each.
+    float64 holds any count up to 2**53 exactly.
 
     Parameters
     ----------
-    local_value
-        The value on this rank.
+    *local_values
+        The values on this rank.
+    op
+        Name of the MPI reduction, e.g. ``"SUM"``, ``"MIN"`` or ``"MAX"``.
 
     Returns
     -------
-    global_value
-        The sum over all ranks, or `local_value` without MPI.
+    global_values
+        The reduced values, or `local_values` without MPI.
     """
+    buffer = np.array(local_values, dtype=np.float64)
     if mpi_is_distributed():
-        return MPI.COMM_WORLD.allreduce(local_value, op=MPI.SUM)
-    return local_value
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, buffer, op=getattr(MPI, op))
+    return buffer
 
 
-def _global_dot(
-    array_1: NumpyArray | CupyArray, array_2: NumpyArray | CupyArray
-) -> float:
+# Page-locked host buffers for `global_sum_array`, one per array shape
+# and dtype; reused every turn, and copies from/to them are ~2x faster.
+_PINNED_HOST_BUFFERS: dict[tuple, NumpyArray] = {}
+
+
+def _pinned_host_buffer(like: CupyArray) -> NumpyArray:
     """
-    Dot product of two rank-local arrays, summed over all MPI ranks.
+    Return a reusable page-locked host array shaped like `like`.
 
     Parameters
     ----------
-    array_1
-        Rank-local input array 1.
-    array_2
-        Rank-local input array 2.
+    like
+        CuPy array whose shape and dtype the buffer gets.
 
     Returns
     -------
-    global_dot
-        The dot product over the global arrays.
+    buffer
+        Host array in pinned memory, shared by every call with the same
+        shape and dtype.
     """
-    local_dot = backend.specials.dot_product_1d_array(array_1, array_2)
-    return _global_sum(float(local_dot))
+    key = (like.shape, like.dtype.str)
+    buffer = _PINNED_HOST_BUFFERS.get(key)
+    if buffer is None:
+        import cupy as cp  # only reached for CuPy arrays
+
+        memory = cp.cuda.alloc_pinned_memory(like.nbytes)
+        buffer = np.frombuffer(memory, like.dtype, like.size)
+        buffer = buffer.reshape(like.shape)
+        _PINNED_HOST_BUFFERS[key] = buffer
+    return buffer
+
+
+def global_sum_array(
+    local_array: NumpyArray | CupyArray,
+) -> NumpyArray | CupyArray:
+    """
+    Sum a per-rank array element-wise over all MPI ranks, in place.
+
+    By default a CuPy array is summed via a pinned host copy: handing
+    device memory to an MPI library that is not CUDA-aware crashes or
+    gives wrong sums. With `BLOND_MPI_CUDA_AWARE=True`, MPI gets the
+    device memory directly, which skips both copies.
+
+    Parameters
+    ----------
+    local_array
+        The contiguous array on this rank; overwritten with the sum.
+
+    Returns
+    -------
+    global_array
+        `local_array`, now holding the sum over all ranks.
+    """
+    if not mpi_is_distributed():
+        return local_array
+    assert local_array.flags.c_contiguous, "MPI needs a contiguous buffer"
+    if not is_cupy_array(local_array):
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, local_array, op=MPI.SUM)
+    elif mpi_cuda_aware():
+        import cupy as cp  # only reached for CuPy arrays
+
+        # MPI cannot see CuPy's queued kernels: wait until the array
+        # is written before MPI reads it.
+        cp.cuda.get_current_stream().synchronize()
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, local_array, op=MPI.SUM)
+    else:
+        host_array = _pinned_host_buffer(local_array)
+        local_array.get(out=host_array)  # blocking: waits for the kernels
+        MPI.COMM_WORLD.Allreduce(MPI.IN_PLACE, host_array, op=MPI.SUM)
+        local_array.set(host_array)
+    return local_array
 
 
 def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
@@ -88,13 +148,10 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     rms_emittance
         The Root-Mean-Square emittance in [s eV] of the beam.
     """
-    n = _global_sum(dt.local_size)
-    dt_mean = (
-        _global_sum(float(backend.specials.sum_1d_array(dt.array_local))) / n
-    )
-    dE_mean = (
-        _global_sum(float(backend.specials.sum_1d_array(dE.array_local))) / n
-    )
+    n = dt.global_size
+    sum_dt = backend.specials.sum_1d_array(dt.array_local)
+    sum_dE = backend.specials.sum_1d_array(dE.array_local)
+    dt_mean, dE_mean = global_reduce(float(sum_dt), float(sum_dE)) / n
 
     # Centre on the global mean before taking second moments. The
     # one-pass form sum(x**2)/n - mean**2 cancels catastrophically when
@@ -104,9 +161,15 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     dE_centred = dE.array_local - dE_mean
 
     # use dot(x,x) for faster calculation of sum(x**2)
-    sigma_dt_squared = _global_dot(dt_centred, dt_centred) / n
-    sigma_dE_squared = _global_dot(dE_centred, dE_centred) / n
-    sigma_dE_dt = _global_dot(dt_centred, dE_centred) / n
+    dot = backend.specials.dot_product_1d_array
+    sigma_dt_squared, sigma_dE_squared, sigma_dE_dt = (
+        global_reduce(
+            float(dot(dt_centred, dt_centred)),
+            float(dot(dE_centred, dE_centred)),
+            float(dot(dt_centred, dE_centred)),
+        )
+        / n
+    )
 
     # The determinant is >= 0 in exact arithmetic (Cauchy-Schwarz), but
     # rounding can push it slightly negative for a zero-emittance beam.
@@ -130,6 +193,4 @@ def count_active_macroparticles(flags: DistributedArray) -> int:
         ``BeamFlags.ACTIVE``.
     """
     local_count = int(backend.sum(flags.array_local == BeamFlags.ACTIVE.value))
-    if mpi_is_distributed():  # pragma: no cover
-        return int(MPI.COMM_WORLD.allreduce(local_count, op=MPI.SUM))
-    return local_count
+    return int(global_reduce(local_count)[0])

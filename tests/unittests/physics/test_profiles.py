@@ -20,6 +20,7 @@ from blond import (
     uranium_29,
 )
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
+from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
@@ -221,12 +222,6 @@ class TestProfileBaseClass(BLonDTestCase):
                 np.linspace(-5.5, 5.5, 12),
                 copy_to_cpu(self.profile_base_class.bin_edges),
             )
-
-    def test_track(self):
-        from blond.testing.mocks import beam_mock
-
-        with self.assertRaises(NotImplementedError):
-            self.profile_base_class.track(beam=beam_mock)
 
     def test_track_empty_beam_zeros_hist(self):
         from unittest.mock import Mock
@@ -547,6 +542,26 @@ class TestDynamicProfileConstNBins(BLonDTestCase):
         np.testing.assert_almost_equal(
             np.zeros(10),
             copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y),
+        )
+
+    @unittest.skipIf(
+        mpi_is_distributed(), "Emulates two ranks, runs only without MPI"
+    )
+    def test_track_costs_two_collectives_under_mpi(self):
+        """Window (min and max together) and histogram: one each."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            beam = _beam_with_dt(np.linspace(0, 1e-9, 10))
+            beam.common_array_size  # noqa: B018  # counted once per beam
+            fake_mpi.COMM_WORLD.reset_mock()
+            self.dynamic_profile_const_cutoff.track(beam=beam)
+        comm = fake_mpi.COMM_WORLD
+        self.assertEqual(comm.allreduce.call_count, 0, "pickled collective")
+        self.assertEqual(comm.Allreduce.call_count, 2)
+        self.assertEqual(
+            float(copy_to_cpu(self.dynamic_profile_const_cutoff.hist_y).sum()),
+            20.0,
         )
 
     def test_track_follows_moving_beam(self):
