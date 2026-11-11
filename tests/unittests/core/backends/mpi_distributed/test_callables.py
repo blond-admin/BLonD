@@ -5,6 +5,7 @@ import pytest
 
 from blond import Cupy64Bit, Numpy64Bit, backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.callables import (
+    global_sum_array,
     rms_emittance,
 )
 from blond.core.backends.mpi_distributed.distributed_array import (
@@ -184,3 +185,26 @@ class TestRmsEmittanceRounding(BLonDTestCase):
                     ],
                     [],
                 )
+
+
+class TestGlobalSumArray(BLonDTestCase):
+    @unittest.skipIf(is_distributed, "Runs only without `mpirun`")
+    def test_without_mpi_returns_input_unchanged(self):
+        array = np.arange(6.0).reshape(2, 3)
+        result = global_sum_array(array)
+        self.assertIs(result, array)
+        np.testing.assert_array_equal(result, np.arange(6.0).reshape(2, 3))
+
+    @pytest.mark.mpi
+    @unittest.skipIf(not_distributed, "Runs only with `mpirun`")
+    def test_sums_over_ranks_in_place(self):
+        from blond.core.backends.mpi_distributed.helpers import (
+            MPI_RANK,
+            MPI_SIZE,
+        )
+
+        array = np.full((2, 3), float(MPI_RANK))
+        result = global_sum_array(array)
+        self.assertIs(result, array)
+        expected = sum(range(MPI_SIZE))
+        np.testing.assert_array_equal(result, np.full((2, 3), expected))
