@@ -57,6 +57,7 @@ dev = [
   "marimo>=0.25.1",      # example notebooks (blond/examples/notebooks)
   "nbformat>=5.7",       # needed by `marimo export ipynb`
   "requests>=2",         # for stale issue tagging
+  "clang-tidy==22.1.8",  # C++ backend lint; exact pin, findings vary by version
 ]
 doc = [
   "sphinx>=6",                   # documentation generator

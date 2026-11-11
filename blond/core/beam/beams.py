@@ -80,7 +80,7 @@ class Beam(BeamBaseClass):
             intensity=intensity,
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
-            is_distributed=False,
+            is_distributed=mpi_is_distributed(),
         )
 
     def is_set_up(self) -> bool:

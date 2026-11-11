@@ -12,12 +12,11 @@
 // particles
 
 #include <cmath>
-#include <math.h>
-#include <stdlib.h>
 
 #include "blond_common.h"
+#include "scratch_buffer.h"
 
-extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
+extern "C" void linear_interp_kick(const real_t *__restrict__ beam_dt,
                                    real_t *__restrict__ beam_dE,
                                    const real_t *__restrict__ voltage_array,
                                    const real_t *__restrict__ bin_centers,
@@ -29,8 +28,10 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
   const real_t inv_bin_width =
       (n_slices - 1) / (bin_centers[n_slices - 1] - bin_centers[0]);
 
-  real_t *voltageKick = (real_t *)malloc((n_slices - 1) * sizeof(real_t));
-  real_t *factor = (real_t *)malloc((n_slices - 1) * sizeof(real_t));
+  static thread_local std::vector<real_t> voltageKick_buffer;
+  static thread_local std::vector<real_t> factor_buffer;
+  real_t *const voltageKick = reuse_scratch(voltageKick_buffer, n_slices - 1);
+  real_t *const factor = reuse_scratch(factor_buffer, n_slices - 1);
 
 #pragma omp parallel
   {
@@ -52,7 +53,7 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
     for (index_t i = 0; i < n_macroparticles; i += STEP) {
 
       const index_t loop_count =
-          n_macroparticles - i > STEP ? STEP : (index_t)(n_macroparticles - i);
+          n_macroparticles - i > STEP ? STEP : (n_macroparticles - i);
 
       for (index_t j = 0; j < loop_count; j++) {
         fbin[j] = std::floor((beam_dt[i + j] - bin_centers[0]) * inv_bin_width);
@@ -71,8 +72,6 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
       }
     }
   }
-  free(voltageKick);
-  free(factor);
 }
 
 // Sparse variant of linear_interp_kick: bin_centers/voltage are a
@@ -86,7 +85,7 @@ extern "C" void linear_interp_kick(real_t *__restrict__ beam_dt,
 // interpolated within that bucket's own bins using the same
 // voltageKick/factor formula as the dense kernel.
 extern "C" void linear_interp_kick_sparse(
-    real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
+    const real_t *__restrict__ beam_dt, real_t *__restrict__ beam_dE,
     const real_t *__restrict__ voltage_array,
     const real_t *__restrict__ bin_centers, const real_t charge,
     const int n_slices_total, const index_t n_macroparticles,
@@ -96,12 +95,17 @@ extern "C" void linear_interp_kick_sparse(
     const bool *__restrict__ filling_pattern,
     const int *__restrict__ bucket_index_to_memory_index) {
 
+  // Fetched first: the thread_local lookup is a call that would otherwise
+  // force the constants below onto the stack in the single-core build.
+  static thread_local std::vector<real_t> voltageKick_buffer;
+  static thread_local std::vector<real_t> factor_buffer;
+  real_t *const voltageKick =
+      reuse_scratch(voltageKick_buffer, n_slices_total - 1);
+  real_t *const factor = reuse_scratch(factor_buffer, n_slices_total - 1);
+
   const real_t inv_bin_width = real_t(bins_per_profile) / cut_width;
   const real_t bin_width = cut_width / real_t(bins_per_profile);
   const real_t inv_hist_dist = real_t(1) / left_cut_distance;
-
-  real_t *voltageKick = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
-  real_t *factor = (real_t *)malloc((n_slices_total - 1) * sizeof(real_t));
 
 #pragma omp parallel
   {
@@ -150,8 +154,6 @@ extern "C" void linear_interp_kick_sparse(
       beam_dE[i] += dt * voltageKick[bin] + factor[bin];
     }
   }
-  free(voltageKick);
-  free(factor);
 }
 
 // Optimised C++ routine that interpolates the induced voltage
@@ -159,9 +161,9 @@ extern "C" void linear_interp_kick_sparse(
 // Only right extrapolation is assumed; it gives zero values.
 // This routine contributes to the computation of multi-turn wake with
 // acceleration
-extern "C" void linear_interp_time_translation(real_t *__restrict__ xp,
-                                               real_t *__restrict__ yp,
-                                               real_t *__restrict__ x,
+extern "C" void linear_interp_time_translation(const real_t *__restrict__ xp,
+                                               const real_t *__restrict__ yp,
+                                               const real_t *__restrict__ x,
                                                real_t *__restrict__ y,
                                                const int len_xp) {
 
@@ -172,8 +174,7 @@ extern "C" void linear_interp_time_translation(real_t *__restrict__ xp,
 
 #pragma omp parallel for
   for (int i = 0; i < diff - 1; i++) {
-    int ffbin;
-    ffbin = ffbin0 + i;
+    const int ffbin = ffbin0 + i;
     y[i] = yp[ffbin] +
            (x[i] - xp[ffbin]) * (yp[ffbin + 1] - yp[ffbin]) * inv_bin_width;
   }
