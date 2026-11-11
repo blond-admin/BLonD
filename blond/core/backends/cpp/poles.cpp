@@ -9,27 +9,57 @@
 // C++ implementation of induced voltage calculation using pole-residue
 // (vector fitting) models, parallelized with OpenMP over poles.
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 #include "blond_common.h"
 #include "openmp.h"
 
+namespace {
+
 // Complex exponential: exp(a + bi) = exp(a) * (cos(b) + i*sin(b))
-static inline void fast_cexp(const real_t re, const real_t im, real_t &out_re,
-                             real_t &out_im) {
+inline void fast_cexp(const real_t re, const real_t im, real_t &out_re,
+                      real_t &out_im) {
   const real_t cmplx_res = FAST_EXP(re);
   out_re = cmplx_res * FAST_COS(im);
   out_im = cmplx_res * FAST_SIN(im);
 }
 
 // Complex multiply: (a + bi) * (c + di)
-static inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
-                        const real_t b_im, real_t &out_re, real_t &out_im) {
+inline void cmul(const real_t a_re, const real_t a_im, const real_t b_re,
+                 const real_t b_im, real_t &out_re, real_t &out_im) {
   out_re = a_re * b_re - a_im * b_im;
   out_im = a_re * b_im + a_im * b_re;
 }
+
+// On a bin where the profile was updated: advance the state across the
+// time jump since the previous bin (or since t_start for bin 0) and set the
+// per-bin decay exp(pole * dt) for the bins that follow.
+inline void jump_state(const real_t *__restrict__ profile_dts, const int bin_i,
+                       const real_t t_start, const real_t pole_re,
+                       const real_t pole_im, real_t &state_re, real_t &state_im,
+                       real_t &decay_re, real_t &decay_im) {
+  // Compute t_jump (real scalar)
+  const real_t t_jump = (bin_i == 0)
+                            ? profile_dts[0] - t_start
+                            : profile_dts[bin_i] - profile_dts[bin_i - 1];
+
+  // state *= exp(pole * t_jump)
+  real_t e_re = 0;
+  real_t e_im = 0;
+  fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
+
+  real_t new_re = 0;
+  real_t new_im = 0;
+  cmul(state_re, state_im, e_re, e_im, new_re, new_im);
+  state_re = new_re;
+  state_im = new_im;
+
+  // decay = exp(pole * dt)
+  const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
+  fast_cexp(pole_re * dt, pole_im * dt, decay_re, decay_im);
+}
+
+} // namespace
 
 /**
  * Apply poles based on the profile to generate voltage.
@@ -64,11 +94,12 @@ extern "C" void wake_from_pole_residue(
   const int n_used_threads = (n_poles < n_threads) ? n_poles : n_threads;
 
   // Zero voltage and the used rows of voltage_threaded from previous call
-  memset(voltage, 0, n_bins * sizeof(real_t));
-  memset(voltage_threaded, 0, (size_t)n_used_threads * n_bins * sizeof(real_t));
+  std::memset(voltage, 0, n_bins * sizeof(real_t));
+  std::memset(voltage_threaded, 0,
+              (size_t)n_used_threads * n_bins * sizeof(real_t));
 
   // t_start from states[-1] (real part of last complex element)
-  const real_t t_start = states[2 * n_poles];
+  const real_t t_start = states[(size_t)2 * n_poles];
 
   // Parallel over poles: each pole carries sequential state across bins,
   // but different poles are fully independent. With schedule(static) and
@@ -85,12 +116,10 @@ extern "C" void wake_from_pole_residue(
     // the two factors cancel (flip * flip == 1); only contributions of
     // the other beam, accumulated in the shared `states`, see a net
     // sign flip.
-    real_t cr_pole_flip = 1;
-    if (is_counterrotating_beam) {
-      if (counterrotating_pole_signs[pole_i] == -1) {
-        cr_pole_flip = -1;
-      }
-    }
+    const real_t cr_pole_flip =
+        (is_counterrotating_beam && counterrotating_pole_signs[pole_i] == -1)
+            ? real_t(-1)
+            : real_t(1);
     const int pole_n = 2 * pole_i;
     const real_t pole_re = poles[pole_n];
     const real_t pole_im = poles[pole_n + 1];
@@ -109,32 +138,15 @@ extern "C" void wake_from_pole_residue(
     int i_update = 0;
     int update_on_bin_i = (n_updates > 0) ? update_on_bin[0] : -1;
 
-    real_t decay_re = 0, decay_im = 0;
+    real_t decay_re = 0;
+    real_t decay_im = 0;
     real_t *__restrict__ vt = voltage_threaded + (size_t)thread_i * n_bins;
 
     for (int bin_i = 0; bin_i < n_bins; bin_i++) {
 
       if (bin_i == update_on_bin_i) {
-        // Compute t_jump (real scalar)
-        real_t t_jump;
-        if (bin_i == 0) {
-          t_jump = profile_dts[0] - t_start;
-        } else {
-          t_jump = profile_dts[bin_i] - profile_dts[bin_i - 1];
-        }
-
-        // state *= exp(pole * t_jump)
-        real_t e_re, e_im;
-        fast_cexp(pole_re * t_jump, pole_im * t_jump, e_re, e_im);
-
-        real_t new_re, new_im;
-        cmul(state_re, state_im, e_re, e_im, new_re, new_im);
-        state_re = new_re;
-        state_im = new_im;
-
-        // decay = exp(pole * dt)
-        const real_t dt = profile_dts[bin_i + 1] - profile_dts[bin_i];
-        fast_cexp(pole_re * dt, pole_im * dt, decay_re, decay_im);
+        jump_state(profile_dts, bin_i, t_start, pole_re, pole_im, state_re,
+                   state_im, decay_re, decay_im);
 
         i_update++;
         if (i_update < n_updates) {
@@ -142,7 +154,8 @@ extern "C" void wake_from_pole_residue(
         }
       } else {
         // state *= decay
-        real_t new_re, new_im;
+        real_t new_re = 0;
+        real_t new_im = 0;
         cmul(state_re, state_im, decay_re, decay_im, new_re, new_im);
         state_re = new_re;
         state_im = new_im;
@@ -163,8 +176,8 @@ extern "C" void wake_from_pole_residue(
     }
 
     // Store state back
-    states[2 * pole_i] = state_re;
-    states[2 * pole_i + 1] = state_im;
+    states[(size_t)2 * pole_i] = state_re;
+    states[(size_t)2 * pole_i + 1] = state_im;
   }
 
   // Reduce the used rows of voltage_threaded into voltage (parallel over bins)
@@ -178,6 +191,6 @@ extern "C" void wake_from_pole_residue(
   }
 
   // Store last profile_dts value into states[-1] for next call
-  states[2 * n_poles] = profile_dts[n_profile_dts - 1];
-  states[2 * n_poles + 1] = 0;
+  states[(size_t)2 * n_poles] = profile_dts[n_profile_dts - 1];
+  states[(size_t)2 * n_poles + 1] = 0;
 }

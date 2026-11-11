@@ -15,6 +15,7 @@ from math import sqrt
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.callables import global_sum_array
 from blond.core.backends.mpi_distributed.helpers import MPI
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayPrecisionError
@@ -337,12 +338,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
-
-            return array_write_local
-        else:
-            return array_write_local
+        return global_sum_array(array_write_local)
 
     def histogram_sparse(
         self,
@@ -404,12 +400,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
-
-            return array_write_local
-        else:
-            return array_write_local
+        return global_sum_array(array_write_local)
 
 
 def concatenate(

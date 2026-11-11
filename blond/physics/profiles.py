@@ -404,10 +404,6 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         beam
             Beam class to interact with this element.
         """
-        if beam.is_distributed:
-            raise NotImplementedError(
-                "Implement histogram on distributed array"
-            )
         geometry = self._geometry
         if beam.common_array_size > 0:
             beam._dt.histogram(  # MPI aware histogram calculation
