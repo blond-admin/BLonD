@@ -76,6 +76,10 @@ inline std::size_t re_index(const int i) {
 // the pole, so it is shared by the block and paid once per bin instead of
 // once per pole; the per-pole arithmetic runs in SIMD lanes, and the
 // independent recursions hide the latency of the complex multiply.
+// The lane index `k` is always the bound `k < B` of its own loop, so the
+// unchecked `operator[]` cannot go out of range; `.at()` would add a
+// branch and a possible throw to every lane of the SIMD loops.
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 template <int B> class PoleBlock {
 public:
   // Load poles [first_pole, first_pole + B) and their states.
@@ -91,13 +95,15 @@ public:
       // The flip is applied to both the injection and the read-out, so a
       // beam's own wake never flips; a charge carried from the other beam
       // keeps that beam's flip.
-      const bool flipped =
-          args.counterrotating_pole_signs[first_pole + k] == real_t(-1);
+      const bool flipped = args.counterrotating_pole_signs[first_pole + k] ==
+                           static_cast<real_t>(-1);
       flip[k] = (args.is_counterrotating_beam && flipped) ? -1 : 1;
       const real_t carried_flip =
           (args.carried_is_counterrotating && flipped) ? -1 : 1;
       // A complex pole stands in for its unstored conjugate partner.
-      const real_t pair = (pole_im[k] == real_t(0)) ? real_t(1) : real_t(2);
+      const real_t pair = (pole_im[k] == static_cast<real_t>(0))
+                              ? static_cast<real_t>(1)
+                              : static_cast<real_t>(2);
       injection[k] = flip[k] * pair * args.factor;
       carried_injection[k] = carried_flip * pair * args.carried_charge;
       fast_cexp(pole_re[k] * args.bin_dt, pole_im[k] * args.bin_dt, decay_re[k],
@@ -205,6 +211,7 @@ private:
   alignas(64) std::array<real_t, B> state_re;
   alignas(64) std::array<real_t, B> state_im;
 };
+// NOLINTEND(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
 // The far field of poles [first_pole, first_pole + B), added to `vt`.
 template <int B>
@@ -219,8 +226,8 @@ void wake_from_pole_block(const PoleKernelArgs &args, const int first_pole,
   // Times relative to the first bin. A bin is read out two bins behind
   // its own time; the carried charge was emitted before t_0.
   const real_t t_0 = profile_time[0];
-  const real_t read_lag = real_t(2) * bin_dt;
-  const real_t tolerance = real_t(1e-6) * bin_dt;
+  const real_t read_lag = static_cast<real_t>(2) * bin_dt;
+  const real_t tolerance = static_cast<real_t>(1e-6) * bin_dt;
   const real_t t_carried = -args.carried_lag_dt;
   const real_t t_handover = (profile_time[n_bins - 1] - t_0) - bin_dt;
   real_t clock = -read_lag - args.state_lag_dt;
