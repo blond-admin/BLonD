@@ -173,7 +173,7 @@ class DistributedArray:
         if root_error is not None:
             if root_exception is not None:
                 raise root_exception
-            raise RuntimeError(  # pragma: no cover # only non-root ranks
+            raise RuntimeError(
                 f"Rank 0 failed to prepare the array for `mpi_scatter`, "
                 f"so there is nothing to scatter: {root_error}"
             )
@@ -194,7 +194,7 @@ class DistributedArray:
                 self._comm.Send(host_array[start:stop], dest=dest)
                 start = stop
             chunk = host_array[: chunk_sizes[0]]
-        else:  # pragma: no cover # only non-root ranks
+        else:
             chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
             self._comm.Recv(chunk, source=0)
         # `backend.array` copies, so rank 0 drops the global array

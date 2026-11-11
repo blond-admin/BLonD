@@ -588,3 +588,55 @@ class TestReductionsCollectives(BLonDTestCase):
         empty = DistributedArray(backend.zeros(0, dtype=backend.float))
         with self.assertRaises(ValueError):
             empty.min_max()
+
+
+class _FakeNonRootComm:
+    """Stands in for ``MPI.COMM_WORLD`` as seen from rank 1 of 2.
+
+    Coverage is only collected on rank 0 of an ``mpirun``, so the
+    receiving side of `mpi_scatter` is checked here without MPI.
+    """
+
+    def __init__(self, global_array: np.ndarray, root_error=None):
+        self._global_array = global_array
+        self._root_error = root_error
+
+    def Get_size(self) -> int:
+        return 2
+
+    def Get_rank(self) -> int:
+        return 1
+
+    def bcast(self, obj, root: int):
+        header = (self._global_array.size, self._global_array.dtype.str)
+        return header, self._root_error
+
+    def Recv(self, buffer: np.ndarray, source: int) -> None:
+        buffer[:] = np.array_split(self._global_array, 2)[1]
+
+
+class TestScatterReceivingRank(BLonDTestCase):
+    def test_non_root_rank_receives_its_chunk(self):
+        global_array = np.arange(13, dtype=np.int32)
+        distributed_array = DistributedArray(None)
+        distributed_array._comm = _FakeNonRootComm(global_array)
+        distributed_array._is_distributed = True
+
+        distributed_array.mpi_scatter()
+
+        local = distributed_array.array_local
+        self.assertEqual(local.dtype, np.int32)
+        self.assertIs(type(local), type(backend.zeros(1)))
+        np.testing.assert_array_equal(
+            copy_to_cpu(local), np.array_split(global_array, 2)[1]
+        )
+        self.assertEqual(distributed_array.global_size, 13)  # no reduce
+
+    def test_non_root_rank_raises_rank_zero_error(self):
+        distributed_array = DistributedArray(None)
+        distributed_array._comm = _FakeNonRootComm(
+            np.arange(3), root_error="ValueError: bad input"
+        )
+        distributed_array._is_distributed = True
+        with self.assertRaisesRegex(RuntimeError, "bad input"):
+            distributed_array.mpi_scatter()
