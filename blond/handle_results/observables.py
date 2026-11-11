@@ -832,6 +832,9 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._flags: DenseArrayRecorder | None = None
         self._reference_time: DenseArrayRecorder | None = None
         self._reference_total_energy: DenseArrayRecorder | None = None
+        # sorted ids of this rank's particles at the start: column i of
+        # the recorders belongs to the particle with id `_column_ids[i]`
+        self._column_ids: NumpyArray | None = None
 
     def on_run_simulation(
         self,
@@ -866,6 +869,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._beam = beam
         n_entries = self._calc_n_entries(n_turns)
         n_macroparticles = int(beam._dt.local_size)
+        self._column_ids = np.sort(copy_to_cpu(beam._ids.array_local))
         if mpi_is_distributed():
             warnings.warn(
                 "`BeamObservationOncePerTurn` records only the macroparticles "
@@ -907,15 +911,20 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
 
-        if self._beam._dt.local_size < self._dts._memory.shape[1]:
-            mask = backend.zeros(self._dts._memory.shape[1], dtype=bool)
-            mask[self._beam.read_partial_ids()] = True
-        else:
-            mask = None
+        # Ids are global (offset on MPI ranks after the first), and a
+        # purge reorders the survivors: map them onto their columns.
+        columns = np.searchsorted(
+            self._column_ids, copy_to_cpu(self._beam.read_partial_ids())
+        )
+        order = np.argsort(columns)  # `write` fills masked columns in order
+        mask = np.zeros(len(self._column_ids), dtype=bool)
+        mask[columns] = True
 
-        self._dts.write(self._beam.read_partial_dt(), mask=mask)
-        self._dEs.write(self._beam.read_partial_dE(), mask=mask)
-        self._flags.write(self._beam.read_partial_flags(), mask=mask)
+        self._dts.write(copy_to_cpu(self._beam.read_partial_dt())[order], mask)
+        self._dEs.write(copy_to_cpu(self._beam.read_partial_dE())[order], mask)
+        self._flags.write(
+            copy_to_cpu(self._beam.read_partial_flags())[order], mask
+        )
 
     @property  # as readonly attributes
     def reference_time(self):
