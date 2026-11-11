@@ -99,13 +99,14 @@ class TestCallablesWithMPI(BLonDTestCase):
             self.assertEqual(n_unique, n_global)
 
 
-def _run_as_rank(function, rank: int, size: int, call):
-    """Run `call` while `function` sees itself as `rank` of `size` ranks."""
+def _run_as_rank(function, rank: int, call):
+    """Run `call` while `function` sees itself as MPI rank `rank`."""
     # Patch the globals the production function really uses: another
     # test re-imports the helpers module, so a fresh import could differ.
-    with patch.dict(
-        function.__globals__, {"MPI_RANK": rank, "MPI_SIZE": size}
-    ):
+    # Only the rank: those globals belong to the whole helpers module, and
+    # a size above 1 would make `mpi_is_distributed()` true everywhere, so
+    # collectives would run without MPI.
+    with patch.dict(function.__globals__, {"MPI_RANK": rank}):
         return call()
 
 
@@ -122,7 +123,6 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         rng = _run_as_rank(
             mpi_aware_random_generator_cpu,
             rank=0,
-            size=2,
             call=lambda: mpi_aware_random_generator_cpu(seed=42),
         )
         np.testing.assert_equal(
@@ -134,7 +134,6 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         rng = _run_as_rank(
             mpi_aware_random_generator_cpu,
             rank=1,
-            size=2,
             call=lambda: mpi_aware_random_generator_cpu(seed=None),
         )
         self.assertEqual(rng.standard_normal(10).shape, (10,))
@@ -146,7 +145,6 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         return _run_as_rank(
             beams.mpi_aware_random_generator_cpu,
             rank=rank,
-            size=2,
             call=lambda: Beam.simple_gaussian(
                 n_macroparticles=self.N_MACROPARTICLES,
                 intensity=1e10,
@@ -214,7 +212,6 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         return _run_as_rank(
             patched_function,
             rank=rank,
-            size=2,
             call=lambda: preparation_helpers.generate_particle_coordinates(
                 time_grid=time_grid,
                 deltaE_grid=deltaE_grid,
