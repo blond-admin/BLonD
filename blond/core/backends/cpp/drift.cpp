@@ -9,8 +9,7 @@
 // Optimised C++ routine that calculates the drift.
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
 
-#include <math.h>
-#include <string.h>
+#include <cmath>
 
 #include "blond_common.h"
 
@@ -20,7 +19,7 @@ extern "C" void drift_simple(real_t *__restrict__ beam_dt,
                              const real_t energy,
                              const index_t n_macroparticles) {
 
-  real_t coeff = T * eta_zero / (beta * beta * energy);
+  const real_t coeff = T * eta_zero / (beta * beta * energy);
 #pragma omp parallel for
   for (index_t i = 0; i < n_macroparticles; i++) {
     beam_dt[i] += coeff * beam_dE[i];
@@ -41,9 +40,10 @@ extern "C" void drift_like_line_segment(real_t *__restrict__ beam_dt,
 #pragma omp parallel for
   for (index_t i = 0; i < n_macroparticles; i++) {
     const real_t dE = beam_dE[i];
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
+    const real_t delta =
+        std::sqrt(1.0 + inv_beta_sq *
+                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
+        1.0;
     beam_dt[i] += T * eta_zero * delta;
   }
 }
