@@ -373,3 +373,45 @@ class TestGlobalSumArrayCudaAwareMPI(BLonDTestCase):
         self.assertIs(result, array)
         expected = np.full((2, 3), float(sum(range(MPI_SIZE))))
         np.testing.assert_array_equal(copy_to_cpu(result), expected)
+
+
+@unittest.skipIf(is_distributed, "Emulates two ranks, runs only without MPI")
+class TestCallablesCollectives(BLonDTestCase):
+    """Scalar reductions batch into few buffer `Allreduce` calls."""
+
+    def _run_on_two_ranks(self, function, *arrays):
+        """`function` of `arrays` on two identical ranks, and collectives."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            distributed = [DistributedArray(backend.array(a)) for a in arrays]
+            result = function(*distributed)
+        comm = fake_mpi.COMM_WORLD
+        self.assertEqual(comm.allreduce.call_count, 0, "pickled collective")
+        return result, comm.Allreduce.call_count
+
+    def test_rms_emittance_in_three_collectives(self):
+        rng = np.random.default_rng(1)
+        dt = rng.normal(scale=1e-9, size=100)
+        dE = 1e8 * dt + rng.normal(scale=1e6, size=100)
+        rms, n_collectives = self._run_on_two_ranks(rms_emittance, dt, dE)
+        # size, the two means, the three second moments
+        self.assertEqual(n_collectives, 3)
+        expected = _two_pass_rms_emittance(dt, dE)
+        self.assertAlmostEqual(rms, expected, delta=1e-12 * expected)
+
+    def test_count_active_macroparticles_in_one_collective(self):
+        from blond.core.backends.flags import BeamFlags
+        from blond.core.backends.mpi_distributed.callables import (
+            count_active_macroparticles,
+        )
+
+        flags = np.array(
+            [BeamFlags.ACTIVE.value, BeamFlags.LOST.value] * 3, np.int32
+        )
+        count, n_collectives = self._run_on_two_ranks(
+            count_active_macroparticles, flags
+        )
+        self.assertEqual(count, 6)
+        self.assertIsInstance(count, int)
+        self.assertEqual(n_collectives, 1)

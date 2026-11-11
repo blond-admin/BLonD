@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.backends.mpi_distributed.callables import global_sum_array
+from blond.core.backends.mpi_distributed.callables import (
+    global_reduce,
+    global_sum_array,
+)
 from blond.core.backends.mpi_distributed.helpers import MPI
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.exceptions_ import ArrayPrecisionError
@@ -57,6 +60,26 @@ class DistributedArray:
             self._is_distributed = self._size > 1
 
         self._histogram_local_cache: dict[int, NumpyArray | CupyArray] = {}
+
+    @property
+    def array_local(self) -> NumpyArray | CupyArray:
+        """
+        The array data on this rank.
+
+        Every rank replaces its array together (e.g. when purging lost
+        particles), so replacing it forgets the global size on all ranks.
+
+        Returns
+        -------
+        array_local
+            The array data on this rank.
+        """
+        return self._array_local
+
+    @array_local.setter
+    def array_local(self, array: NumpyArray | CupyArray) -> None:
+        self._array_local = array
+        self._global_size: int | None = None
 
     def copy_as_numpy(self) -> NumpyArray:
         """
@@ -169,7 +192,7 @@ class DistributedArray:
                 self._comm.Send(host_array[start:stop], dest=dest)
                 start = stop
             chunk = host_array[: chunk_sizes[0]]
-        else:
+        else:  # pragma: no cover # only non-root ranks
             chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
             self._comm.Recv(chunk, source=0)
         # `backend.array` copies, so rank 0 drops the global array
@@ -218,62 +241,30 @@ class DistributedArray:
         """
         Get the total number of elements across all processes.
 
+        Reduced once, and again only after `array_local` was replaced.
+
         Returns
         -------
         int
             The total size of the distributed array across all processes.
         """
-        local_size = self.array_local.size
+        if self._global_size is None:
+            self._global_size = int(global_reduce(self.local_size)[0])
+        return self._global_size
 
-        if self._is_distributed:
-            total_size = self._comm.allreduce(local_size, op=MPI.SUM)
-        else:
-            total_size = local_size
-
-        return total_size
-
-    def min(self):
+    def min_max(self) -> tuple[float, float]:
         """
-        Compute the global minimum across all processes.
+        Compute the global minimum and maximum in one collective.
 
         A rank without elements (e.g. after all its particles were lost)
-        takes part with ``+inf``, so the other ranks still get the minimum
-        instead of waiting for it forever.
+        takes part with ``+inf`` and ``-inf``, so the other ranks still get
+        the extrema instead of waiting for them forever.
 
         Returns
         -------
-        float
+        global_min
             The minimum value across all distributed array chunks.
-
-        Raises
-        ------
-        ValueError
-            On every rank, if no rank holds any element.
-        """
-        local_min = (
-            float(backend.min(self.array_local)) if self.local_size else inf
-        )
-
-        if self._is_distributed:
-            global_min = self._comm.allreduce(local_min, op=MPI.MIN)
-        else:
-            global_min = local_min
-
-        if global_min == inf:  # same on all ranks, so is the collective
-            self._raise_if_without_elements("min")
-        return global_min
-
-    def max(self):
-        """
-        Compute the global maximum across all processes.
-
-        A rank without elements (e.g. after all its particles were lost)
-        takes part with ``-inf``, so the other ranks still get the maximum
-        instead of waiting for it forever.
-
-        Returns
-        -------
-        float
+        global_max
             The maximum value across all distributed array chunks.
 
         Raises
@@ -281,39 +272,50 @@ class DistributedArray:
         ValueError
             On every rank, if no rank holds any element.
         """
-        local_max = (
-            float(backend.max(self.array_local)) if self.local_size else -inf
-        )
-
-        if self._is_distributed:
-            global_max = self._comm.allreduce(local_max, op=MPI.MAX)
-        else:
-            global_max = local_max
-
-        if global_max == -inf:  # same on all ranks, so is the collective
-            self._raise_if_without_elements("max")
-        return global_max
-
-    def _raise_if_without_elements(self, reduction: str) -> None:
-        """
-        Raise if no rank holds any element; collective under MPI.
-
-        Parameters
-        ----------
-        reduction
-            Name of the reduction, for the error message.
-
-        Raises
-        ------
-        ValueError
-            If the array has no elements on any rank.
-        """
-        if self.global_size == 0:
-            raise ValueError(
-                f"`{reduction}` of an array without elements on any rank."
+        local = (-inf, -inf)  # negated minimum, so that MAX reduces both
+        if self.local_size:
+            local = (
+                -float(backend.min(self.array_local)),
+                float(backend.max(self.array_local)),
             )
+        negative_min, global_max = global_reduce(*local, op="MAX")
+        if global_max == -inf:  # same on all ranks, so is the raise
+            raise ValueError(
+                "`min`/`max` of an array without elements on any rank."
+            )
+        return -float(negative_min), float(global_max)
 
-    def mean(self):
+    def min(self) -> float:
+        """
+        Compute the global minimum across all processes.
+
+        Returns
+        -------
+        float
+            The minimum value across all distributed array chunks.
+
+        See Also
+        --------
+        min_max : Both extrema, at the cost of one.
+        """
+        return self.min_max()[0]
+
+    def max(self) -> float:
+        """
+        Compute the global maximum across all processes.
+
+        Returns
+        -------
+        float
+            The maximum value across all distributed array chunks.
+
+        See Also
+        --------
+        min_max : Both extrema, at the cost of one.
+        """
+        return self.min_max()[1]
+
+    def mean(self) -> float:
         """
         Compute the global mean across all processes.
 
@@ -322,19 +324,9 @@ class DistributedArray:
         float
             The mean value across all distributed array chunks.
         """
-        local_sum = float(backend.sum(self.array_local))
-        local_count = self.array_local.size
+        return self.sum() / self.global_size
 
-        if self._is_distributed:
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
-            global_count = self._comm.allreduce(local_count, op=MPI.SUM)
-        else:
-            global_sum = local_sum
-            global_count = local_count
-
-        return global_sum / global_count
-
-    def std(self):
+    def std(self) -> float:
         """
         Compute the global standard deviation across all processes.
 
@@ -347,19 +339,12 @@ class DistributedArray:
         float
             The standard deviation across all distributed array chunks.
         """
-        global_mean = self.mean()
-        centred = self.array_local - global_mean
+        centred = self.array_local - self.mean()
         # dot(x, x) is a faster sum(x**2)
         local_sum_sq = float(backend.dot(centred, centred))
+        return sqrt(global_reduce(local_sum_sq)[0] / self.global_size)
 
-        if self._is_distributed:
-            global_sum_sq = self._comm.allreduce(local_sum_sq, op=MPI.SUM)
-        else:
-            global_sum_sq = local_sum_sq
-
-        return sqrt(global_sum_sq / self.global_size)
-
-    def sum(self):
+    def sum(self) -> float:
         """
         Compute the global sum across all processes.
 
@@ -368,14 +353,7 @@ class DistributedArray:
         float
             The sum of all values across all distributed array chunks.
         """
-        local_sum = float(backend.sum(self.array_local))
-
-        if self._is_distributed:
-            global_sum = self._comm.allreduce(local_sum, op=MPI.SUM)
-        else:
-            global_sum = local_sum
-
-        return global_sum
+        return float(global_reduce(float(backend.sum(self.array_local)))[0])
 
     def histogram(
         self,
@@ -412,7 +390,7 @@ class DistributedArray:
             assert out.dtype == backend.float
             array_write_local = out
 
-        hist_range = (self.min(), self.max()) if range is None else range
+        hist_range = self.min_max() if range is None else range
 
         backend.specials.histogram(
             array_read=self.array_local,

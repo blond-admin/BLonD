@@ -506,16 +506,15 @@ class Beam(BeamBaseClass):
             warning_hint="n_macroparticles",
         )
         dts = (
-            mpi_aware_random_generator_cpu(
-                seed=seed, n_forward_per_rank=local_size
-            ).standard_normal(size=local_size)
+            mpi_aware_random_generator_cpu(seed=seed).standard_normal(
+                size=local_size
+            )
             * dt_scale
             + dt_offset
         )
         dEs = (
             mpi_aware_random_generator_cpu(
                 seed=None if seed is None else seed + 1,
-                n_forward_per_rank=local_size,
             ).standard_normal(size=local_size)
             * dE_scale
             + dE_offset

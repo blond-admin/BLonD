@@ -8,7 +8,9 @@
 
 """Convenience functions for testing BLonD."""
 
-from unittest.mock import Mock
+from collections.abc import Iterator
+from contextlib import contextmanager
+from unittest.mock import MagicMock, Mock, patch
 
 from blond.core.beam.beams import Beam
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
@@ -46,3 +48,39 @@ cycle_const_mock = Mock(ConstantMagneticCycle)
 
 drift_simple_mock = Mock(DriftSimple)
 single_harmonic_rf_station_mock = Mock(SingleHarmonicRFStation)
+
+
+@contextmanager
+def identical_mpi_ranks(n_ranks: int = 2) -> Iterator[MagicMock]:
+    """
+    Run as one of `n_ranks` MPI ranks that all hold the same data.
+
+    Patches the MPI module used by
+    `blond.core.backends.mpi_distributed.callables` with a fake whose
+    ``COMM_WORLD.Allreduce`` reduces over `n_ranks` copies of the
+    buffer, so MPI code paths run without `mpirun`.
+
+    Parameters
+    ----------
+    n_ranks
+        Number of ranks to emulate.
+
+    Yields
+    ------
+    fake_mpi
+        The fake MPI module; its ``COMM_WORLD`` records every call.
+    """
+    from blond.core.backends.mpi_distributed import callables
+
+    fake_mpi = MagicMock()
+
+    def allreduce(_in_place, buffer, op):
+        if op is fake_mpi.SUM:  # MIN and MAX of identical copies: no-op
+            buffer *= n_ranks
+
+    fake_mpi.COMM_WORLD.Allreduce.side_effect = allreduce
+    with (
+        patch.object(callables, "MPI", fake_mpi),
+        patch.object(callables, "mpi_is_distributed", return_value=True),
+    ):
+        yield fake_mpi
