@@ -9,3 +9,19 @@ tag_stale_issues:
     - pip install requests tqdm
   script:
     - python dev_tools/gitlab/tag_stale_issues.py
+
+
+# A schedule pipeline has no test jobs, so it would carry no coverage and
+# GitLab would compare every MR against `unknown` (#404). Re-report the
+# coverage of the last successful coverage job on this branch, read from its
+# job badge (the plain badge would read this very pipeline).
+report_coverage:
+  image: registry.cern.ch/docker.io/library/python:3.14
+  stage: test
+  variables:
+    COVERAGE_JOB: test_py_314_main_many_environments
+  script:
+    - BADGE="$CI_PROJECT_URL/badges/$CI_COMMIT_REF_NAME/coverage.svg"
+    - COV=$(curl -sf "$BADGE?job=$COVERAGE_JOB" | grep -oE '[0-9.]+%' | head -1)
+    - echo "BADGE_COVERAGE=$COV"
+  coverage: '/BADGE_COVERAGE=(\d+(?:\.\d+)?)%/'

@@ -27,6 +27,7 @@ from numpy.typing import NDArray as NumpyArray
 from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.callables import (
     count_active_macroparticles,
+    global_sum_array,
 )
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
@@ -429,10 +430,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.core.backends.mpi_distributed.helpers import (
-            mpi_is_distributed,
-        )
-
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
@@ -447,13 +444,6 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._consider_intensity = beam.intensity != 0
 
         n_entries = self._calc_n_entries(n_turns)
-        if mpi_is_distributed():  # pragma: no cover
-            warnings.warn(
-                "Saving beam with `BeamHist2dOncePerTurn` only from "
-                "MPI-rank 0.",
-                UserWarning,
-                stacklevel=2,
-            )
         shape = (n_entries, self._bins[0], self._bins[1])
 
         self._hist2d = DenseArrayRecorder(
@@ -499,13 +489,23 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
         self._intensity.write(self._beam.intensity)
+        # A common range and the counts summed over the MPI ranks give
+        # every rank the histogram of the whole beam.
+        dt, dE = self._beam.dt, self._beam.dE
+        hist_range = self._range
+        if hist_range is None:
+            hist_range = ((dt.min(), dt.max()), (dE.min(), dE.max()))
         H, xedges, yedges = backend.histogram2d(
-            self._beam.dt.array_local,
-            self._beam.dE.array_local,
-            bins=self._bins,
-            range=self._range,
-            density=self._density,
+            dt.array_local, dE.array_local, bins=self._bins, range=hist_range
         )
+        # `histogram2d` returns a non-contiguous view, which MPI cannot
+        # reduce in place; `copy` makes it contiguous.
+        H = global_sum_array(H.copy())
+        if self._density:  # as `density=True`, but from the global counts
+            bin_areas = (xedges[1:] - xedges[:-1])[:, None] * (
+                yedges[1:] - yedges[:-1]
+            )[None, :]
+            H = H / (H.sum() * bin_areas)
         self._hist2d.write(H)
         self._xedges.write(xedges)
         self._yedges.write(yedges)
@@ -878,8 +878,11 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         n_macroparticles = int(beam._dt.local_size)
         if mpi_is_distributed():
             warnings.warn(
-                "Saving beam with `BeamObservationOncePerTurn` only from "
-                "MPI-rank 0.",
+                "`BeamObservationOncePerTurn` records only the macroparticles "
+                "local to each MPI rank, and "
+                "`save_results` writes the data of rank 0 only. The "
+                "results are incomplete: they cover rank 0's share of "
+                "the beam, not the whole beam.",
                 UserWarning,
                 stacklevel=2,
             )

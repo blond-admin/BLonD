@@ -282,6 +282,18 @@ BLonD only initialises MPI when it detects an MPI launcher (Open MPI,
 PMIx, PMI/PMI2 or MVAPICH environment variables). If your launcher is not
 detected, set `BLOND_LOAD_MPI=True`; `BLOND_LOAD_MPI=False` disables MPI.
 
+With the CUDA backend, each MPI rank of a node uses its own GPU
+(node-local rank modulo the number of visible GPUs). A launcher that sets
+`CUDA_VISIBLE_DEVICES` per rank works too. By default, GPU arrays are
+summed across ranks via a pinned host copy, which works with any MPI
+library. If your MPI is CUDA-aware, `BLOND_MPI_CUDA_AWARE=True` passes
+GPU memory to MPI directly and skips the copies. CUDA-awareness is a
+property of the MPI library and of the build of `mpi4py` against it,
+not of a Python package, and it cannot be detected at runtime. Setting
+the variable with an MPI that is not CUDA-aware crashes the run. For
+Open MPI, `ompi_info --parsable --all | grep cuda_support` shows whether
+it was built with CUDA support.
+
 ---
 
 ## Linting & Code Formatting

@@ -166,6 +166,170 @@ class TestCallablesNoMPI(BLonDTestCase):
         self.assertIs(result, False)
 
 
+def _current_helpers():
+    """
+    Return the helpers module currently in `sys.modules`.
+
+    Other tests pop and re-import it, so a reference taken at
+    import time can be stale.
+    """
+    return importlib.import_module(
+        "blond.core.backends.mpi_distributed.helpers"
+    )
+
+
+class TestMpiRunOnRoot(BLonDTestCase):
+    """`mpi_run_on_root` runs on rank 0 and fails on all ranks together."""
+
+    def _patch_rank(self, rank: int, size: int, broadcast_result=None):
+        helpers = _current_helpers()
+        comm = MagicMock()
+        comm.bcast.return_value = broadcast_result
+        patches = (
+            patch.object(helpers, "MPI_RANK", rank),
+            patch.object(helpers, "MPI_SIZE", size),
+            patch.object(helpers, "MPI_COMM_WORLD", comm),
+        )
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return helpers, comm
+
+    def test_serial_runs_function_without_communication(self):
+        helpers, comm = self._patch_rank(rank=0, size=1)
+        function = MagicMock()
+        helpers.mpi_run_on_root(function)
+        function.assert_called_once_with()
+        comm.bcast.assert_not_called()
+
+    def test_serial_reraises_original_exception(self):
+        helpers, _ = self._patch_rank(rank=0, size=1)
+        function = MagicMock(side_effect=OSError("disk full"))
+        with self.assertRaisesRegex(OSError, "disk full"):
+            helpers.mpi_run_on_root(function)
+
+    def test_root_broadcasts_success(self):
+        helpers, comm = self._patch_rank(rank=0, size=2)
+        function = MagicMock()
+        helpers.mpi_run_on_root(function)
+        function.assert_called_once_with()
+        comm.bcast.assert_called_once_with(None, root=0)
+
+    def test_root_broadcasts_failure_and_reraises(self):
+        helpers, comm = self._patch_rank(rank=0, size=2)
+        function = MagicMock(side_effect=OSError("disk full"))
+        with self.assertRaisesRegex(OSError, "disk full"):
+            helpers.mpi_run_on_root(function)
+        comm.bcast.assert_called_once()
+        message = comm.bcast.call_args.args[0]
+        self.assertIn("disk full", message)
+        self.assertIn("OSError", message)
+
+    def test_non_root_skips_function(self):
+        helpers, comm = self._patch_rank(rank=1, size=2)
+        function = MagicMock()
+        helpers.mpi_run_on_root(function)
+        function.assert_not_called()
+        comm.bcast.assert_called_once_with(None, root=0)
+
+    def test_non_root_raises_when_root_failed(self):
+        helpers, _ = self._patch_rank(
+            rank=1, size=2, broadcast_result="OSError('disk full')"
+        )
+        with self.assertRaisesRegex(RuntimeError, "disk full"):
+            helpers.mpi_run_on_root(MagicMock())
+
+
+class TestMpiLocalGpuIndex(BLonDTestCase):
+    """Each rank of a node picks its own GPU."""
+
+    def _patch(self, size: int, local_rank: int):
+        helpers = _current_helpers()
+        for patcher in (
+            patch.object(helpers, "MPI_SIZE", size),
+            patch.object(helpers, "MPI_LOCAL_RANK", local_rank),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return helpers
+
+    def test_serial_keeps_current_device(self):
+        helpers = self._patch(size=1, local_rank=0)
+        self.assertIsNone(helpers.mpi_local_gpu_index(n_devices=4))
+
+    def test_ranks_spread_over_devices(self):
+        indices = [
+            self._patch(size=8, local_rank=local_rank).mpi_local_gpu_index(
+                n_devices=4
+            )
+            for local_rank in range(8)
+        ]
+        self.assertEqual(indices, [0, 1, 2, 3, 0, 1, 2, 3])
+
+    def test_one_visible_device_per_rank(self):
+        """`CUDA_VISIBLE_DEVICES` per rank leaves one device: index 0."""
+        helpers = self._patch(size=8, local_rank=5)
+        self.assertEqual(helpers.mpi_local_gpu_index(n_devices=1), 0)
+
+    def test_local_rank_without_mpi_is_zero(self):
+        helpers = _current_helpers()
+        if helpers.MPI is not None:
+            self.skipTest("Only without MPI")
+        self.assertEqual(helpers.MPI_LOCAL_RANK, 0)
+
+
+class TestMpiCudaAware(BLonDTestCase):
+    """`BLOND_MPI_CUDA_AWARE` opts in to passing GPU memory to MPI."""
+
+    def _cuda_aware(self, environ: dict[str, str]) -> bool:
+        with patch.dict(os.environ, environ, clear=True):
+            return _current_helpers().mpi_cuda_aware()
+
+    def test_default_is_not_cuda_aware(self):
+        self.assertIs(self._cuda_aware({}), False)
+
+    def test_true_and_false(self):
+        self.assertIs(self._cuda_aware({"BLOND_MPI_CUDA_AWARE": "True"}), True)
+        self.assertIs(
+            self._cuda_aware({"BLOND_MPI_CUDA_AWARE": "False"}), False
+        )
+
+    def test_invalid_value_raises(self):
+        with self.assertRaisesRegex(ValueError, "BLOND_MPI_CUDA_AWARE"):
+            self._cuda_aware({"BLOND_MPI_CUDA_AWARE": "yes"})
+
+
+@pytest.mark.mpi
+class TestMpiLocalRankWithMPI(BLonDTestCase):
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    def test_single_node_local_rank_equals_rank(self):
+        """On one node (as in the test run), local and global rank agree."""
+        helpers = _current_helpers()
+        self.assertEqual(helpers.MPI_LOCAL_RANK, helpers.MPI_RANK)
+
+
+@pytest.mark.mpi
+class TestMpiRunOnRootWithMPI(BLonDTestCase):
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    def test_failure_on_root_raises_on_every_rank(self):
+        from blond.core.backends.mpi_distributed.helpers import (
+            mpi_run_on_root,
+        )
+
+        def fail():
+            raise OSError("disk full")
+
+        expected = OSError if mpi_is_root() else RuntimeError
+        with self.assertRaisesRegex(expected, "disk full"):
+            mpi_run_on_root(fail)
+
+
 _LAUNCHER_ENV_KEYS = (
     "OMPI_COMM_WORLD_SIZE",
     "PMIX_RANK",

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import gc
+import os
 import unittest
 import warnings
 import weakref
 from copy import deepcopy
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, create_autospec
+from unittest.mock import Mock, create_autospec, patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -415,6 +416,53 @@ class TestSimulation(BLonDTestCase):
 
         for name, rec in observation.get_recorders():
             rec.purge_from_disk()
+
+    def _run_and_patch_rank(self, rank: int):
+        """Run a short simulation, then pretend to be MPI rank `rank`."""
+        import importlib
+
+        observation = BeamObservationOncePerTurn(each_turn_i=10)
+        self.simulation.run_simulation(
+            beams=(self.beam,), n_turns=10, observe=(observation,)
+        )
+        helpers = importlib.import_module(
+            "blond.core.backends.mpi_distributed.helpers"
+        )
+        comm = Mock()
+        comm.bcast.return_value = None
+        for patcher in (
+            patch.object(helpers, "MPI_RANK", rank),
+            patch.object(helpers, "MPI_SIZE", 2),
+            patch.object(helpers, "MPI_COMM_WORLD", comm),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return observation, comm
+
+    def _purge(self, observation):
+        for _, recorder in observation.get_recorders():
+            recorder.purge_from_disk()
+
+    def test_save_results_on_non_root_rank_writes_nothing(self):
+        observation, comm = self._run_and_patch_rank(rank=1)
+        self.simulation.save_results(
+            observe=(observation,), common_name="non_root_rank"
+        )
+        self.addCleanup(self._purge, observation)
+        for _, recorder in observation.get_recorders():
+            self.assertIn("non_root_rank", recorder.filepath_array)
+            self.assertFalse(os.path.exists(recorder.filepath_array))
+        comm.bcast.assert_called_once()
+
+    def test_save_results_on_root_rank_writes_files(self):
+        observation, comm = self._run_and_patch_rank(rank=0)
+        self.simulation.save_results(
+            observe=(observation,), common_name="root_rank"
+        )
+        self.addCleanup(self._purge, observation)
+        for _, recorder in observation.get_recorders():
+            self.assertTrue(os.path.exists(recorder.filepath_array))
+        comm.bcast.assert_called_once_with(None, root=0)
 
     def test_on_init_simulation(self):
         self.simulation.on_init_simulation(simulation=self.simulation)

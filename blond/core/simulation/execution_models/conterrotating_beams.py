@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
+from blond.core.backends.mpi_distributed.helpers import mpi_is_root
 from blond.core.simulation.execution_models.base import ExecutionModel
 from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import NotTestedWarning
@@ -113,7 +114,8 @@ class MainloopCounterRotatingBeams(ExecutionModel):
 
         logger.info("Starting simulation mainloop...")
         iterator = range(n_turns)
-        if show_progressbar:
+        # Under MPI, one progress bar instead of one per rank.
+        if show_progressbar and mpi_is_root():
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         simulation.turn_counter.value = 0
 
