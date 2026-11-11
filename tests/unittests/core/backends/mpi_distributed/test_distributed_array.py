@@ -341,3 +341,29 @@ class TestScatterRootFailure(BLonDTestCase):
             self.assertIsInstance(caught.exception, ValueError)
         else:
             self.assertIn("Rank 0 failed", str(caught.exception))
+
+
+@pytest.mark.mpi
+@pytest.mark.cupy
+class TestDistributedArrayCupyMPI(BLonDTestCase):
+    """Histograms of GPU arrays must not hand device memory to MPI."""
+
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    @skip_if_no_cupy
+    def test_histogram_of_cupy_array(self):
+        import cupy as cp
+
+        from blond import Cupy64Bit, Numpy64Bit
+
+        backend.change_backend(Cupy64Bit)
+        self.addCleanup(backend.change_backend, Numpy64Bit)
+        array = np.random.default_rng(0).normal(size=128)
+        expected, _ = np.histogram(array, bins=8)
+        distributed_array = DistributedArray(cp.asarray(array))
+        distributed_array.mpi_scatter()
+        actual = distributed_array.histogram(bins=8)
+        self.assertTrue(is_cupy_array(actual))
+        np.testing.assert_allclose(copy_to_cpu(actual), expected)

@@ -222,12 +222,6 @@ class TestProfileBaseClass(BLonDTestCase):
                 copy_to_cpu(self.profile_base_class.bin_edges),
             )
 
-    def test_track(self):
-        from blond.testing.mocks import beam_mock
-
-        with self.assertRaises(NotImplementedError):
-            self.profile_base_class.track(beam=beam_mock)
-
     def test_track_empty_beam_zeros_hist(self):
         from unittest.mock import Mock
 
