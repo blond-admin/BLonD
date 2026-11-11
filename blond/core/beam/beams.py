@@ -150,10 +150,10 @@ class Beam(BeamBaseClass):
               large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
               across ranks.
 
-            - "all-ranks": Each rank independently generates and stores a full copy of the data.
-              While this mode uses more memory, it can be simpler to implement in scenarios where
-              each rank needs to work with its own independent data (e.g., generating separate
-              random distributions with `np.random.randn()`).
+            - "all-ranks": Each rank passes only its own macro-particles, its chunk
+              of the beam; the beam is the union of all chunks. Use this when each rank
+              can generate its share independently (e.g., random distributions drawn
+              with a different random stream on each rank).
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)

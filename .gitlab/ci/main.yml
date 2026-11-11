@@ -160,6 +160,10 @@ workflow:
     - gcc --version
     - nvcc --version # probe NVCC installation
     - python3 --version && gcc --version && mpirun --version
+    # Whether Open MPI is CUDA-aware. If not, the real-MPI tests of
+    # `BLOND_MPI_CUDA_AWARE=True` skip. Diagnostics only, so other MPI
+    # libraries without `ompi_info` must not fail the job.
+    - ompi_info --parsable --all | grep cuda_support || true
     # Install uv, then let it create and populate the virtual environment.
     - *uv_setup
     - uv venv ./.venv

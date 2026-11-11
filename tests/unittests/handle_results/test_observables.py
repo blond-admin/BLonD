@@ -1,8 +1,10 @@
 import unittest
+import warnings
 from copy import deepcopy
 from unittest.mock import Mock, PropertyMock
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 
 from blond import (
@@ -23,6 +25,7 @@ from blond import (
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
+from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.beams import ProbeBeam
@@ -77,6 +80,19 @@ sep_helper = Mock(SymbolicSeparatrixHelper)
 dE_sep = np.ones(256)
 sep_helper.get_separatrix.return_value = np.stack([dE_sep, -dE_sep])
 simulation._get_separatrix_helper.return_value = sep_helper
+
+
+def _patch_mpi_size_two(test_case):
+    """Make `mpi_is_distributed()` report two MPI ranks."""
+    import importlib
+    from unittest.mock import patch
+
+    helpers = importlib.import_module(
+        "blond.core.backends.mpi_distributed.helpers"
+    )
+    patcher = patch.object(helpers, "MPI_SIZE", 2)
+    patcher.start()
+    test_case.addCleanup(patcher.stop)
 
 
 class ObservablesHelper(ObservablesOncePerTurnBase):
@@ -250,6 +266,14 @@ class TestBeamObservation(BLonDTestCase):
             self.bunch_observation.common_filepath,
             callers_relative_path("results/", stacklevel=1) + "last",
         )
+
+    def test_mpi_warns_about_incomplete_data(self) -> None:
+        _patch_mpi_size_two(self)
+        self.bunch_observation.on_init_simulation(simulation=simulation)
+        with self.assertWarnsRegex(UserWarning, "incomplete"):
+            self.bunch_observation.on_run_simulation(
+                simulation=simulation, beam=self.beam, n_turns=10
+            )
 
     def test_from_disk(self) -> None:
         self.bunch_observation.on_init_simulation(
@@ -442,6 +466,37 @@ class TestBeamHist2dOncePerTurn(BLonDTestCase):
         )
         self.obs.update()
 
+    def test_mpi_does_not_warn_about_incomplete_data(self) -> None:
+        _patch_mpi_size_two(self)
+        obs = BeamHist2dOncePerTurn(each_turn_i=1, bins=(16, 8))
+        obs.on_init_simulation(simulation=simulation)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            obs.on_run_simulation(
+                simulation=simulation, beam=self.beam, n_turns=10
+            )
+        messages = [str(warning.message) for warning in caught]
+        self.assertFalse(
+            any("incomplete" in message for message in messages), messages
+        )
+
+    def test_explicit_range_matches_numpy_histogram2d(self) -> None:
+        hist_range = ((0.5e-9, 1.5e-9), (-3e8, 3e8))
+        obs = BeamHist2dOncePerTurn(
+            each_turn_i=1, bins=(16, 8), range=hist_range
+        )
+        obs.on_init_simulation(simulation=simulation)
+        obs.on_run_simulation(
+            simulation=simulation, beam=self.beam, n_turns=10
+        )
+        obs.update()
+        hist2d, xedges, yedges = np.histogram2d(
+            self.dt, self.dE, bins=(16, 8), range=hist_range, density=True
+        )
+        np.testing.assert_allclose(obs.hist2d[0], hist2d)
+        np.testing.assert_allclose(obs.xedges[0], xedges)
+        np.testing.assert_allclose(obs.yedges[0], yedges)
+
     def test_getters_match_numpy_histogram2d(self) -> None:
         hist2d, xedges, yedges = np.histogram2d(
             self.dt, self.dE, bins=(16, 8), density=True
@@ -467,6 +522,37 @@ class TestBeamHist2dOncePerTurn(BLonDTestCase):
         ax_main, _, _ = self.obs.plot_fancy(result_idx=-1)
         self.assertEqual(ax_main.images[0].get_cmap().name, DEFAULT_CMAP)
         plt.close(ax_main.figure)
+
+
+@pytest.mark.mpi
+class TestBeamHist2dOncePerTurnMPI(BLonDTestCase):
+    def setUp(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    def test_histogram_covers_the_whole_beam(self) -> None:
+        rng = np.random.default_rng(seed=1)
+        dt = rng.normal(loc=1e-9, scale=1e-10, size=1000)
+        dE = rng.normal(loc=0.0, scale=1e8, size=1000)
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=dt.copy(),
+            dE=dE.copy(),
+            reference_time=0.8,
+            reference_total_energy=11,
+            mpi_mode="root-distributes",
+        )
+        self.assertLess(beam.dt.local_size, 1000)
+        obs = BeamHist2dOncePerTurn(each_turn_i=1, bins=(16, 8))
+        obs.on_init_simulation(simulation=simulation)
+        obs.on_run_simulation(simulation=simulation, beam=beam, n_turns=10)
+        obs.update()
+        hist2d, xedges, yedges = np.histogram2d(
+            dt, dE, bins=(16, 8), density=True
+        )
+        np.testing.assert_allclose(obs.xedges[0], xedges)
+        np.testing.assert_allclose(obs.yedges[0], yedges)
+        np.testing.assert_allclose(obs.hist2d[0], hist2d)
 
 
 class TestBunchStatistics(BLonDTestCase):

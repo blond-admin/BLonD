@@ -105,7 +105,7 @@ def compile_cuda_library(  # NOQA: PLR0915
     if compute_capability == "discover":
         print("Discovering the device compute capability..")
 
-        dev = cp.cuda.Device(0)
+        dev = cp.cuda.Device()  # the current device
         dev_name = cp.cuda.runtime.getDeviceProperties(dev)["name"]
         compute_capability_ = dev.compute_capability
         print(f"Device name {dev_name}")
