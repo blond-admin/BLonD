@@ -465,8 +465,9 @@ class EquidistantMultiProfile(MultiProfile):
         beam
             Beam class to interact with this element.
         """
-        if len(beam._dt.array_local) == 0:
-            # No particles to track
+        # The global size, not the local one: a rank without particles
+        # must still take part in the collective sum of the histograms.
+        if beam.common_array_size == 0:
             self._continuous_memory_hist_y[:] = 0
             self.hist_y_to_density_factor = 0.0
             return
