@@ -52,6 +52,17 @@ class TestDistributedArray(BLonDTestCase):
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
 
+    def test_global_size_read_on_root_only(self):
+        """Reading the size after a replacement needs no other rank."""
+        self.distributed_array.mpi_scatter()
+        self.distributed_array.array_local = (
+            self.distributed_array.array_local[:16]
+        )
+        if self.distributed_array._rank == 0:
+            n_ranks = self.distributed_array._size
+            self.assertEqual(self.distributed_array.global_size, 16 * n_ranks)
+        mpi_barrier()
+
     def test_copy_as_numpy(self):
         array = self.distributed_array.copy_as_numpy()
         assert array.device == "cpu"
@@ -480,6 +491,29 @@ class TestReductionsCollectives(BLonDTestCase):
             array.array_local = array.array_local[:1]
             self.assertEqual(array.global_size, 2)
         self.assertEqual(fake_mpi.COMM_WORLD.allreduce.call_count, 0)
+
+    def test_global_size_is_reduced_on_assignment(self):
+        """Every rank assigns, so reading never waits on the others."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            comm = fake_mpi.COMM_WORLD
+            array = DistributedArray(backend.array(self.values))
+            self.assertEqual(comm.Allreduce.call_count, 1)
+            self.assertEqual(array.global_size, 8)
+            array.array_local = array.array_local[:1]
+            self.assertEqual(comm.Allreduce.call_count, 2)
+            comm.reset_mock()
+            self.assertEqual(array.global_size, 2)
+            self.assertEqual(comm.Allreduce.call_count, 0)
+
+    def test_global_size_of_none_is_zero(self):
+        """Non-root ranks hold None before a root-distributes scatter."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2):
+            array = DistributedArray(None)
+            self.assertEqual(array.global_size, 0)
 
     def test_min_max_in_one_collective(self):
         result, n_collectives = self._reduce("min_max")

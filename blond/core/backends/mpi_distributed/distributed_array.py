@@ -66,8 +66,11 @@ class DistributedArray:
         """
         The array data on this rank.
 
-        Every rank replaces its array together (e.g. when purging lost
-        particles), so replacing it forgets the global size on all ranks.
+        Every rank must replace its array together (e.g. when purging
+        lost particles): replacing it reduces the new global size over
+        all ranks right away, so that reading `global_size` later needs
+        no other rank. A rank holding None (before a root-distributes
+        scatter) counts as holding no elements.
 
         Returns
         -------
@@ -77,9 +80,10 @@ class DistributedArray:
         return self._array_local
 
     @array_local.setter
-    def array_local(self, array: NumpyArray | CupyArray) -> None:
+    def array_local(self, array: NumpyArray | CupyArray | None) -> None:
         self._array_local = array
-        self._global_size: int | None = None
+        local_size = 0 if array is None else array.size
+        self._global_size = int(global_reduce(local_size)[0])
 
     def copy_as_numpy(self) -> NumpyArray:
         """
@@ -241,15 +245,14 @@ class DistributedArray:
         """
         Get the total number of elements across all processes.
 
-        Reduced once, and again only after `array_local` was replaced.
+        Reduced when `array_local` is assigned, so reading it is not a
+        collective and may happen on a single rank.
 
         Returns
         -------
         int
             The total size of the distributed array across all processes.
         """
-        if self._global_size is None:
-            self._global_size = int(global_reduce(self.local_size)[0])
         return self._global_size
 
     def min_max(self) -> tuple[float, float]:
