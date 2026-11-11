@@ -10,7 +10,10 @@
 // Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen, Elleanor Lamb
 
 #include "blond_common.h"
-#include <math.h>
+#include <array>
+#include <cmath>
+
+namespace {
 
 // The number of higher-order momentum compaction factors is a compile-time
 // parameter, and `drift_exact` below dispatches to the instantiation that
@@ -34,19 +37,19 @@
 // (BLOND_PREFER_VECTOR_WIDTH_512) was measured at 0.98-1.02x and llvm-mca
 // agrees (5.14 vs 5.03 cycles per particle), so the kernel stays at 256.
 template <int N_ALPHA>
-static inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
-                                        const real_t *__restrict__ beam_dE,
-                                        const real_t T, const real_t alpha_zero,
-                                        const real_t *__restrict__ higher_alpha,
-                                        const real_t beta, const real_t energy,
-                                        const index_t n_macroparticles) {
+inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
+                                 const real_t *__restrict__ beam_dE,
+                                 const real_t T, const real_t alpha_zero,
+                                 const real_t *__restrict__ higher_alpha,
+                                 const real_t beta, const real_t energy,
+                                 const index_t n_macroparticles) {
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
   const real_t inv_energy_sq = inv_energy * inv_energy;
 
   // Copied out of the caller's buffer once, so the compiler knows these do
   // not alias `beam_dt` and can keep them in registers across the loop.
-  real_t alpha[N_ALPHA > 0 ? N_ALPHA : 1];
+  std::array<real_t, N_ALPHA> alpha{};
   for (int k = 0; k < N_ALPHA; ++k) {
     alpha[k] = higher_alpha[k];
   }
@@ -56,9 +59,10 @@ static inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
 
     const real_t dE = beam_dE[i];
 
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
+    const real_t delta =
+        std::sqrt(1.0 + inv_beta_sq *
+                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
+        1.0;
 
     real_t poly = 1.0 + alpha_zero * delta;
     real_t delta_power = delta * delta; // starts at δ²
@@ -74,13 +78,12 @@ static inline void drift_exact_unrolled(real_t *__restrict__ beam_dt,
 
 // Generic fallback for more than four higher-order factors. Scalar,
 // because the alpha loop keeps its run-time trip count here.
-static void drift_exact_generic(real_t *__restrict__ beam_dt,
-                                const real_t *__restrict__ beam_dE,
-                                const real_t T, const real_t alpha_zero,
-                                const real_t *__restrict__ higher_alpha,
-                                const int n_alpha, const real_t beta,
-                                const real_t energy,
-                                const index_t n_macroparticles) {
+void drift_exact_generic(real_t *__restrict__ beam_dt,
+                         const real_t *__restrict__ beam_dE, const real_t T,
+                         const real_t alpha_zero,
+                         const real_t *__restrict__ higher_alpha,
+                         const int n_alpha, const real_t beta,
+                         const real_t energy, const index_t n_macroparticles) {
   const real_t inv_beta_sq = 1.0 / (beta * beta);
   const real_t inv_energy = 1.0 / energy;
   const real_t inv_energy_sq = inv_energy * inv_energy;
@@ -90,9 +93,10 @@ static void drift_exact_generic(real_t *__restrict__ beam_dt,
 
     const real_t dE = beam_dE[i];
 
-    const real_t delta = sqrt(1.0 + inv_beta_sq * (dE * dE * inv_energy_sq +
-                                                   2.0 * dE * inv_energy)) -
-                         1.0;
+    const real_t delta =
+        std::sqrt(1.0 + inv_beta_sq *
+                            (dE * dE * inv_energy_sq + 2.0 * dE * inv_energy)) -
+        1.0;
 
     real_t poly = 1.0 + alpha_zero * delta;
     real_t delta_power = delta * delta; // starts at δ²
@@ -105,6 +109,8 @@ static void drift_exact_generic(real_t *__restrict__ beam_dt,
     beam_dt[i] += T * (poly * (1.0 + dE * inv_energy) / (1.0 + delta) - 1.0);
   }
 }
+
+} // namespace
 
 extern "C" void drift_exact(real_t *__restrict__ beam_dt,
                             const real_t *__restrict__ beam_dE, const real_t T,

@@ -447,6 +447,38 @@ precommit-check:
       paths:
         - .cache/pre-commit
 
+# clang-tidy on the C++ backend (checks in .clang-tidy). The backend still
+# has findings from before this job existed, so only findings on lines the
+# MR changes fail it. `python dev_tools/run_clang_tidy.py` lists them all.
+clang-tidy:
+  image: registry.cern.ch/docker.io/library/python:3.14 # ships g++ (std headers, omp.h)
+  stage: checks
+  interruptible: true
+  extends:
+    - .cache_uv
+  variables:
+    GIT_DEPTH: 0 # the MR's diff base must be in the clone
+  before_script:
+    - *uv_setup
+    - uv venv ./.venv
+    - source ./.venv/bin/activate
+    # Install only the clang-tidy pin from the `dev` extra, not the rest
+    # of it, so this job stays light but cannot drift from pyproject.toml.
+    - >-
+      uv pip install "$(python -c 'import tomllib;
+      deps = tomllib.load(open("pyproject.toml", "rb"))["project"][
+      "optional-dependencies"]["dev"];
+      print(next(d for d in deps if d.startswith("clang-tidy")))')"
+  script:
+    - python dev_tools/run_clang_tidy.py --diff "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - blond/core/backends/cpp/**/*
+        - .clang-tidy
+        - dev_tools/run_clang_tidy.py
+        - pyproject.toml
+
 smoke_examples_py_314_no_cupy:
   image: gitlab-registry.cern.ch/blond/blond/python314
   stage: checks
