@@ -192,7 +192,7 @@ class DistributedArray:
                 self._comm.Send(host_array[start:stop], dest=dest)
                 start = stop
             chunk = host_array[: chunk_sizes[0]]
-        else:
+        else:  # pragma: no cover # only non-root ranks
             chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
             self._comm.Recv(chunk, source=0)
         # `backend.array` copies, so rank 0 drops the global array
