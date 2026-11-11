@@ -3,8 +3,25 @@ from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
-from blond import Beam, BoxLosses, Simulation, proton, uranium_29
+from blond import (
+    Beam,
+    BoxLosses,
+    ConstantMagneticCycle,
+    DriftSimple,
+    DynamicProfileConstNBins,
+    Ring,
+    Simulation,
+    SingleHarmonicRFStation,
+    momentum_compaction_factor,
+    proton,
+    uranium_29,
+)
+from blond.core.backends.mpi_distributed.helpers import (
+    MPI_RANK,
+    mpi_is_distributed,
+)
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.flags import BeamFlags
@@ -117,7 +134,7 @@ class TestBoxLosses(BLonDTestCase):
 
     def test_track_empty_beam_skips_loss_box(self):
         beam = Mock(BeamBaseClass)
-        beam.common_array_size = 0
+        beam.n_macroparticles_partial.return_value = 0
         self.box_losses.track(beam=beam)
 
     def test_wrong_args(self):
@@ -290,6 +307,64 @@ class TestBoxLosses(BLonDTestCase):
         )
 
         self.assertLess(beam.intensity, 1e12)
+
+
+@pytest.mark.mpi
+class TestRankLosingAllParticles(BLonDTestCase):
+    """A run must go on when one MPI rank has lost all its particles."""
+
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+
+    def test_purged_empty_rank_keeps_tracking_with_dynamic_profile(self):
+        circumference = 26658.883  # [m]
+        ring = Ring(circumference)
+        ring.add_elements(
+            [
+                SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0),
+                DriftSimple(
+                    orbit_length=circumference,
+                    momentum_compaction_factor=momentum_compaction_factor(
+                        transition_gamma=55.759505
+                    ),
+                ),
+                BoxLosses(
+                    purge_flagged_macroparticles=True, t_min=0, t_max=2.5e-9
+                ),
+                # needs the global `dt_min`/`dt_max` every turn
+                DynamicProfileConstNBins(n_bins=64),
+            ]
+        )
+        simulation = Simulation(
+            ring=ring,
+            magnetic_cycle=ConstantMagneticCycle(
+                value=450e9, reference_particle=proton
+            ),
+        )
+        n_per_rank = 1000
+        rng = np.random.default_rng(0)
+        # `mpirun -n 2`: rank 0 gets the bunch inside the loss window,
+        # rank 1 particles far outside it, all purged on the first turn.
+        dt = np.concatenate(
+            (
+                1.25e-9 + 0.1e-9 * rng.standard_normal(n_per_rank),
+                np.full(n_per_rank, 10e-9),
+            )
+        )
+        beam = Beam(intensity=1e9, particle_type=proton)
+        beam.setup_beam(
+            dt=dt, dE=np.zeros(dt.size), mpi_mode="root-distributes"
+        )
+
+        simulation.run_simulation(
+            beams=(beam,), n_turns=5, show_progressbar=False
+        )
+
+        self.assertEqual(beam.common_array_size, n_per_rank)
+        self.assertEqual(
+            beam.dt.local_size, 0 if MPI_RANK == 1 else n_per_rank
+        )
 
 
 if __name__ == "__main__":

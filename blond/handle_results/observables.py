@@ -27,6 +27,7 @@ from numpy.typing import NDArray as NumpyArray
 from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.callables import (
     count_active_macroparticles,
+    global_sum_array,
 )
 from blond.core.base import MainLoopRelevant
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
@@ -36,6 +37,7 @@ from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Sequence
     from typing import Any
 
     from blond.core.beam.base import BeamBaseClass
@@ -122,6 +124,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     **kwargs
         Additional keyword arguments.
     """
+
+    _NOT_A_RECORDER: set[str] = set()
 
     def __init__(self, folder: str = "", **kwargs):
         super().__init__(**kwargs)
@@ -217,6 +221,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     def assert_lateinit(self):
         """Check that DenseArrays are already initialized."""
         for parameter, value in self.__dict__.items():
+            if parameter in self._NOT_A_RECORDER:
+                continue
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
 
@@ -237,6 +243,12 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         Additional keyword arguments.
     """
 
+    _NOT_A_RECORDER = ObservablesBaseClass._NOT_A_RECORDER | {
+        "_turns_array",
+        "_n_turns",
+        "each_turn_i",
+    }
+
     def __init__(
         self,
         each_turn_i: int,
@@ -256,7 +268,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self._simulation: Simulation | None = None
 
     @property  # as readonly attributes
-    def turns_array(self) -> NumpyArray | None:
+    def turns_array(self) -> NumpyArray:
         """
         Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
@@ -268,6 +280,17 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         turns_array
             Array with turn numbers for observations.
         """
+        if self._turns_array is None:
+            assert self._n_turns is not None
+            self._turns_array = np.arange(
+                0, self._n_turns, self.each_turn_i, dtype=int
+            )
+
+            assert self._turns_array is not None
+
+            assert len(self._turns_array) == self._calc_n_entries(
+                n_turns=self._n_turns
+            )
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -308,9 +331,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
             Additional keyword arguments.
         """
         self._n_turns = int(n_turns)
-
-        self._turns_array = np.arange(0, n_turns, self.each_turn_i, dtype=int)
-        assert len(self._turns_array) == self._calc_n_entries(n_turns=n_turns)
 
         self._simulation = simulation
 
@@ -410,31 +430,15 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         **kwargs
             Additional keyword arguments.
         """
-        from blond.core.backends.mpi_distributed.helpers import (
-            mpi_is_distributed,
-        )
-
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
         )
-        if beam.is_distributed:
-            raise NotImplementedError(
-                "This needs to be implemented."
-                " Contact the devs if you need it."
-            )
         self._beam = beam
         self._consider_intensity = beam.intensity != 0
 
         n_entries = self._calc_n_entries(n_turns)
-        if mpi_is_distributed():  # pragma: no cover
-            warnings.warn(
-                "Saving beam with `BeamHist2dOncePerTurn` only from "
-                "MPI-rank 0.",
-                UserWarning,
-                stacklevel=2,
-            )
         shape = (n_entries, self._bins[0], self._bins[1])
 
         self._hist2d = DenseArrayRecorder(
@@ -480,13 +484,23 @@ class BeamHist2dOncePerTurn(ObservablesOncePerTurnBase):
         self._reference_time.write(self._beam.reference.time)
         self._reference_total_energy.write(self._beam.reference.total_energy)
         self._intensity.write(self._beam.intensity)
+        # A common range and the counts summed over the MPI ranks give
+        # every rank the histogram of the whole beam.
+        dt, dE = self._beam.dt, self._beam.dE
+        hist_range = self._range
+        if hist_range is None:
+            hist_range = ((dt.min(), dt.max()), (dE.min(), dE.max()))
         H, xedges, yedges = backend.histogram2d(
-            self._beam.dt.array_local,
-            self._beam.dE.array_local,
-            bins=self._bins,
-            range=self._range,
-            density=self._density,
+            dt.array_local, dE.array_local, bins=self._bins, range=hist_range
         )
+        # `histogram2d` returns a non-contiguous view, which MPI cannot
+        # reduce in place; `copy` makes it contiguous.
+        H = global_sum_array(H.copy())
+        if self._density:  # as `density=True`, but from the global counts
+            bin_areas = (xedges[1:] - xedges[:-1])[:, None] * (
+                yedges[1:] - yedges[:-1]
+            )[None, :]
+            H = H / (H.sum() * bin_areas)
         self._hist2d.write(H)
         self._xedges.write(xedges)
         self._yedges.write(yedges)
@@ -849,18 +863,16 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
-        if beam.is_distributed:
-            raise NotImplementedError(
-                "This needs to be implemented."
-                " Contact the devs if you need it."
-            )
         self._beam = beam
         n_entries = self._calc_n_entries(n_turns)
         n_macroparticles = int(beam._dt.local_size)
         if mpi_is_distributed():
             warnings.warn(
-                "Saving beam with `BeamObservationOncePerTurn` only from "
-                "MPI-rank 0.",
+                "`BeamObservationOncePerTurn` records only the macroparticles "
+                "local to each MPI rank, and "
+                "`save_results` writes the data of rank 0 only. The "
+                "results are incomplete: they cover rank 0's share of "
+                "the beam, not the whole beam.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -1525,7 +1537,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        profiles: list[StaticProfile],
+        profiles: Sequence[StaticProfile],
         folder: str = "",
         sort_profiles_by_section=True,
     ):
@@ -1565,6 +1577,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
         )
+
         n_turns_observation = self._calc_n_entries(n_turns)
         n_bins = self._profiles[0].n_bins
         shape = (n_turns_observation, len(self._profiles), n_bins)

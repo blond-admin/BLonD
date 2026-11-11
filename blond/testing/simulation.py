@@ -66,7 +66,6 @@ class ExampleSimulation01:
         self.beam1 = beam1
 
         simulation = Simulation.from_locals(locals())
-        simulation.print_one_turn_execution_order()
 
         simulation.prepare_beam(
             beam=beam1,

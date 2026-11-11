@@ -91,7 +91,7 @@ class TestRFStationBaseClass(BLonDTestCase):
         self.beam.write_partial_dE.return_value = self.beam.dE
         self.beam.signed_charge_with_direction.return_value = proton._charge
 
-        self.beam.common_array_size = len(self.beam.dE)
+        self.beam.n_macroparticles_partial.return_value = len(self.beam.dE)
 
     def test_init_of_feedbacks(self):
         # default init

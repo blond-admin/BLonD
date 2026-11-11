@@ -23,3 +23,5 @@ omit =
     blond/core/backends/cpp/*
     blond/core/backends/numba/*
     blond/_version.py
+    # marimo notebooks: documentation, mostly run on GPU runners only
+    blond/examples/notebooks/*

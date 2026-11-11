@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import itertools
 import os
-import time
+import secrets
 from typing import TYPE_CHECKING
 
 import cupy as cp  # type: ignore
@@ -59,9 +59,9 @@ _apply_sr_with_quantum_excitation = gpu_module.get_function(
     "apply_sr_with_quantum_excitation"
 )
 
-default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
-default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
-max_shared_memory_per_block = cp.cuda.Device(0).attributes[
+default_blocks = 2 * cp.cuda.Device().attributes["MultiProcessorCount"]
+default_threads = cp.cuda.Device().attributes["MaxThreadsPerBlock"]
+max_shared_memory_per_block = cp.cuda.Device().attributes[
     "MaxSharedMemoryPerBlock"
 ]
 blocks = int(os.environ.get("GPU_BLOCKS", default_blocks))
@@ -90,7 +90,11 @@ _RF_PARAMS_BATCH_DTYPE = np.dtype(
         ("phi_rf", FLOAT, (MAX_RF_HARMONICS_PER_LAUNCH,)),
     ]
 )
-_quantum_excitation_seed_counter = itertools.count(time.time_ns())
+# Seeds count up per launch, so the start must differ between processes
+# (MPI ranks, array jobs) that start within the same microseconds, or they
+# reuse each other's noise a few launches apart. 63 bit: room to count up
+# within `np.uint64`.
+_quantum_excitation_seed_counter = itertools.count(secrets.randbits(63))
 
 
 class CudaSpecials(Specials):  # NOQA: D101
@@ -669,8 +673,7 @@ class CudaSpecials(Specials):  # NOQA: D101
                 / float(np.sqrt(longitudinal_damping_time))
                 * total_energy
             )
-            # The counter guarantees a distinct seed per launch even on
-            # platforms where consecutive clock reads return the same value.
+            # The counter gives a distinct seed per launch.
             # Each thread uses its tid as the cuRAND subsequence.
             base_seed = np.uint64(next(_quantum_excitation_seed_counter))
             _apply_sr_with_quantum_excitation(

@@ -16,10 +16,18 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond.core.backends.cuda.compiled_dir_handler import cuda_compiled_dir
+from blond.core.backends.mpi_distributed.helpers import mpi_local_gpu_index
 from blond.generals.compiled_cache import mark_used
 
 _filepath = os.path.realpath(__file__)
-_compute_capability = cp.cuda.Device(0).compute_capability
+
+# Under MPI, each rank of a node takes its own GPU. This must happen
+# before the device queries below and before any CUDA work.
+_device_index = mpi_local_gpu_index(cp.cuda.runtime.getDeviceCount())
+if _device_index is not None:
+    cp.cuda.Device(_device_index).use()
+# `Device()` is the current device, which differs from GPU 0 under MPI.
+_compute_capability = cp.cuda.Device().compute_capability
 
 FLOAT = np.float64
 

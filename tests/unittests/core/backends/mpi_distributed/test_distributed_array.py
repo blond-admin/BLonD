@@ -325,19 +325,159 @@ class TestScatterRootFailure(BLonDTestCase):
         from mpi4py import MPI
 
         rank = MPI.COMM_WORLD.Get_rank()
+        # only 1D arrays can be scattered; rank 0 must say so to everyone
         distributed_array = DistributedArray(
-            backend.array(np.arange(128), dtype=backend.float)
+            backend.zeros((4, 4), dtype=backend.float)
         )
 
-        with (
-            patch.object(
-                backend, "array_split", side_effect=ValueError("boom")
-            ),
-            self.assertRaises(Exception) as caught,
-        ):
+        with self.assertRaises(Exception) as caught:
             distributed_array.mpi_scatter()
 
         if rank == 0:
             self.assertIsInstance(caught.exception, ValueError)
         else:
             self.assertIn("Rank 0 failed", str(caught.exception))
+
+    @unittest.skipUnless(mpi_is_distributed(), "Runs only with `mpirun`")
+    def test_scatter_keeps_dtype_and_uses_backend_arrays(self):
+        from mpi4py import MPI
+
+        comm = MPI.COMM_WORLD
+        array = backend.arange(13, dtype=np.int32)
+        distributed_array = DistributedArray(
+            array if comm.Get_rank() == 0 else None
+        )
+        distributed_array.mpi_scatter()
+
+        local = distributed_array.array_local
+        self.assertEqual(local.dtype, np.int32)
+        self.assertIs(type(local), type(backend.zeros(1)))
+        np.testing.assert_array_equal(
+            copy_to_cpu(local),
+            np.array_split(np.arange(13), comm.Get_size())[comm.Get_rank()],
+        )
+
+    @unittest.skipUnless(mpi_is_distributed(), "Runs only with `mpirun`")
+    def test_scatter_of_none_gives_none_on_every_rank(self):
+        distributed_array = DistributedArray(None)
+        distributed_array.mpi_scatter()
+        self.assertIsNone(distributed_array.array_local)
+
+
+class TestMinMaxWithoutElements(BLonDTestCase):
+    """`min`/`max` of an array without elements raise, as NumPy does."""
+
+    def setUp(self):
+        if mpi_is_distributed():
+            self.skipTest("Runs only without `mpirun`")
+
+    def test_min_and_max_of_empty_array_raise(self):
+        empty = DistributedArray(backend.zeros(0, dtype=backend.float))
+        for reduction in ("min", "max"):
+            with (
+                self.subTest(reduction=reduction),
+                self.assertRaises(ValueError),
+            ):
+                getattr(empty, reduction)()
+
+
+@pytest.mark.mpi
+class TestMinMaxEmptyRank(BLonDTestCase):
+    """A rank without particles (e.g. all lost) must not strand the others.
+
+    `min`/`max` used to reduce the local array before the `allreduce`: an
+    empty rank raised there while every other rank waited in the
+    `allreduce` forever.
+    """
+
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+        from mpi4py import MPI
+
+        self.rank = MPI.COMM_WORLD.Get_rank()
+
+    def test_min_and_max_skip_empty_rank(self):
+        # `mpirun -n 2`: rank 1 holds no elements
+        local = np.zeros(0) if self.rank == 1 else np.array([3.0, -2.0, 7.0])
+        distributed_array = DistributedArray(
+            backend.array(local, dtype=backend.float)
+        )
+        self.assertEqual(distributed_array.min(), -2.0)
+        self.assertEqual(distributed_array.max(), 7.0)
+
+    def test_min_and_max_raise_on_every_rank_without_elements(self):
+        empty = DistributedArray(backend.zeros(0, dtype=backend.float))
+        for reduction in ("min", "max"):
+            with (
+                self.subTest(reduction=reduction),
+                self.assertRaises(ValueError),
+            ):
+                getattr(empty, reduction)()
+
+
+@pytest.mark.mpi
+@pytest.mark.cupy
+class TestDistributedArrayCupyMPI(BLonDTestCase):
+    """Histograms of GPU arrays must not hand device memory to MPI."""
+
+    def setUp(self):
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+
+    @skip_if_no_cupy
+    def test_histogram_of_cupy_array(self):
+        import cupy as cp
+
+        from blond import Cupy64Bit, Numpy64Bit
+
+        backend.change_backend(Cupy64Bit)
+        self.addCleanup(backend.change_backend, Numpy64Bit)
+        array = np.random.default_rng(0).normal(size=128)
+        expected, _ = np.histogram(array, bins=8)
+        distributed_array = DistributedArray(cp.asarray(array))
+        distributed_array.mpi_scatter()
+        actual = distributed_array.histogram(bins=8)
+        self.assertTrue(is_cupy_array(actual))
+        np.testing.assert_allclose(copy_to_cpu(actual), expected)
+
+
+class _FakeNonRootComm:
+    """Stands in for ``MPI.COMM_WORLD`` as seen from rank 1 of 2.
+
+    Coverage is only collected on rank 0 of an ``mpirun``, so the
+    receiving side of `mpi_scatter` is checked here without MPI.
+    """
+
+    def __init__(self, global_array: np.ndarray):
+        self._global_array = global_array
+
+    def Get_size(self) -> int:
+        return 2
+
+    def Get_rank(self) -> int:
+        return 1
+
+    def bcast(self, obj, root: int):
+        header = (self._global_array.size, self._global_array.dtype.str)
+        return header, None
+
+    def Recv(self, buffer: np.ndarray, source: int) -> None:
+        buffer[:] = np.array_split(self._global_array, 2)[1]
+
+
+class TestScatterReceivingRank(BLonDTestCase):
+    def test_non_root_rank_receives_its_chunk(self):
+        global_array = np.arange(13, dtype=np.int32)
+        distributed_array = DistributedArray(None)
+        distributed_array._comm = _FakeNonRootComm(global_array)
+        distributed_array._is_distributed = True
+
+        distributed_array.mpi_scatter()
+
+        local = distributed_array.array_local
+        self.assertEqual(local.dtype, np.int32)
+        self.assertIs(type(local), type(backend.zeros(1)))
+        np.testing.assert_array_equal(
+            copy_to_cpu(local), np.array_split(global_array, 2)[1]
+        )

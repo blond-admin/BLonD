@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond import Beam, Simulation, proton, uranium_29
+from blond import Beam, Simulation, backend, proton, uranium_29
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
@@ -450,6 +450,152 @@ class TestBeamSetupBeamArguments(BLonDTestCase):
             dt=np.zeros(4), dE=np.zeros(4), reference_time=0.0
         )
         self.assertEqual(self.beam.reference.time, 0.0)
+
+
+@pytest.mark.mpi
+class TestSetupBeamRootDistributes(BLonDTestCase):
+    """Only rank 0 needs the full beam; the other ranks may pass `None`."""
+
+    def setUp(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+
+    def _expected_chunk(self, array):
+        # chunk sizes as `np.array_split`, in rank order
+        return np.array_split(array, MPI_SIZE)[MPI_RANK]
+
+    def test_other_ranks_may_pass_none(self) -> None:
+        dt = np.arange(13, dtype=float)  # not divisible: uneven chunks
+        dE = 10 * np.arange(13, dtype=float)
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=dt if MPI_RANK == 0 else None,
+            dE=dE if MPI_RANK == 0 else None,
+            mpi_mode="root-distributes",
+        )
+        for actual, expected in (
+            (beam.dt, dt),
+            (beam.dE, dE),
+            (beam.ids, np.arange(13)),
+            (beam.flags, np.full(13, BeamFlags.ACTIVE.value)),
+        ):
+            np.testing.assert_array_equal(
+                actual.copy_as_numpy(), self._expected_chunk(expected)
+            )
+        self.assertEqual(beam.dt.array_local.dtype, backend.float)
+        self.assertEqual(beam.flags.array_local.dtype, np.int32)
+        self.assertEqual(beam.common_array_size, 13)
+
+    def test_flags_from_rank_zero_are_scattered(self) -> None:
+        flags = np.array([1, 0, 1, 1, 0, 1, 0, 1], dtype=np.int32)
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=np.zeros(8) if MPI_RANK == 0 else None,
+            dE=np.zeros(8) if MPI_RANK == 0 else None,
+            flags=flags if MPI_RANK == 0 else None,
+            mpi_mode="root-distributes",
+        )
+        np.testing.assert_array_equal(
+            beam.flags.copy_as_numpy(), self._expected_chunk(flags)
+        )
+
+    def test_invalid_input_on_rank_zero_raises_on_every_rank(self) -> None:
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with self.assertRaises(AssertionError):
+            beam.setup_beam(
+                dt=np.zeros(8) if MPI_RANK == 0 else None,
+                dE=np.zeros(9) if MPI_RANK == 0 else None,  # length mismatch
+                mpi_mode="root-distributes",
+            )
+
+
+class TestBeamIsDistributed(BLonDTestCase):
+    """`is_distributed` tells whether the particles are split over ranks."""
+
+    def test_is_false_without_mpi(self) -> None:
+        if mpi_is_distributed():
+            self.skipTest("Runs only without `mpirun`")
+        beam = Beam(intensity=1e10, particle_type=proton)
+        self.assertFalse(beam.is_distributed)
+
+    @pytest.mark.mpi
+    def test_is_true_under_mpi(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+        beam = Beam(intensity=1e10, particle_type=proton)
+        self.assertTrue(beam.is_distributed)
+        self.assertTrue(
+            ProbeBeam(particle_type=proton, dt=np.zeros(4)).is_distributed
+        )
+
+    @pytest.mark.mpi
+    def test_sort_by_dt_refuses_distributed_beam(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(
+            dt=np.arange(12.0)[::-1],
+            dE=np.zeros(12),
+            mpi_mode="root-distributes",
+        )
+        with self.assertRaises(NotImplementedError):
+            beam.sort_by_dt()
+
+    @pytest.mark.mpi
+    def test_profile_and_beam_observations_run_distributed(self) -> None:
+        """These handle MPI already; `is_distributed` must not block them."""
+        from blond import (
+            BeamHist2dOncePerTurn,
+            BeamObservationOncePerTurn,
+            ConstantMagneticCycle,
+            DriftSimple,
+            Ring,
+            SingleHarmonicRFStation,
+            StaticProfile,
+            momentum_compaction_factor,
+        )
+
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+        circumference = 26658.883  # [m]
+        ring = Ring(circumference)
+        ring.add_elements(
+            [
+                SingleHarmonicRFStation(harmonic=35640, voltage=6e6, phi_rf=0),
+                DriftSimple(
+                    orbit_length=circumference,
+                    momentum_compaction_factor=momentum_compaction_factor(
+                        transition_gamma=55.759505
+                    ),
+                ),
+                StaticProfile(cut_left=0, cut_right=2.5e-9, n_bins=64),
+            ]
+        )
+        simulation = Simulation(
+            ring=ring,
+            magnetic_cycle=ConstantMagneticCycle(
+                value=450e9, reference_particle=proton
+            ),
+        )
+        beam = Beam.simple_gaussian(
+            n_macroparticles=1000,
+            intensity=1e9,
+            particle_type=proton,
+            dt_scale=0.1e-9,
+            dE_scale=1e8,
+            dt_offset=1.25e-9,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)  # rank-0 notes
+            simulation.run_simulation(
+                beams=(beam,),
+                n_turns=2,
+                show_progressbar=False,
+                observe=(
+                    BeamHist2dOncePerTurn(each_turn_i=1),
+                    BeamObservationOncePerTurn(each_turn_i=1),
+                ),
+            )
 
 
 if __name__ == "__main__":

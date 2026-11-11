@@ -9,12 +9,12 @@
 // Optimised C++ routine that calculates the histogram
 // Author: Danilo Quartullo, Alexandre Lasheen, Konstantinos Iliakis
 
-#include <math.h>
-#include <stdlib.h> // mmalloc()
-#include <string.h> // memset()
+#include <cmath>
+#include <cstring>
 
 #include "blond_common.h"
 #include "openmp.h"
+#include "scratch_buffer.h"
 
 extern "C" void histogram(const real_t *__restrict__ input,
                           real_t *__restrict__ output, const real_t cut_left,
@@ -24,20 +24,19 @@ extern "C" void histogram(const real_t *__restrict__ input,
   const int STEP = 16;
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
 
-  // allocate memory for the thread_private histogram; index_t counters, so a
-  // single bin can collect more than 2^31 - 1 particles
-  index_t **histo =
-      (index_t **)malloc(omp_get_max_threads() * sizeof(index_t *));
-  histo[0] =
-      (index_t *)malloc(omp_get_max_threads() * n_slices * sizeof(index_t));
-  for (int i = 0; i < omp_get_max_threads(); i++)
-    histo[i] = (*histo + n_slices * i);
+  // allocate memory for the thread_private histograms, one row of n_slices
+  // per thread; index_t counters, so a single bin can collect more than
+  // 2^31 - 1 particles
+  static thread_local std::vector<index_t> histo_buffer;
+  index_t *const histo =
+      reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
 
 #pragma omp parallel
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
-    memset(histo[id], 0, n_slices * sizeof(index_t));
+    index_t *__restrict__ thread_histo = &histo[(size_t)id * n_slices];
+    std::memset(thread_histo, 0, n_slices * sizeof(index_t));
     // Keep the bin index in double until it is range-checked: a float
     // cannot represent indices above 2^24 exactly, and converting an
     // out-of-range double to int is undefined behaviour (on x86 it
@@ -47,11 +46,11 @@ extern "C" void histogram(const real_t *__restrict__ input,
     for (index_t i = 0; i < n_macroparticles; i += STEP) {
 
       const index_t loop_count =
-          n_macroparticles - i > STEP ? STEP : (index_t)(n_macroparticles - i);
+          n_macroparticles - i > STEP ? STEP : (n_macroparticles - i);
 
       // First calculate the index to update
       for (index_t j = 0; j < loop_count; j++) {
-        fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
+        fbin[j] = std::floor((input[i + j] - cut_left) * inv_bin_width);
 
         // Scaling is not exact: a value at or just below cut_right can
         // land on n_slices. Fold it back into the last bin, as
@@ -62,9 +61,10 @@ extern "C" void histogram(const real_t *__restrict__ input,
       }
       // Then update the corresponding bins
       for (index_t j = 0; j < loop_count; j++) {
-        if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices)
+        if (fbin[j] < 0.0 || fbin[j] >= (double)n_slices) {
           continue;
-        histo[id][(int)fbin[j]] += 1;
+        }
+        thread_histo[(int)fbin[j]] += 1;
       }
     }
 
@@ -72,14 +72,12 @@ extern "C" void histogram(const real_t *__restrict__ input,
 #pragma omp for
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
-      for (int t = 0; t < threads; t++)
-        output[i] += histo[t][i];
+      for (int t = 0; t < threads; t++) {
+        // exact while a bin holds fewer than 2^53 particles
+        output[i] += static_cast<real_t>(histo[(size_t)t * n_slices + i]);
+      }
     }
   }
-
-  // free memory
-  free(histo[0]);
-  free(histo);
 }
 
 extern "C" void smooth_histogram(const real_t *__restrict__ input,
@@ -87,58 +85,61 @@ extern "C" void smooth_histogram(const real_t *__restrict__ input,
                                  const real_t cut_left, const real_t cut_right,
                                  const int n_slices,
                                  const index_t n_macroparticles) {
+  // memory alloc for per thread histo, one row of n_slices per thread.
+  // Fetched first: the thread_local lookup is a call that would otherwise
+  // force the constants below onto the stack in the single-core build.
+  static thread_local std::vector<real_t> histo_buffer;
+  real_t *const histo =
+      reuse_scratch(histo_buffer, (size_t)omp_get_max_threads() * n_slices);
+
   // Constants init
   const real_t inv_bin_width = n_slices / (cut_right - cut_left);
   const real_t bin_width = (cut_right - cut_left) / n_slices;
   const real_t const1 = (cut_left + bin_width * 0.5);
   const real_t const2 = (cut_right - bin_width * 0.5);
 
-  // memory alloc for per thread histo
-  real_t **histo = (real_t **)malloc(omp_get_max_threads() * sizeof(real_t *));
-  histo[0] =
-      (real_t *)malloc(omp_get_max_threads() * n_slices * sizeof(real_t));
-  for (int i = 0; i < omp_get_max_threads(); i++)
-    histo[i] = (*histo + n_slices * i);
-
 #pragma omp parallel
   {
     const int id = omp_get_thread_num();
     const int threads = omp_get_num_threads();
-    memset(histo[id], 0, n_slices * sizeof(real_t));
+    real_t *__restrict__ thread_histo = &histo[(size_t)id * n_slices];
+    std::memset(thread_histo, 0, n_slices * sizeof(real_t));
 
 // main caclulation
 #pragma omp for
     for (index_t i = 0; i < n_macroparticles; i++) {
       int fffbin = 0;
-      real_t a = input[i];
-      if ((a < const1) || (a > const2))
+      const real_t a = input[i];
+      if ((a < const1) || (a > const2)) {
         continue;
-      real_t fbin = (a - cut_left) * inv_bin_width;
-      int ffbin = (int)(fbin);
-      real_t distToCenter = fbin - (real_t)(ffbin);
-      if (distToCenter > 0.5)
+      }
+      const real_t fbin = (a - cut_left) * inv_bin_width;
+      const int ffbin = (int)fbin;
+      const real_t distToCenter = fbin - (real_t)ffbin;
+      if (distToCenter > 0.5) {
         fffbin = (int)(fbin + 1.0);
-      else
+      } else {
         fffbin = (int)(fbin - 1.0);
+      }
 
       // Bounds check to prevent buffer overrun
-      if (ffbin >= 0 && ffbin < n_slices)
-        histo[id][ffbin] += 0.5 - distToCenter;
-      if (fffbin >= 0 && fffbin < n_slices)
-        histo[id][fffbin] += 0.5 + distToCenter;
+      if (ffbin >= 0 && ffbin < n_slices) {
+        thread_histo[ffbin] += 0.5 - distToCenter;
+      }
+      if (fffbin >= 0 && fffbin < n_slices) {
+        thread_histo[fffbin] += 0.5 + distToCenter;
+      }
     }
 
 // Reduce to a single histogram
 #pragma omp for
     for (int i = 0; i < n_slices; i++) {
       output[i] = 0.;
-      for (int t = 0; t < threads; t++)
-        output[i] += histo[t][i];
+      for (int t = 0; t < threads; t++) {
+        output[i] += histo[(size_t)t * n_slices + i];
+      }
     }
   }
-  // free memory
-  free(histo[0]);
-  free(histo);
 }
 
 /***** serial histogram

@@ -1,7 +1,6 @@
-import importlib
-import os.path
 import unittest
 
+import matplotlib
 import pytest
 
 from blond.core.backends.backend import (
@@ -9,52 +8,23 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
-from blond.examples import notebooks
 from blond.testing.backend_testing import BLonDTestCase
-from blond.testing.notebooks import ipynb_to_py
-
-NOTEBOOK_DIR = os.path.dirname(notebooks.__file__)
-import matplotlib
 
 matplotlib.use("agg")
 
 
 class TestSingleBunchAcceleration(BLonDTestCase):
-    @classmethod
-    def setUpClass(cls):
-        # the notebook is converted to a python file
-        # so that debugging is easily possible
-        ipynb_to_py(
-            os.path.join(
-                NOTEBOOK_DIR,
-                "single_bunch_acceleration.ipynb",
-            ),
-            os.path.join(
-                NOTEBOOK_DIR,
-                "single_bunch_acceleration.py",
-            ),
-        )
+    def run_notebook(self):
+        from blond.examples.notebooks import single_bunch_acceleration
 
-    @classmethod
-    def tearDownClass(cls):
-        os.remove(
-            os.path.join(
-                NOTEBOOK_DIR,
-                "single_bunch_acceleration.py",
-            )
-        )
+        single_bunch_acceleration.app.run()
 
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
 
-        # this file is only created by `setUpClass` and deleted by `tearDownClass`
-        from blond.examples.notebooks import single_bunch_acceleration  # NOQA
-
-        importlib.reload(
-            single_bunch_acceleration
-        )  # make sure the script is executed
+        self.run_notebook()
 
     @pytest.mark.backend_mutation
     def test_executable_cuda64(self):
@@ -66,9 +36,8 @@ class TestSingleBunchAcceleration(BLonDTestCase):
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
 
-        # this file is only created by `setUpClass` and deleted by `tearDownClass`tearDownClass`
-        from blond.examples.notebooks import single_bunch_acceleration  # NOQA
+        self.run_notebook()
 
-        importlib.reload(
-            single_bunch_acceleration
-        )  # make sure the script is executed
+
+if __name__ == "__main__":
+    unittest.main()

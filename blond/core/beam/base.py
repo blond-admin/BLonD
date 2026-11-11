@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, Self
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
+    from matplotlib.collections import QuadMesh
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.backends.mpi_distributed.distributed_array import (
@@ -51,7 +52,9 @@ class BeamBaseClass(Preparable, ABC):
     is_counter_rotating
         If this is a normal or counter-rotating beam.
     is_distributed
-        Developer option to allow distributed computing.
+        Whether the macro-particles are split across MPI ranks.
+        `Beam` sets it from the MPI run, i.e. when more than one rank is
+        used.
     """
 
     def __init__(
@@ -342,7 +345,7 @@ class BeamBaseClass(Preparable, ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_turns: int,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called.
@@ -498,12 +501,12 @@ class BeamBaseClass(Preparable, ABC):
     @property  # as readonly attributes
     def is_distributed(self) -> bool:
         """
-        Developer option to allow distributed computing.
+        Whether the macro-particles are split across MPI ranks.
 
         Returns
         -------
         is_distributed
-            Developer option to allow distributed computing.
+            True if every rank holds only its share of the particles.
         """
         return self._is_distributed
 
@@ -520,8 +523,16 @@ class BeamBaseClass(Preparable, ABC):
         return self._is_counter_rotating
 
     @abstractmethod  # pragma: no cover
-    def plot_hist2d(self) -> None:
-        """Plot 2D histogram of beam coordinates."""
+    def plot_hist2d(self) -> QuadMesh | None:
+        """
+        Plot 2D histogram of beam coordinates.
+
+        Returns
+        -------
+        image
+            `matplotlib.collections.QuadMesh` object, if the
+            implementation returns one.
+        """
         pass
 
     @property
@@ -777,6 +788,10 @@ class BeamBaseClass(Preparable, ABC):
         from blond.core.backends.mpi_distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
+        if n_before_truncation_global == 0:
+            # Nothing left to purge (the whole beam was lost before). The
+            # global size is the same on every rank, so all ranks return.
+            return
 
         n_after_truncation_local = (
             backend.specials.move_flagged_elements_to_end(

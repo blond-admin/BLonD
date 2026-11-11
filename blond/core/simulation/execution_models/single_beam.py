@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from tqdm import tqdm  # type: ignore
 
+from blond.core.backends.mpi_distributed.helpers import mpi_is_root
 from blond.core.simulation.execution_models.base import ExecutionModel
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -105,8 +106,12 @@ class MainloopSingleBeam(ExecutionModel):
             simulation.turn_counter.value + n_turns,
         )
         if show_progressbar:
-            # Get particle count for throughput calculation
+            # Get particle count for throughput calculation. Every rank
+            # calls this, as `global_size` is an MPI collective.
             n_particles = beam._dt.global_size
+        # Under MPI, one progress bar instead of one per rank.
+        show_progressbar = show_progressbar and mpi_is_root()
+        if show_progressbar:
             iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
             # display to iteration
         for turn_i in iterator:
@@ -140,7 +145,7 @@ class MainloopSingleBeam(ExecutionModel):
 
     @staticmethod
     def _add_progressbar_info(
-        iterator: tqdm, n_particles: int, show_progressbar: bool
+        iterator: range | tqdm, n_particles: int, show_progressbar: bool
     ):
         # Update tqdm with particle throughput metrics
         if show_progressbar and hasattr(iterator, "format_dict"):

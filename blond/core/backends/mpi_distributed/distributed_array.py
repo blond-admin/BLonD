@@ -11,12 +11,15 @@
 
 from __future__ import annotations
 
-from math import sqrt
+from math import inf, sqrt
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.callables import global_sum_array
 from blond.core.backends.mpi_distributed.helpers import MPI
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
 from blond.generals.exceptions_ import ArrayPrecisionError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -96,11 +99,14 @@ class DistributedArray:
 
     def mpi_scatter(self) -> None:
         """
-        Scatter a 1D NumPy array.
+        Scatter rank 0's 1D array; each rank keeps its contiguous chunk.
 
-        Scatter a 1D NumPy array.
-        Rank 0 owns the global array before scatter.
-        After scatter, each rank owns its local chunk.
+        Only rank 0's array is read; the other ranks' may be None. If
+        rank 0's array is None, every rank ends up with None. Chunk
+        sizes and order are those of `np.array_split`. The chunks travel
+        as host buffers, not pickled, so no GPU holds more than its own
+        chunk and a chunk may exceed 2 GiB. Afterwards each rank holds an
+        array of the active backend, with the dtype of rank 0's array.
         """
         if not self._is_distributed:
             return
@@ -108,32 +114,66 @@ class DistributedArray:
         size = self._comm.Get_size()
         rank = self._comm.Get_rank()
 
-        chunks = None
+        host_array = None
+        header = None
         root_exception: Exception | None = None
         root_error: str | None = None
 
         if rank == 0:
-            # Split array into `size` chunks. Any failure here must be
-            # announced before the scatter below: every other rank is
-            # already blocking inside it, so raising straight away would
-            # deadlock the whole run instead of reporting the problem.
+            # Any failure here must be announced before the transfer
+            # below: every other rank is already blocking in it, so
+            # raising straight away would deadlock the whole run.
             try:
-                chunks = backend.array_split(self.array_local, size)
+                array = self.array_local
+                host_array = (
+                    None
+                    if array is None
+                    else (
+                        copy_to_cpu(array)
+                        if is_cupy_array(array)
+                        else np.ascontiguousarray(array)
+                    )
+                )
+                if host_array is not None and host_array.ndim != 1:
+                    raise ValueError(
+                        f"Only 1D arrays can be scattered, "
+                        f"got {host_array.ndim}D."
+                    )
+                if host_array is not None:
+                    header = (host_array.size, host_array.dtype.str)
             except Exception as exc:
                 root_exception = exc
                 root_error = f"{type(exc).__name__}: {exc}"
 
-        root_error = self._comm.bcast(root_error, root=0)
+        header, root_error = self._comm.bcast((header, root_error), root=0)
         if root_error is not None:
             if root_exception is not None:
                 raise root_exception
             raise RuntimeError(  # pragma: no cover # only non-root ranks
-                f"Rank 0 failed to split the array before `mpi_scatter`, "
+                f"Rank 0 failed to prepare the array for `mpi_scatter`, "
                 f"so there is nothing to scatter: {root_error}"
             )
 
-        # Each rank receives one chunk
-        self.array_local = self._comm.scatter(chunks, root=0)
+        if header is None:
+            self.array_local = None
+            return
+        n_global, dtype_str = header
+        chunk_sizes = [
+            n_global // size + (1 if r < n_global % size else 0)
+            for r in range(size)
+        ]
+        if rank == 0:
+            start = chunk_sizes[0]
+            for dest in range(1, size):
+                stop = start + chunk_sizes[dest]
+                self._comm.Send(host_array[start:stop], dest=dest)
+                start = stop
+            chunk = host_array[: chunk_sizes[0]]
+        else:
+            chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
+            self._comm.Recv(chunk, source=0)
+        # `backend.array` copies, so rank 0 drops the global array
+        self.array_local = backend.array(chunk, dtype=chunk.dtype)
 
     def mpi_gather(self) -> NumpyArray | CupyArray | None:
         """
@@ -196,37 +236,82 @@ class DistributedArray:
         """
         Compute the global minimum across all processes.
 
+        A rank without elements (e.g. after all its particles were lost)
+        takes part with ``+inf``, so the other ranks still get the minimum
+        instead of waiting for it forever.
+
         Returns
         -------
         float
             The minimum value across all distributed array chunks.
+
+        Raises
+        ------
+        ValueError
+            On every rank, if no rank holds any element.
         """
-        local_min = float(backend.min(self.array_local))
+        local_min = (
+            float(backend.min(self.array_local)) if self.local_size else inf
+        )
 
         if self._is_distributed:
             global_min = self._comm.allreduce(local_min, op=MPI.MIN)
         else:
             global_min = local_min
 
+        if global_min == inf:  # same on all ranks, so is the collective
+            self._raise_if_without_elements("min")
         return global_min
 
     def max(self):
         """
         Compute the global maximum across all processes.
 
+        A rank without elements (e.g. after all its particles were lost)
+        takes part with ``-inf``, so the other ranks still get the maximum
+        instead of waiting for it forever.
+
         Returns
         -------
         float
             The maximum value across all distributed array chunks.
+
+        Raises
+        ------
+        ValueError
+            On every rank, if no rank holds any element.
         """
-        local_max = float(backend.max(self.array_local))
+        local_max = (
+            float(backend.max(self.array_local)) if self.local_size else -inf
+        )
 
         if self._is_distributed:
             global_max = self._comm.allreduce(local_max, op=MPI.MAX)
         else:
             global_max = local_max
 
+        if global_max == -inf:  # same on all ranks, so is the collective
+            self._raise_if_without_elements("max")
         return global_max
+
+    def _raise_if_without_elements(self, reduction: str) -> None:
+        """
+        Raise if no rank holds any element; collective under MPI.
+
+        Parameters
+        ----------
+        reduction
+            Name of the reduction, for the error message.
+
+        Raises
+        ------
+        ValueError
+            If the array has no elements on any rank.
+        """
+        if self.global_size == 0:
+            raise ValueError(
+                f"`{reduction}` of an array without elements on any rank."
+            )
 
     def mean(self):
         """
@@ -337,12 +422,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
-
-            return array_write_local
-        else:
-            return array_write_local
+        return global_sum_array(array_write_local)
 
     def histogram_sparse(
         self,
@@ -404,12 +484,7 @@ class DistributedArray:
         )
 
         # Combine histograms from all processes
-        if self._is_distributed:
-            self._comm.Allreduce(MPI.IN_PLACE, array_write_local, op=MPI.SUM)
-
-            return array_write_local
-        else:
-            return array_write_local
+        return global_sum_array(array_write_local)
 
 
 def concatenate(

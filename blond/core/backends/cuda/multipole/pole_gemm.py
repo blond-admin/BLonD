@@ -41,7 +41,7 @@ _GEMM_TILE_LENGTHS = (128, 64, 32, 16)
 _MIN_GEMM_POLES = 20
 # Memory budget of the GEMM's per-slab workspace: at most 2 GiB and an
 # eighth of the GPU's memory.
-_MAX_GEMM_SLAB_BYTES = min(2**31, cp.cuda.Device(0).mem_info[1] // 8)
+_MAX_GEMM_SLAB_BYTES = min(2**31, cp.cuda.Device().mem_info[1] // 8)
 # Threads per block of the GEMM kernels: one pole, or one charge or bin,
 # per thread; GEMM_THREADS in pole_gemm.cuh.
 _GEMM_THREADS = 128

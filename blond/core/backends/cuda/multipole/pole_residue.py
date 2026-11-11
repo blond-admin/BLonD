@@ -34,7 +34,7 @@ _POLE_THREADS = 64  # threads per block
 _POLE_BLOCKS_PER_MULTIPROCESSOR = 16
 # Fewest tiles per time chunk.
 _MIN_POLE_CHUNK_TILES = 4
-_N_MULTIPROCESSORS = cp.cuda.Device(0).attributes["MultiProcessorCount"]
+_N_MULTIPROCESSORS = cp.cuda.Device().attributes["MultiProcessorCount"]
 
 
 def pole_chunk_count(
