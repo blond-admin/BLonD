@@ -340,7 +340,6 @@ class SynchrotronRadiationMatcher(MatchingRoutine):
 
         generator = mpi_aware_random_generator_cpu(
             seed=self._seed if self._seed is not None else None,
-            n_forward_per_rank=self._n_macroparticles_local,
         )
 
         dt_distrib, dE_distrib = generator.multivariate_normal(

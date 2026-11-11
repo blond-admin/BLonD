@@ -28,6 +28,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.base import (
     DynamicParameter,
     Schedulable,
@@ -354,10 +357,11 @@ class BeamFeedbackBase(GlobalFeedback, Schedulable):
         alpha = self._simulation.ring.momentum_compaction_factor
         ring_radius = self._simulation.ring.circumference / (2 * np.pi)
 
-        # Correct for design orbit
-        self.average_de = float(
-            beam.read_partial_dE()[:: self.sample_de].mean()
-        )
+        # Correct for design orbit. The mean is over all MPI ranks, so
+        # that every rank applies the same correction.
+        self.average_de = DistributedArray(
+            beam.dE.array_local[:: self.sample_de]
+        ).mean()
 
         self.drho = (
             alpha
