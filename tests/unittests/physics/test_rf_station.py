@@ -11,7 +11,6 @@ from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
-    Beam,
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
@@ -34,7 +33,7 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.beams import Beam, ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
@@ -49,6 +48,7 @@ from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.physics.rf_station import (
+    ArbitraryRFWaveform,
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
@@ -1764,6 +1764,52 @@ class TestOmegaRfDesignFollowsReference(unittest.TestCase):
             copy_to_cpu(rf.omega_rf_design),
             self._expected_omega(harmonics, self.E_HI),
             rtol=1e-12,
+        )
+
+
+class TestArbitraryRFWaveform(unittest.TestCase):
+    def test_init(self):
+        time = backend.linspace(0, 2e-6, 1024)
+        waveform = backend.linspace(-5e3, 5e3, 1024)
+        gain = 0.5
+
+        arbitrary_waveform = ArbitraryRFWaveform(time, waveform, gain)
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(time), copy_to_cpu(arbitrary_waveform.time)
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(waveform), copy_to_cpu(arbitrary_waveform.waveform)
+        )
+        self.assertEqual(gain, arbitrary_waveform.gain)
+
+        with self.assertRaises(ValueError):
+            ArbitraryRFWaveform([time], waveform)
+
+        with self.assertRaises(ValueError):
+            ArbitraryRFWaveform(time, [waveform])
+
+        with self.assertRaises(ValueError):
+            ArbitraryRFWaveform(time[1:], waveform)
+
+    def test_track(self):
+
+        beam = Beam(0, proton)
+        beam.setup_beam(
+            backend.linspace(0.1e-6, 1.9e-6, int(1e5)), backend.zeros(int(1e5))
+        )
+
+        time = backend.linspace(0, 2e-6, 1024)
+        waveform = backend.linspace(-5e3, 5e3, 1024)
+        gain = 0.5
+
+        arbitrary_waveform = ArbitraryRFWaveform(time, waveform, gain)
+        arbitrary_waveform.track(beam)
+
+        expected = backend.interp(beam.dt.array_local, time, waveform * gain)
+
+        np.testing.assert_array_almost_equal(
+            copy_to_cpu(beam.dE.array_local), expected
         )
 
 
