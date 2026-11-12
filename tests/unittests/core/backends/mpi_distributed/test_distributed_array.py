@@ -39,9 +39,14 @@ class TestDistributedArray(BLonDTestCase):
 
     def test_local_size(self):
         if mpi_is_distributed():
+            rank, n_ranks = (
+                self.distributed_array._rank,
+                self.distributed_array._size,
+            )
             self.assertEqual(
-                self.distributed_array.local_size, 64
-            )  # assumes `mpirun -n 2`
+                self.distributed_array.local_size,
+                len(np.array_split(self.array, n_ranks)[rank]),
+            )
             self.assertTrue(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
         else:
@@ -131,12 +136,13 @@ class TestDistributedArray(BLonDTestCase):
 
         if mpi_active:
             self.distributed_array.array_local = (
-                self.distributed_array.array_local[:64]
+                self.distributed_array.array_local[:16]
             )
             mpi_barrier()
             self.assertEqual(
-                self.distributed_array.global_size, 2 * 64
-            )  # assumes `mpirun -n 2`
+                self.distributed_array.global_size,
+                16 * self.distributed_array._size,
+            )
 
     def test_histogram_sparse_left_edged(self) -> None:
         mpi_active = mpi_is_distributed()
@@ -192,7 +198,7 @@ class TestDistributedArray(BLonDTestCase):
                     1.0,
                 ]
             )
-            mpi_nodes = 2  # expect `mpirun -n 2`
+            mpi_nodes = da._size
             expected_combined = mpi_nodes * expected_single_node
 
             np.testing.assert_allclose(result_direct, expected_combined)

@@ -11,6 +11,7 @@ import pytest
 
 from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
+    MPI_SIZE,
     distributed_arange,
     mpi_aware_random_generator_cpu,
     mpi_is_distributed,
@@ -34,10 +35,10 @@ class TestCallablesWithMPI(BLonDTestCase):
             UserWarning, "Because MPI is used, `global_size`"
         ):
             local_n = mpi_local_size(
-                global_size=13,
+                global_size=13,  # not divisible by 2 or 3 ranks
                 warning_hint="global_size",
-            )  # assume `mpirun -n 2`
-            self.assertEqual(local_n, 6)
+            )
+            self.assertEqual(local_n, 13 // MPI_SIZE)
 
     def test_distributed_arange(self):
         from blond.core.backends.mpi_distributed.helpers import (
@@ -45,18 +46,11 @@ class TestCallablesWithMPI(BLonDTestCase):
         )
 
         da = distributed_arange(12, dtype=np.int32)
-        if da._rank == 0:
-            np.testing.assert_allclose(
-                da.copy_as_numpy(),
-                np.arange(0, 12),
-                err_msg=f"{da._rank=} {da._size=}",
-            )
-        elif da._rank == 1:
-            np.testing.assert_allclose(
-                da.copy_as_numpy(),
-                np.arange(12, 12 + 12),
-                err_msg=f"{da._rank=} {da._size=}",
-            )
+        np.testing.assert_allclose(
+            da.copy_as_numpy(),
+            np.arange(12 * da._rank, 12 * (da._rank + 1)),
+            err_msg=f"{da._rank=} {da._size=}",
+        )
 
     def test_distributed_zeros(self):
         from blond.core.backends.mpi_distributed.helpers import (
@@ -64,19 +58,15 @@ class TestCallablesWithMPI(BLonDTestCase):
         )
 
         da = distributed_zeros(12, dtype=np.int32)
-        if da._rank == 0 or da._rank == 1:
-            np.testing.assert_array_equal(
-                da.copy_as_numpy(),
-                np.zeros(12),
-                err_msg=f"{da._rank=} {da._size=}",
-            )
+        np.testing.assert_array_equal(
+            da.copy_as_numpy(),
+            np.zeros(12),
+            err_msg=f"{da._rank=} {da._size=}",
+        )
 
     def test_mpi_is_root(self):
         da = distributed_arange(12, dtype=np.int32)
-        if da._rank == 0:
-            self.assertTrue(mpi_is_root())
-        if da._rank == 1:
-            self.assertFalse(mpi_is_root())
+        self.assertEqual(mpi_is_root(), da._rank == 0)
 
     def test_simple_gaussian_shares_no_values_across_ranks(self):
         from mpi4py import MPI

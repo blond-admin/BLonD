@@ -111,8 +111,8 @@ class TestRadialDifference(BLonDTestCase):
     def test_radial_difference_is_global_mean_over_ranks(self):
         if not mpi_is_distributed():
             self.skipTest("Only with MPI")
-        # `mpirun -n 2`: rank 0 gets the 0 eV half, rank 1 the 12 eV half,
-        # so a rank-local mean would give 0 or 12 instead of 6.
+        # Rank 0 gets 0 eV and the last rank 12 eV particles, so a
+        # rank-local mean would give 0 or 12 there instead of 6.
         dE = np.concatenate((np.zeros(6), np.full(6, 12.0)))
         feedback, beam = self._radial_difference(dE=dE, sample_de=1)
         self.assertAlmostEqual(feedback.average_de, 6.0)

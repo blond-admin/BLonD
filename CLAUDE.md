@@ -76,7 +76,8 @@ Backend-relevant env vars and markers:
   `ModuleNotFoundError: No module named 'cupy'` — expected, not a bug. CI only forces
   it on GPU runners; on a CPU-only machine read those CUDA failures as noise.
 - Markers (`pyproject.toml`): `backend_mutation`, `cupy`, `mpi`, `integration`.
-  Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`.
+  Exclude with `-m "not backend_mutation"`. MPI tests run under `mpirun -n 2 … -m "mpi"`;
+  CI also runs them on 3 ranks, so never hard-code 2 ranks (use `MPI_SIZE`).
 - `pytest-randomly` randomizes order; reproduce a failure with `--randomly-seed=<N>`.
 - **The test suite does not run BLonD 2.** Legacy regression tests compare BLonD 3
   against BLonD 2 outputs frozen in `resources/*_blond2.npz` reference files (each
