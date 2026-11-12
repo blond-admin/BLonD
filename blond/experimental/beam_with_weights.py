@@ -46,6 +46,7 @@ class WeightenedBeam(Beam):
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
         weights: NumpyArray | CupyArray = None,
+        copy: bool = True,
     ) -> None:
         """
         Sets beam array attributes for simulation
@@ -78,13 +79,20 @@ class WeightenedBeam(Beam):
               with a different random stream on each rank).
         weights
             Weight per macro-particle
+        copy
+            If False, take over arrays that already have the right dtype
+            and backend instead of copying them.
         """
-        super().setup_beam(dt=dt, dE=dE, flags=flags, mpi_mode=mpi_mode)
+        super().setup_beam(
+            dt=dt, dE=dE, flags=flags, mpi_mode=mpi_mode, copy=copy
+        )
         if mpi_mode == "root-distributes":
             weights = scatter_from_root(weights)
         assert weights is not None
         self._weights = DistributedArray(
-            backend.array(weights, dtype=np.int32)
+            (backend.array if copy else backend.asarray)(
+                weights, dtype=np.int32
+            )
         )
         assert local_sizes_match(self._dt, self._weights)
 

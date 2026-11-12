@@ -638,5 +638,48 @@ class TestBeamIsDistributed(BLonDTestCase):
             )
 
 
+class TestSetupBeamCopy(BLonDTestCase):
+    """`setup_beam` copies its input unless told it owns the arrays."""
+
+    def setUp(self) -> None:
+        self.beam = Beam(intensity=1e12, particle_type=proton)
+        self.dt = backend.linspace(20, 30, 10, dtype=backend.float)
+        self.dE = backend.linspace(1, 10, 10, dtype=backend.float)
+
+    def test_copies_by_default(self) -> None:
+        self.beam.setup_beam(dt=self.dt, dE=self.dE)
+        self.dt[0] = -1.0
+        self.dE[0] = -1.0
+        self.assertEqual(float(self.beam.dt.array_local[0]), 20.0)
+        self.assertEqual(float(self.beam.dE.array_local[0]), 1.0)
+
+    def test_two_beams_from_one_array_stay_independent(self) -> None:
+        other = Beam(intensity=1e12, particle_type=proton)
+        self.beam.setup_beam(dt=self.dt, dE=self.dE)
+        other.setup_beam(dt=self.dt, dE=self.dE)
+        self.assertIsNot(self.beam.dt.array_local, other.dt.array_local)
+
+    def test_without_copy_keeps_the_arrays(self) -> None:
+        self.beam.setup_beam(dt=self.dt, dE=self.dE, copy=False)
+        self.assertIs(self.beam.dt.array_local, self.dt)
+        self.assertIs(self.beam.dE.array_local, self.dE)
+
+    def test_without_copy_still_converts_dtype(self) -> None:
+        self.beam.setup_beam(dt=[1, 2, 3], dE=[4, 5, 6], copy=False)
+        self.assertEqual(self.beam.dt.array_local.dtype, backend.float)
+        self.assertEqual(self.beam.dE.array_local.dtype, backend.float)
+
+    def test_without_copy_keeps_flags(self) -> None:
+        flags = backend.ones(10, dtype=np.int32)
+        self.beam.setup_beam(dt=self.dt, dE=self.dE, flags=flags, copy=False)
+        self.assertIs(self.beam.flags.array_local, flags)
+
+    def test_default_flags_are_active_int32(self) -> None:
+        self.beam.setup_beam(dt=self.dt, dE=self.dE, copy=False)
+        flags = copy_to_cpu(self.beam.flags.array_local)
+        self.assertEqual(flags.dtype, np.int32)
+        np.testing.assert_array_equal(flags, BeamFlags.ACTIVE.value)
+
+
 if __name__ == "__main__":
     unittest.main()
