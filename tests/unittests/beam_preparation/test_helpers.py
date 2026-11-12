@@ -2,8 +2,15 @@ import unittest
 from unittest import mock
 
 import numpy as np
+import pytest
 
-from blond import Beam, make_multibunch_beam, uranium_29
+from blond import (
+    Beam,
+    backend,
+    copy_to_cpu,
+    make_multibunch_beam,
+    uranium_29,
+)
 from blond.beam_preparation.helpers import populate_beam
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -97,6 +104,64 @@ class TestHelpersHandOverArrays(BLonDTestCase):
                 seed=0,
             )
         self.assertIs(setup_beam.call_args.kwargs["copy"], False)
+
+
+class TestPopulateBeamBackendDependentRandomNumbers(BLonDTestCase):
+    def _dE(self, **kwargs):
+        beam = Beam(intensity=1, particle_type=uranium_29)
+        time_grid, deltaE_grid = np.meshgrid(
+            np.linspace(0, 1, 4), np.linspace(-1, 1, 5)
+        )
+        populate_beam(
+            beam=beam,
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            density_grid=np.exp(-(time_grid**2) - deltaE_grid**2),
+            n_macroparticles=1000,
+            seed=6,
+            **kwargs,
+        )
+        return copy_to_cpu(beam.dE.array_local)
+
+    def test_change_nothing_on_cpu(self):
+        if backend.is_gpu:
+            self.skipTest("Only on a CPU backend")
+        np.testing.assert_array_equal(
+            self._dE(backend_dependent_random_numbers=True), self._dE()
+        )
+
+
+@pytest.mark.cupy
+class TestPopulateBeamOnGpu(BLonDTestCase):
+    def setUp(self):
+        try:
+            import cupy  # noqa: F401
+        except ModuleNotFoundError as exc:
+            self.skipTest(str(exc))
+        from blond.core.backends.backend import Cupy64Bit
+
+        original_backend = type(backend)
+        backend.change_backend(Cupy64Bit)
+        self.addCleanup(backend.change_backend, original_backend)
+
+    def test_backend_dependent_random_numbers_draw_on_the_gpu(self):
+        import cupy as cp
+
+        beam = Beam(intensity=1, particle_type=uranium_29)
+        time_grid, deltaE_grid = np.meshgrid(
+            np.linspace(0, 1, 4), np.linspace(-1, 1, 5)
+        )
+        populate_beam(
+            beam=beam,
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            density_grid=np.exp(-(time_grid**2) - deltaE_grid**2),
+            n_macroparticles=1000,
+            seed=6,
+            backend_dependent_random_numbers=True,
+        )
+        self.assertIsInstance(beam.dt.array_local, cp.ndarray)
+        self.assertEqual(beam.dt.global_size, 1000)
 
 
 if __name__ == "__main__":

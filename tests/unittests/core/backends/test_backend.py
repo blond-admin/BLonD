@@ -1,5 +1,6 @@
 import contextlib
 import ctypes as ct
+import io
 import os
 import subprocess
 import sys
@@ -69,6 +70,47 @@ class TestBackendBaseClass(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_autoselect_backend(self) -> None:
         self.backend_base_class.autoselect_backend()
+
+    @pytest.mark.backend_mutation
+    def test_autoselect_backend_prints_consistent_pair(self) -> None:
+        # Without CuPy, autoselect used to print "Changing backend to
+        # `Cupy64Bit`" for the failed attempt, followed by "Set special to
+        # `cpp`" -- a pair that did not match the actual state (#408).
+        self.backend_base_class.verbose = True
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(
+                Cupy64Bit,
+                "__init__",
+                side_effect=ModuleNotFoundError("No module named 'cupy'"),
+            ),
+            contextlib.redirect_stdout(stdout),
+        ):
+            self.backend_base_class.autoselect_backend()
+        selected = self.backend_base_class
+        self.assertEqual(
+            stdout.getvalue(),
+            f"Auto-selected backend `{type(selected).__name__}` "
+            f"with specials `{selected.specials_mode}`\n",
+        )
+        self.assertTrue(selected.verbose)
+
+    @pytest.mark.backend_mutation
+    def test_change_backend_failing_prints_nothing(self) -> None:
+        self.backend_base_class.verbose = True
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(
+                Cupy64Bit,
+                "__init__",
+                side_effect=ModuleNotFoundError("No module named 'cupy'"),
+            ),
+            contextlib.redirect_stdout(stdout),
+            self.assertRaises(ModuleNotFoundError),
+        ):
+            self.backend_base_class.change_backend(new_backend=Cupy64Bit)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIs(type(self.backend_base_class), Numpy64Bit)
 
     @pytest.mark.backend_mutation
     def test_change_backend(self) -> None:

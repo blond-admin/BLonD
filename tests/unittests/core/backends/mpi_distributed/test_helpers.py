@@ -4,16 +4,19 @@ import os
 import subprocess
 import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
 
+from blond.core.backends.backend import Cupy64Bit, backend
 from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
     MPI_SIZE,
     distributed_arange,
+    mpi_aware_random_generator,
     mpi_aware_random_generator_cpu,
+    mpi_aware_random_generator_gpu,
     mpi_is_distributed,
     mpi_is_root,
 )
@@ -133,7 +136,7 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         from blond.core.beam import beams
 
         return _run_as_rank(
-            beams.mpi_aware_random_generator_cpu,
+            beams.mpi_aware_random_generator,
             rank=rank,
             call=lambda: Beam.simple_gaussian(
                 n_macroparticles=self.N_MACROPARTICLES,
@@ -159,7 +162,7 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         """Copy of the fresh generator `generate_particle_coordinates` got."""
         from blond.beam_preparation import helpers as preparation_helpers
 
-        original = preparation_helpers.mpi_aware_random_generator_cpu
+        original = preparation_helpers.mpi_aware_random_generator
         received = []
 
         def recording(*args, **kwargs):
@@ -168,7 +171,7 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
             return generator
 
         with patch.object(
-            preparation_helpers, "mpi_aware_random_generator_cpu", recording
+            preparation_helpers, "mpi_aware_random_generator", recording
         ):
             self._particle_coordinates_as_rank(rank, original)
         self.assertEqual(len(received), 1)
@@ -190,9 +193,7 @@ class TestRandomStreamsAcrossRanks(BLonDTestCase):
         from blond.beam_preparation import helpers as preparation_helpers
 
         if patched_function is None:
-            patched_function = (
-                preparation_helpers.mpi_aware_random_generator_cpu
-            )
+            patched_function = preparation_helpers.mpi_aware_random_generator
         time_axis = np.linspace(-1e-9, 1e-9, 64)
         energy_axis = np.linspace(-1e6, 1e6, 64)
         time_grid, deltaE_grid = np.meshgrid(time_axis, energy_axis)
@@ -546,3 +547,66 @@ class TestImportMpiUnderLauncher(BLonDTestCase):
         self.assertIsNone(helpers.MPI)
         self.assertIsNone(helpers.MPI_COMM_WORLD)
         self.assertEqual(helpers.MPI_SIZE, 1)
+
+
+class TestMpiAwareRandomGenerator(BLonDTestCase):
+    def test_default_is_the_cpu_generator(self):
+        np.testing.assert_array_equal(
+            mpi_aware_random_generator(seed=1).standard_normal(10),
+            mpi_aware_random_generator_cpu(seed=1).standard_normal(10),
+        )
+
+    def test_backend_dependent_random_numbers_change_nothing_on_cpu(self):
+        if backend.is_gpu:
+            self.skipTest("Only on a CPU backend")
+        rng = mpi_aware_random_generator(
+            seed=1, backend_dependent_random_numbers=True
+        )
+        np.testing.assert_array_equal(
+            rng.standard_normal(10),
+            mpi_aware_random_generator_cpu(seed=1).standard_normal(10),
+        )
+
+    def test_backend_dependent_random_numbers_use_the_gpu_generator(self):
+        from blond.core.backends.mpi_distributed import helpers
+
+        gpu_generator = MagicMock()
+        with (
+            patch.object(
+                type(backend), "is_gpu", new_callable=PropertyMock
+            ) as is_gpu,
+            patch.object(
+                helpers,
+                "mpi_aware_random_generator_gpu",
+                return_value=gpu_generator,
+            ) as generator_gpu,
+        ):
+            is_gpu.return_value = True
+            rng = helpers.mpi_aware_random_generator(
+                seed=1, backend_dependent_random_numbers=True
+            )
+        self.assertIs(rng, gpu_generator)
+        generator_gpu.assert_called_once_with(seed=1)
+
+
+@pytest.mark.cupy
+class TestMpiAwareRandomGeneratorOnGpu(BLonDTestCase):
+    def setUp(self):
+        try:
+            import cupy  # noqa: F401
+        except ModuleNotFoundError as exc:
+            self.skipTest(str(exc))
+        original_backend = type(backend)
+        backend.change_backend(Cupy64Bit)
+        self.addCleanup(backend.change_backend, original_backend)
+
+    def test_backend_dependent_random_numbers_draw_on_the_gpu(self):
+        import cupy as cp
+
+        drawn = mpi_aware_random_generator_gpu(seed=1).standard_normal(10_000)
+        self.assertIsInstance(drawn, cp.ndarray)
+        self.assertAlmostEqual(float(drawn.std()), 1.0, delta=0.05)
+
+    def test_default_draws_on_the_cpu(self):
+        drawn = mpi_aware_random_generator(seed=1).standard_normal(10)
+        self.assertIsInstance(drawn, np.ndarray)

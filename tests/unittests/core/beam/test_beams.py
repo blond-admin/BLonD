@@ -696,5 +696,26 @@ class TestSetupBeamCopy(BLonDTestCase):
         np.testing.assert_array_equal(flags, BeamFlags.ACTIVE.value)
 
 
+class TestSimpleGaussianBackendDependentRandomNumbers(BLonDTestCase):
+    def _dt(self, **kwargs):
+        beam = Beam.simple_gaussian(
+            n_macroparticles=1000,
+            intensity=1e10,
+            particle_type=proton,
+            dt_scale=1e-9,
+            dE_scale=1e9,
+            seed=4,
+            **kwargs,
+        )
+        return copy_to_cpu(beam.dt.array_local)
+
+    def test_change_nothing_on_cpu(self):
+        if backend.is_gpu:
+            self.skipTest("Only on a CPU backend")
+        np.testing.assert_array_equal(
+            self._dt(backend_dependent_random_numbers=True), self._dt()
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

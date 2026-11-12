@@ -242,5 +242,76 @@ class TestCoastingHandsOverArrays(BLonDTestCase):
         self.assertIs(setup_beam.call_args.kwargs["copy"], False)
 
 
+class TestCoastingBackendDependentRandomNumbers(BLonDTestCase):
+    setUp = TestCoasting.setUp
+
+    def _dE(self, **kwargs):
+        beam = beams.Beam(0, proton)
+        coasting.Coasting(
+            1000,
+            np.linspace(-1, 1, 10),
+            np.ones(10) / 10,
+            energy_offset=np.array([[0, 1e-6], [0, 3.0]]),
+            seed=5,
+            **kwargs,
+        ).prepare_beam(self.simulation, beam)
+        return copy_to_cpu(beam.dE.array_local)
+
+    def test_change_nothing_on_cpu(self):
+        from blond.core.backends.backend import backend
+
+        if backend.is_gpu:
+            self.skipTest("Only on a CPU backend")
+        np.testing.assert_array_equal(
+            self._dE(backend_dependent_random_numbers=True), self._dE()
+        )
+
+    def test_cpu_drawn_offset_is_interpolated_on_the_cpu(self):
+        # On a GPU backend, `backend.interp` is `cupy.interp`, which
+        # rejects the NumPy arrays drawn by the default CPU generator.
+        expected_dE = self._dE()
+        with mock.patch.object(
+            coasting.backend,
+            "interp",
+            side_effect=NotImplementedError(
+                "Only int or ndarray are supported for a"
+            ),
+        ):
+            dE = self._dE()
+        np.testing.assert_array_equal(dE, expected_dE)
+
+
+@pytest.mark.cupy
+class TestCoastingOnGpu(BLonDTestCase):
+    def setUp(self):
+        TestCoasting.setUp(self)
+        from blond.core.backends.backend import backend
+
+        try:
+            import cupy  # noqa: F401
+        except ModuleNotFoundError as exc:
+            self.skipTest(str(exc))
+        from blond.core.backends.backend import Cupy64Bit
+
+        original_backend = type(backend)
+        backend.change_backend(Cupy64Bit)
+        self.addCleanup(backend.change_backend, original_backend)
+
+    def test_backend_dependent_random_numbers_draw_on_the_gpu(self):
+        import cupy as cp
+
+        beam = beams.Beam(0, proton)
+        coasting.Coasting(
+            1000,
+            np.linspace(-1, 1, 10),
+            np.ones(10) / 10,
+            energy_offset=np.array([[0, 1e-6], [0, 3.0]]),
+            seed=5,
+            backend_dependent_random_numbers=True,
+        ).prepare_beam(self.simulation, beam)
+        self.assertIsInstance(beam.dE.array_local, cp.ndarray)
+        self.assertEqual(beam.dE.global_size, 1000)
+
+
 if __name__ == "__main__":
     unittest.main()
