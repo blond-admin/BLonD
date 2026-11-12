@@ -266,6 +266,20 @@ class TestCoastingBackendDependentRandomNumbers(BLonDTestCase):
             self._dE(backend_dependent_random_numbers=True), self._dE()
         )
 
+    def test_cpu_drawn_offset_is_interpolated_on_the_cpu(self):
+        # On a GPU backend, `backend.interp` is `cupy.interp`, which
+        # rejects the NumPy arrays drawn by the default CPU generator.
+        expected_dE = self._dE()
+        with mock.patch.object(
+            coasting.backend,
+            "interp",
+            side_effect=NotImplementedError(
+                "Only int or ndarray are supported for a"
+            ),
+        ):
+            dE = self._dE()
+        np.testing.assert_array_equal(dE, expected_dE)
+
 
 @pytest.mark.cupy
 class TestCoastingOnGpu(BLonDTestCase):

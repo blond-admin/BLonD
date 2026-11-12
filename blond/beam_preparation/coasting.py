@@ -192,9 +192,13 @@ class Coasting(base.BeamPreparationRoutine):
         if isinstance(self.energy_offset, np.ndarray):
             offset_time, offset_energy = self.energy_offset
             if no_cupy_import.is_cupy_array(dt):  # drawn on the GPU
-                offset_time = backend.asarray(offset_time)
-                offset_energy = backend.asarray(offset_energy)
-            dE += backend.interp(dt, offset_time, offset_energy)
+                dE += backend.interp(
+                    dt,
+                    backend.asarray(offset_time),
+                    backend.asarray(offset_energy),
+                )
+            else:  # drawn on the CPU, whatever the backend
+                dE += np.interp(dt, offset_time, offset_energy)
         else:
             dE += self.energy_offset
 
