@@ -1,3 +1,4 @@
+import gc
 import unittest
 from unittest.mock import Mock
 
@@ -6,6 +7,7 @@ import pytest
 
 from blond import Beam, proton
 from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
+from blond.core.offenders import hold_strongly
 from blond.physics.feedbacks.accelerators.lhc.beam_feedback import (
     LHCBeamControl,
 )
@@ -70,6 +72,8 @@ class TestRadialDifference(BLonDTestCase):
     def _radial_difference(self, dE, sample_de):
         """`PSBeamControl` with `radial_difference` applied to `dE`."""
         feedback = PSBeamControl(profile=None, sample_de=sample_de)
+        # Nothing else owns the stand-in simulation
+        hold_strongly(feedback, "_simulation")
         feedback._simulation = Mock(
             ring=Mock(
                 momentum_compaction_factor=self.MOMENTUM_COMPACTION_FACTOR,
@@ -83,6 +87,8 @@ class TestRadialDifference(BLonDTestCase):
             reference_total_energy=self.TOTAL_ENERGY,
             mpi_mode="root-distributes",
         )
+        # Free unreferenced stand-ins now, not whenever the GC runs.
+        gc.collect()
         feedback.radial_difference(beam=beam)
         return feedback, beam
 
