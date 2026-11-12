@@ -425,15 +425,6 @@ class TestResonators(BLonDTestCase):
                 quality_factors=np.array([0.49]),
             )
 
-    def test___init__Q_equal_0_5(self):
-        # Q = 0.5 makes omega_bar = 0, so the wake divides by zero.
-        with self.assertRaises(ValueError):
-            self.resonators = Resonators(
-                shunt_impedances=np.array([1]),
-                center_frequencies=np.array([400e6]),
-                quality_factors=np.array([0.5]),
-            )
-
     def test___init__small_Q_raises_before_computing_nan(self):
         import warnings
 
@@ -1004,6 +995,57 @@ class TestResonators(BLonDTestCase):
             np.abs(imp_from_wake[band] - imp_analytic[band])
         ) / np.max(np.abs(imp_analytic[band]))
         self.assertLess(max_rel_err, 5e-3)
+
+    def test_wake_and_impedance_equivalent_for_several_q(self):
+        """
+        ``get_wake`` and ``get_impedance`` must be a Fourier pair.
+
+        Checked from Q = 0.5 (critically damped, ``omega_bar -> 0`` limit of
+        the wake) through underdamped Q: ``rfft(wake)`` against the
+        impedance, and ``irfft(impedance)`` against the wake.
+        """
+        freq_r, shunt = 1e9, 1e6
+        dt = 1e-11  # 100 samples per resonant period
+        n_samples = 2**16
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        # Impedance truncated at Nyquist rings around the wake step at t = 0,
+        # which wraps to the end of the (periodic) irfft output
+        n_skip = 20
+
+        time = backend.arange(n_samples) * dt
+        freq = np.fft.rfftfreq(n_samples, dt)
+
+        for q_factor in (0.5, 5.0, 50.0):
+            with self.subTest(q_factor=q_factor):
+                res = Resonators(
+                    shunt_impedances=np.array([shunt]),
+                    center_frequencies=np.array([freq_r]),
+                    quality_factors=np.array([q_factor]),
+                )
+                wake = copy_to_cpu(res.get_wake(time=time))
+                impedance = copy_to_cpu(
+                    res.get_impedance(backend.array(freq), simulation, beam)
+                )
+
+                # rfft(wake) * dt approximates the continuous transform
+                wake_fft = np.fft.rfft(wake) * dt
+                band = (freq > 0.5 * freq_r) & (freq < 1.5 * freq_r)
+                np.testing.assert_allclose(
+                    wake_fft[band],
+                    impedance[band],
+                    rtol=0,
+                    atol=5e-3 * np.max(np.abs(impedance[band])),
+                )
+
+                impedance_fft = np.fft.irfft(impedance, n=n_samples) / dt
+
+                np.testing.assert_allclose(
+                    wake[n_skip:-n_skip],
+                    impedance_fft[n_skip:-n_skip],
+                    rtol=0,
+                    atol=1e-2 * np.max(np.abs(wake)),
+                )
 
     def test_get_impedance_from_wake_freq_matches_impedance_array(self):
         """

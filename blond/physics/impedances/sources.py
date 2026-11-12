@@ -297,7 +297,8 @@ class Resonators(
         Center frequencies of the resonances, in [Hz].
     quality_factors
         Quality factors (Q) of the resonances, dimensionless. Must be
-        greater than 0.5 (only underdamped resonators are supported).
+        at least 0.5 (only critically damped and underdamped resonators
+        are supported).
     shunt_impedances_counter_rotating
         Shunt impedances for counter-rotating mode.
 
@@ -379,12 +380,12 @@ class Resonators(
                     "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
                 )
 
-        # Only the underdamped case Q > 0.5 is implemented. At Q = 0.5
-        # omega_bar = 0 and the wake / vector fit divide by zero; Q < 0.5
-        # would need the overdamped (cosh/sinh, real poles) formulas.
-        # Checked before omega_bar, whose sqrt would warn on Q < 0.5.
-        if backend.sum(self._quality_factors <= 0.5) > 0:  # NOQA PLR2004
-            raise ValueError("All quality factors Q must be greater than 0.5")
+        # Only Q >= 0.5 is implemented (the wake uses sinc, so omega_bar = 0
+        # at Q = 0.5 is fine).
+        if backend.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
+            raise ValueError(
+                "All quality factors Q must be greater than or equal to 0.5"
+            )
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
@@ -551,8 +552,8 @@ class Resonators(
                 * (
                     backend.cos(self._omega_bar[res_ind] * time)
                     - self._alpha[res_ind]
-                    / self._omega_bar[res_ind]
-                    * backend.sin(self._omega_bar[res_ind] * time)
+                    * time
+                    * backend.sinc(self._omega_bar[res_ind] * time / np.pi)
                 )
             )
         return wake
@@ -627,8 +628,8 @@ class Resonators(
                 * (
                     backend.cos(self._omega_bar[res_ind] * time)
                     - self._alpha[res_ind]
-                    / self._omega_bar[res_ind]
-                    * backend.sin(self._omega_bar[res_ind] * time)
+                    * time
+                    * backend.sinc(self._omega_bar[res_ind] * time / np.pi)
                 )
             )
         return wake
