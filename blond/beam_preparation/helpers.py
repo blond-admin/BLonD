@@ -99,6 +99,7 @@ def make_multibunch_beam(
         dt=full_dt,
         dE=full_dE,
         mpi_mode="all-ranks",
+        copy=False,  # fresh arrays, a copy would double the memory
     )
     return full_beam
 
@@ -214,4 +215,5 @@ def populate_beam(
         seed=seed,
     )
 
-    beam.setup_beam(dt=dt_local, dE=dE_local, mpi_mode="all-ranks")
+    # fresh arrays, a copy would double the memory
+    beam.setup_beam(dt=dt_local, dE=dE_local, mpi_mode="all-ranks", copy=False)

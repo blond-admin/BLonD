@@ -400,4 +400,5 @@ class BiGaussian(MatchingRoutine):
             dt=dt,
             dE=dE,
             mpi_mode="all-ranks",  # because the random generator above is MPI aware
+            copy=False,  # fresh arrays, a copy would double the memory
         )

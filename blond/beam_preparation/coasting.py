@@ -180,4 +180,5 @@ class Coasting(base.BeamPreparationRoutine):
         else:
             dE += self.energy_offset
 
-        beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks")
+        # fresh arrays, a copy would double the memory
+        beam.setup_beam(dt=dt, dE=dE, mpi_mode="all-ranks", copy=False)

@@ -111,6 +111,7 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        copy: bool = True,
     ) -> None:
         """
         Configure the beam with an initial particle distributions.
@@ -156,6 +157,13 @@ class Beam(BeamBaseClass):
               of the beam; the beam is the union of all chunks. Use this when each rank
               can generate its share independently (e.g., random distributions drawn
               with a different random stream on each rank).
+        copy
+            If True (default), the beam stores copies of `dt`, `dE` and
+            `flags`, so changing the passed arrays later does not move the
+            particles. If False, the beam takes over arrays that already
+            have the right dtype and backend, which saves memory for large
+            beams. Pass False only for arrays nothing else uses afterwards,
+            and never the same array for two beams.
         """
         if mpi_mode not in ("root-distributes", "all-ranks"):
             raise NameError(f"Unknown {mpi_mode=}")
@@ -165,14 +173,18 @@ class Beam(BeamBaseClass):
             dt = scatter_from_root(dt)
             flags = scatter_from_root(flags)
 
-        self._dE = DistributedArray(backend.array(dE, dtype=backend.float))
-        self._dt = DistributedArray(backend.array(dt, dtype=backend.float))
-        if flags is None:
-            flags = np.int32(BeamFlags.ACTIVE.value) * backend.ones(
-                self._dt.local_size, dtype=np.int32
-            )
+        # `asarray` converts only when the dtype or backend differs
+        to_backend = backend.array if copy else backend.asarray
+        self._dE = DistributedArray(to_backend(dE, dtype=backend.float))
+        self._dt = DistributedArray(to_backend(dt, dtype=backend.float))
         # intentionally 32 bit, this should be enough for all thinkable flags
-        self._flags = DistributedArray(backend.array(flags, dtype=np.int32))
+        if flags is None:
+            flags = backend.full(
+                self._dt.local_size, BeamFlags.ACTIVE.value, dtype=np.int32
+            )
+        else:
+            flags = to_backend(flags, dtype=np.int32)
+        self._flags = DistributedArray(flags)
         # global checks, so that a bad input fails on all ranks together
         assert local_sizes_match(self._dt, self._dE, self._flags), (
             "dt, dE and flags differ in length on at least one rank"
@@ -521,6 +533,7 @@ class Beam(BeamBaseClass):
             mpi_mode="all-ranks",
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
+            copy=False,  # fresh arrays, a copy would double the memory
         )
         return beam
 

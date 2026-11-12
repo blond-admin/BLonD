@@ -1,8 +1,9 @@
 import unittest
+from unittest import mock
 
 import numpy as np
 
-from blond import BiGaussian
+from blond import Beam, BiGaussian
 from blond.beam_preparation.bigaussian import (
     _get_dE_from_dt,
     _get_dE_from_dt_core,
@@ -88,6 +89,21 @@ class TestBiGaussian(BLonDTestCase):
             places=1,  # low precision because of
             # few particles in this testcase
         )
+
+
+class TestBiGaussianHandsOverArrays(BLonDTestCase):
+    def test_prepare_beam_does_not_copy(self):
+        simulation_ = ExampleSimulation01()
+        bi_gaussian = BiGaussian(
+            n_macroparticles=100, sigma_dt=50e-9, reinsertion=False, seed=0
+        )
+        with mock.patch.object(
+            Beam, "setup_beam", autospec=True, side_effect=Beam.setup_beam
+        ) as setup_beam:
+            bi_gaussian.prepare_beam(
+                simulation=simulation_.simulation, beam=simulation_.beam1
+            )
+        self.assertIs(setup_beam.call_args.kwargs["copy"], False)
 
 
 if __name__ == "__main__":

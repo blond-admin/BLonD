@@ -458,6 +458,7 @@ class BeamBaseClass(Preparable, ABC):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         mpi_mode: Literal["root-distributes", "all-ranks"] = "all-ranks",
+        copy: bool = True,
         **kwargs,
     ) -> None:
         """
@@ -489,6 +490,9 @@ class BeamBaseClass(Preparable, ABC):
               of the beam; the beam is the union of all chunks. Use this when each rank
               can generate its share independently (e.g., random distributions drawn
               with a different random stream on each rank).
+        copy
+            If True, store copies of the passed arrays. If False, take
+            over arrays that already have the right dtype and backend.
         **kwargs
             Keyword arguments to make the non-abstract implementation
             extendable.

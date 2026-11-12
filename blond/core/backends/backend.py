@@ -677,6 +677,8 @@ class BackendBaseClass(ABC):
 
         # Callables that link to e.g. Numpy, Cupy
         self.array: Callable = None  # type: ignore
+        self.asarray: Callable = None  # type: ignore
+        self.full: Callable = None  # type: ignore
         self.gradient: Callable = None  # type: ignore
         self.isclose: Callable = None  # type: ignore
         self.empty: Callable = None  # type: ignore
@@ -1057,6 +1059,8 @@ class NumpyBackend(BackendBaseClass):
         from scipy.signal import fftconvolve
 
         self.array = np.array
+        self.asarray = np.asarray
+        self.full = np.full
         self.gradient = np.gradient
         self.isclose = np.isclose
         self.empty = np.empty
@@ -1211,6 +1215,8 @@ class CupyBackend(BackendBaseClass):
             from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
+        self.asarray = cp.asarray
+        self.full = cp.full
         self.gradient = cp.gradient
         self.isclose = cp.isclose
         self.empty = cp.empty

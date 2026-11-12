@@ -225,5 +225,22 @@ class TestCoasting(BLonDTestCase):
         self.assertTrue(self.beam._dE.array_local[time_sorted[-1]] > 0)
 
 
+class TestCoastingHandsOverArrays(BLonDTestCase):
+    setUp = TestCoasting.setUp
+
+    def test_prepare_beam_does_not_copy(self):
+        coast = coasting.Coasting(
+            100, np.linspace(-1, 1, 10), np.ones(10) / 10, seed=0
+        )
+        with mock.patch.object(
+            beams.Beam,
+            "setup_beam",
+            autospec=True,
+            side_effect=beams.Beam.setup_beam,
+        ) as setup_beam:
+            coast.prepare_beam(self.simulation, self.beam)
+        self.assertIs(setup_beam.call_args.kwargs["copy"], False)
+
+
 if __name__ == "__main__":
     unittest.main()
