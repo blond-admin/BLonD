@@ -208,7 +208,7 @@ class DistributedArray:
         array = self.array_local
         local = (-inf, -inf)  # negated minimum, so that MAX reduces both
         if array.size:
-            local = (-float(backend.min(array)), float(backend.max(array)))
+            local = (-float(array.min()), float(array.max()))
         negative_min, global_max = global_reduce(*local, op="MAX")
         if global_max == -inf:  # same on all ranks, so is the raise
             raise ValueError(
