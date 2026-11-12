@@ -181,16 +181,13 @@ class BeamBaseClass(Preparable, ABC):
         Raises
         ------
         ValueError
-            Raised if the local or global sizes of the `dt` and `dE`
-            arrays do not match.
+            Raised on every rank if the sizes of the `dt` and `dE`
+            arrays differ on any rank.
         """
-        if (dt.local_size != dE.local_size) or (
-            dt.global_size != dE.global_size
-        ):
+        if not distributed_array.local_sizes_match(dt, dE):
             raise ValueError(
-                "The dt and dE array sizes are mismatched"
-                f"{dt.local_size=}, {dE.local_size=}"
-                f"{dt.global_size=}, {dE.global_size=}"
+                "The dt and dE array sizes are mismatched on at least one "
+                f"rank; on this rank: {dt.local_size=}, {dE.local_size=}"
             )
 
         from blond.core.backends.backend import (

@@ -17,6 +17,7 @@ from numpy._typing import NDArray as NumpyArray
 from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
+    local_sizes_match,
     scatter_from_root,
 )
 from blond.core.beam.beams import Beam
@@ -85,7 +86,7 @@ class WeightenedBeam(Beam):
         self._weights = DistributedArray(
             backend.array(weights, dtype=np.int32)
         )
-        assert self._weights.local_size == self._dt.local_size
+        assert local_sizes_match(self._dt, self._weights)
 
     @staticmethod
     def from_beam(beam: Beam):

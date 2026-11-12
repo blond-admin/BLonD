@@ -10,6 +10,7 @@ from blond import backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
     concatenate,
+    local_sizes_match,
     scatter_from_root,
 )
 from blond.core.backends.mpi_distributed.helpers import (
@@ -495,6 +496,28 @@ class TestReductionsCollectives(BLonDTestCase):
             array_2 = DistributedArray(backend.array(self.values[:1]))
             joined = concatenate(array_1, array_2)
             self.assertEqual(joined.global_size, 10)
+
+    def test_local_sizes_match_in_one_collective(self):
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            four = DistributedArray(backend.array(self.values))
+            also_four = DistributedArray(backend.array(self.values))
+            three = DistributedArray(backend.array(self.values[:3]))
+            comm = fake_mpi.COMM_WORLD
+            comm.reset_mock()
+            self.assertTrue(local_sizes_match(four, also_four, four))
+            self.assertFalse(local_sizes_match(four, three))
+            self.assertEqual(comm.Allreduce.call_count, 2)
+            # MAX: a mismatch on any rank is a mismatch on every rank
+            for call in comm.Allreduce.call_args_list:
+                self.assertIs(call.kwargs["op"], fake_mpi.MAX)
+
+    def test_local_sizes_match_without_mpi(self):
+        four = DistributedArray(backend.array(self.values))
+        three = DistributedArray(backend.array(self.values[:3]))
+        self.assertTrue(local_sizes_match(four, four))
+        self.assertFalse(local_sizes_match(three, four))
 
     def test_min_max_in_one_collective(self):
         result, n_collectives = self._reduce("min_max")

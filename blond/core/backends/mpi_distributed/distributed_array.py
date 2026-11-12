@@ -455,6 +455,29 @@ def concatenate(
     )
 
 
+def local_sizes_match(*arrays: DistributedArray) -> bool:
+    """
+    Tell whether `arrays` have the same local size on every rank.
+
+    One collective, which every rank must make: a mismatch on any rank
+    makes all ranks return False, so that they can raise together.
+    Matching local sizes imply matching global sizes, but not the
+    other way round, since local mismatches can cancel out.
+
+    Parameters
+    ----------
+    *arrays
+        The arrays to compare.
+
+    Returns
+    -------
+    bool
+        True if all local sizes are equal on every rank.
+    """
+    local_mismatch = len({array.local_size for array in arrays}) > 1
+    return not global_reduce(float(local_mismatch), op="MAX")[0]
+
+
 def scatter_from_root(
     global_array: NumpyArray | CupyArray | None,
 ) -> NumpyArray | CupyArray | None:

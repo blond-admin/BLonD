@@ -21,6 +21,7 @@ from blond.core.backends.flags import BeamFlags
 from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
+    local_sizes_match,
     scatter_from_root,
 )
 from blond.core.backends.mpi_distributed.helpers import (
@@ -173,14 +174,12 @@ class Beam(BeamBaseClass):
         # intentionally 32 bit, this should be enough for all thinkable flags
         self._flags = DistributedArray(backend.array(flags, dtype=np.int32))
         # global checks, so that a bad input fails on all ranks together
-        n_dt, n_dE, n_flags = (
-            array.global_size for array in (self._dt, self._dE, self._flags)
+        assert local_sizes_match(self._dt, self._dE, self._flags), (
+            "dt, dE and flags differ in length on at least one rank"
         )
-        assert n_dt == n_dE == n_flags, f"{n_dt=}, {n_dE=}, {n_flags=}"
-        assert (
-            self._flags.local_size == 0
-            or backend.max(self._flags.array_local) <= BeamFlags.ACTIVE.value
-        )
+        if self._flags.global_size:
+            flags_max = self._flags.max()
+            assert flags_max <= BeamFlags.ACTIVE.value, f"{flags_max=}"
 
         if reference_time is not None:
             self.reference.time = reference_time
