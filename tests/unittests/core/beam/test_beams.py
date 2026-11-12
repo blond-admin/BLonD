@@ -1,5 +1,6 @@
 import unittest
 import warnings
+from unittest import mock
 from unittest.mock import Mock
 
 import matplotlib.pyplot as plt
@@ -673,6 +674,20 @@ class TestSetupBeamCopy(BLonDTestCase):
         flags = backend.ones(10, dtype=np.int32)
         self.beam.setup_beam(dt=self.dt, dE=self.dE, flags=flags, copy=False)
         self.assertIs(self.beam.flags.array_local, flags)
+
+    def test_simple_gaussian_does_not_copy(self) -> None:
+        with mock.patch.object(
+            Beam, "setup_beam", autospec=True, side_effect=Beam.setup_beam
+        ) as setup_beam:
+            Beam.simple_gaussian(
+                n_macroparticles=100,
+                intensity=1e10,
+                particle_type=proton,
+                dt_scale=1e-9,
+                dE_scale=1e9,
+                seed=0,
+            )
+        self.assertIs(setup_beam.call_args.kwargs["copy"], False)
 
     def test_default_flags_are_active_int32(self) -> None:
         self.beam.setup_beam(dt=self.dt, dE=self.dE, copy=False)

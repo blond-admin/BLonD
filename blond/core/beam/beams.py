@@ -533,6 +533,7 @@ class Beam(BeamBaseClass):
             mpi_mode="all-ranks",
             reference_time=reference_time,
             reference_total_energy=reference_total_energy,
+            copy=False,  # fresh arrays, a copy would double the memory
         )
         return beam
 
