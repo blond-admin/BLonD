@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from blond import Beam, Simulation, backend, proton, uranium_29
+from blond import Beam, Simulation, backend, copy_to_cpu, proton, uranium_29
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
 )
@@ -253,20 +253,13 @@ class TestBeam(BLonDTestCase):
         beam.setup_beam(
             dt=np.arange(12), dE=np.arange(12), mpi_mode="root-distributes"
         )
-        if MPI_RANK == 0 and MPI_SIZE == 2:  # assume `mpirun -n 2`
-            np.testing.assert_allclose(beam._dt.array_local, np.arange(0, 6))
-            np.testing.assert_allclose(beam._dE.array_local, np.arange(0, 6))
-            np.testing.assert_allclose(
-                beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
-            )
-            np.testing.assert_allclose(beam._ids.array_local, np.arange(0, 6))
-        elif MPI_RANK == 1:
-            np.testing.assert_allclose(beam._dt.array_local, np.arange(6, 12))
-            np.testing.assert_allclose(beam._dE.array_local, np.arange(6, 12))
-            np.testing.assert_allclose(
-                beam._flags.array_local, np.ones(6) * BeamFlags.ACTIVE.value
-            )
-            np.testing.assert_allclose(beam._ids.array_local, np.arange(6, 12))
+        chunk = np.array_split(np.arange(12), MPI_SIZE)[MPI_RANK]
+        for array in (beam._dt, beam._dE, beam._ids):
+            np.testing.assert_allclose(copy_to_cpu(array.array_local), chunk)
+        np.testing.assert_allclose(
+            copy_to_cpu(beam._flags.array_local),
+            np.full(chunk.size, BeamFlags.ACTIVE.value),
+        )
 
     @pytest.mark.mpi
     def test_ratio_mpi_root_distributes(self) -> None:
@@ -274,7 +267,7 @@ class TestBeam(BLonDTestCase):
         if not mpi_is_distributed():
             self.skipTest("Only MPI")
         intensity = 1e12
-        n_macroparticles = 12  # divisible by MPI_SIZE=2 to avoid truncation
+        n_macroparticles = 12  # divisible by 2, 3 and 4 ranks
         beam = Beam(intensity=intensity, particle_type=uranium_29)
         beam.setup_beam(
             dt=np.arange(n_macroparticles, dtype=float),
@@ -301,7 +294,7 @@ class TestBeam(BLonDTestCase):
         if not mpi_is_distributed():
             self.skipTest("Only MPI")
         intensity = 1e10
-        n_macroparticles = 1000  # divisible by MPI_SIZE=2
+        n_macroparticles = 1200  # divisible by 2, 3 and 4 ranks
         beam = Beam.simple_gaussian(
             n_macroparticles=n_macroparticles,
             intensity=intensity,
@@ -506,6 +499,53 @@ class TestSetupBeamRootDistributes(BLonDTestCase):
                 dt=np.zeros(8) if MPI_RANK == 0 else None,
                 dE=np.zeros(9) if MPI_RANK == 0 else None,  # length mismatch
                 mpi_mode="root-distributes",
+            )
+
+
+@pytest.mark.mpi
+class TestBadInputOnOneRank(BLonDTestCase):
+    """Input wrong on one rank only must raise on every rank, not hang."""
+
+    def setUp(self) -> None:
+        if not mpi_is_distributed():
+            self.skipTest("Runs only with `mpirun`")
+
+    def tearDown(self) -> None:
+        # a rank that skipped a collective the others made is out of step
+        tags = MPI_COMM_WORLD.allgather(self.id())
+        self.assertEqual(set(tags), {self.id()})
+
+    def test_invalid_flags_on_one_rank(self) -> None:
+        flags = np.full(4, BeamFlags.ACTIVE.value, dtype=np.int32)
+        if MPI_RANK == MPI_SIZE - 1:
+            flags[0] = BeamFlags.ACTIVE.value + 1
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with self.assertRaises(AssertionError):
+            beam.setup_beam(
+                dt=np.zeros(4),
+                dE=np.zeros(4),
+                flags=flags,
+                mpi_mode="all-ranks",
+            )
+
+    def test_local_lengths_mismatched_with_equal_totals(self) -> None:
+        # rank 0: 3 dt, 2 dE; rank 1: 2 dt, 3 dE -> equal totals
+        n_dt, n_dE = {0: (3, 2), 1: (2, 3)}.get(MPI_RANK, (4, 4))
+        beam = Beam(intensity=1e10, particle_type=proton)
+        with self.assertRaises(AssertionError):
+            beam.setup_beam(
+                dt=np.zeros(n_dt), dE=np.zeros(n_dE), mpi_mode="all-ranks"
+            )
+
+    def test_add_particles_mismatched_on_one_rank(self) -> None:
+        beam = Beam(intensity=1e10, particle_type=proton)
+        beam.setup_beam(dt=np.zeros(4), dE=np.zeros(4), mpi_mode="all-ranks")
+        # ranks 0 and 1 mismatch but cancel out; others match locally
+        n_dt, n_dE = {0: (2, 3), 1: (3, 2)}.get(MPI_RANK, (2, 2))
+        with self.assertRaises(ValueError):
+            beam.add_particles(
+                dt=DistributedArray(backend.zeros(n_dt, dtype=backend.float)),
+                dE=DistributedArray(backend.zeros(n_dE, dtype=backend.float)),
             )
 
 

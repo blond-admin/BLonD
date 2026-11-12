@@ -1296,23 +1296,19 @@ class TestNoGlobalCollectivesInTracking(BLonDTestCase):
         )
         n_per_rank = 1000
         rng = np.random.default_rng(0)
-        # `mpirun -n 2`: rank 1 particles are outside the loss window,
-        # so they are purged on the first turn.
-        dt = np.concatenate(
-            (
-                1.25e-9 + 0.1e-9 * rng.standard_normal(n_per_rank),
-                np.full(n_per_rank, 10e-9),
-            )
-        )
+        # Rank 0 holds a bunch inside the loss window; the particles of
+        # every other rank are far outside it, all purged on the first turn.
+        if MPI_RANK == 0:
+            dt = 1.25e-9 + 0.1e-9 * rng.standard_normal(n_per_rank)
+        else:
+            dt = np.full(n_per_rank, 10e-9)
         beam = Beam(intensity=1e9, particle_type=proton)
-        beam.setup_beam(
-            dt=dt, dE=np.zeros(dt.size), mpi_mode="root-distributes"
-        )
+        beam.setup_beam(dt=dt, dE=np.zeros(dt.size), mpi_mode="all-ranks")
         simulation.run_simulation(
             beams=(beam,), n_turns=5, show_progressbar=False
         )
         self.assertEqual(
-            beam.dt.local_size, 0 if MPI_RANK == 1 else n_per_rank
+            beam.dt.local_size, n_per_rank if MPI_RANK == 0 else 0
         )
 
 

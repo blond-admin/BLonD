@@ -181,16 +181,13 @@ class BeamBaseClass(Preparable, ABC):
         Raises
         ------
         ValueError
-            Raised if the local or global sizes of the `dt` and `dE`
-            arrays do not match.
+            Raised on every rank if the sizes of the `dt` and `dE`
+            arrays differ on any rank.
         """
-        if (dt.local_size != dE.local_size) or (
-            dt.global_size != dE.global_size
-        ):
+        if not distributed_array.local_sizes_match(dt, dE):
             raise ValueError(
-                "The dt and dE array sizes are mismatched"
-                f"{dt.local_size=}, {dE.local_size=}"
-                f"{dt.global_size=}, {dE.global_size=}"
+                "The dt and dE array sizes are mismatched on at least one "
+                f"rank; on this rank: {dt.local_size=}, {dE.local_size=}"
             )
 
         from blond.core.backends.backend import (
@@ -488,10 +485,10 @@ class BeamBaseClass(Preparable, ABC):
               large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
               across ranks.
 
-            - "all-ranks": Each rank independently generates and stores a full copy of the data.
-              While this mode uses more memory, it can be simpler to implement in scenarios where
-              each rank needs to work with its own independent data (e.g., generating separate
-              random distributions with `np.random.randn()`).
+            - "all-ranks": Each rank passes only its own macro-particles, its chunk
+              of the beam; the beam is the union of all chunks. Use this when each rank
+              can generate its share independently (e.g., random distributions drawn
+              with a different random stream on each rank).
         **kwargs
             Keyword arguments to make the non-abstract implementation
             extendable.
@@ -785,7 +782,6 @@ class BeamBaseClass(Preparable, ABC):
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
-        from blond.core.backends.mpi_distributed.helpers import mpi_barrier
 
         n_before_truncation_global = self._dt.global_size
         if n_before_truncation_global == 0:
@@ -811,7 +807,7 @@ class BeamBaseClass(Preparable, ABC):
             :n_after_truncation_local
         ]
 
-        mpi_barrier()
+        # reduced on assignment above, on every rank together
         n_after_truncation_global = self._dt.global_size
 
         self.intensity *= (

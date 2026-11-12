@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from blond import EmptyBeam, uranium_29
 from blond.core.beam.beams import ProbeBeam
@@ -149,6 +150,42 @@ class TestEquidistantMultiProfile(BLonDTestCase):
             copy_to_cpu(meta["bucket_index_to_memory_index"]),
             np.array([0, 0, 0, 4]),
         )
+
+
+@pytest.mark.mpi
+class TestEquidistantMultiProfileMPI(BLonDTestCase):
+    def test_rank_without_particles_takes_part(self):
+        """A rank holding no particles must join the histogram sum."""
+        from blond import Beam
+        from blond.core.backends.mpi_distributed.helpers import (
+            MPI_RANK,
+            mpi_is_distributed,
+        )
+
+        if not mpi_is_distributed():
+            self.skipTest("Only with MPI")
+        profile = EquidistantMultiProfile.headless(
+            t_rev=50.0,
+            filling_pattern=np.ones(5, bool),
+            bins_per_profile=4,
+            offset=0,
+        )
+        dt = copy_to_cpu(profile.profiles[0].hist_x)
+        on_root = MPI_RANK == 0
+        beam = Beam(intensity=1e10, particle_type=uranium_29)
+        beam.setup_beam(
+            dt=dt.copy() if on_root else np.zeros(0),
+            dE=np.zeros(len(dt) if on_root else 0),
+            reference_time=0,
+            reference_total_energy=1e3,
+            mpi_mode="all-ranks",
+        )
+        profile.track(beam)
+        self.assertEqual(
+            float(copy_to_cpu(profile._continuous_memory_hist_y).sum()),
+            len(dt),
+        )
+        self.assertEqual(profile.hist_y_to_density_factor, 1 / len(dt))
 
 
 class TestEquidistantMultiProfileUnknownKwargs(BLonDTestCase):

@@ -218,6 +218,19 @@ backend.set_specials("cuda")   # GPU (requires CUDA + blond-compile-cuda)
 # default is pure NumPy
 ```
 
+### MPI (multiple processes)
+
+Launch through mpi4py's runner, so that an error on one rank stops the
+whole job instead of leaving the other ranks waiting forever:
+
+```bash
+mpirun -n 4 python -m mpi4py my_simulation.py
+```
+
+Every rank runs the same script. Pass each rank's own particles to
+`beam.setup_beam(..., mpi_mode="all-ranks")`, or the whole beam on rank 0
+with `mpi_mode="root-distributes"`, which splits it over the ranks.
+
 ## Common mistakes to watch for
 
 - Forgetting to call `ring.add_elements(...)` before `Simulation(...)`.

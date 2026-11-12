@@ -11,6 +11,7 @@ from blond import Simulation, mu_plus, proton
 from blond.core.backends.backend import INDEX_DTYPE, backend
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
+    scatter_from_root,
 )
 from blond.core.backends.mpi_distributed.helpers import (
     MPI_RANK,
@@ -539,31 +540,19 @@ class TestBeamBaseClass(BLonDTestCase):
             is_distributed=False,
         )
 
-        dt_1 = DistributedArray(None)
-        dE_1 = DistributedArray(None)
-        dt_2 = DistributedArray(None)
-        dE_2 = DistributedArray(None)
-        flags = DistributedArray(None)
-        ids = DistributedArray(None)
+        on_root = MPI_RANK == 0
 
-        if MPI_RANK == 0:
-            dt_1.array_local = backend.array([0, 1, 2], dtype=backend.float)
-            dE_1.array_local = backend.array([10, 11, 12], dtype=backend.float)
-            dt_2.array_local = backend.array([3, 4, 5], dtype=backend.float)
-            dE_2.array_local = backend.array([13, 14, 15], dtype=backend.float)
-            flags.array_local = backend.zeros_like(
-                dE_1.array_local, dtype=np.int32
-            )
-            ids.array_local = backend.array([1, 3, 5], dtype=INDEX_DTYPE)
+        def from_root(values, dtype):
+            """Only rank 0 holds `values`; every rank gets its chunk."""
+            array = backend.array(values, dtype=dtype) if on_root else None
+            return DistributedArray(scatter_from_root(array))
 
-        dt_1.mpi_scatter()
-        dE_1.mpi_scatter()
-        dt_2.mpi_scatter()
-        dE_2.mpi_scatter()
-        flags.mpi_scatter()
-        ids.mpi_scatter()
-
-        mpi_barrier()
+        dt_1 = from_root([0, 1, 2], backend.float)
+        dE_1 = from_root([10, 11, 12], backend.float)
+        dt_2 = from_root([3, 4, 5], backend.float)
+        dE_2 = from_root([13, 14, 15], backend.float)
+        flags = from_root([0, 0, 0], np.int32)
+        ids = from_root([1, 3, 5], INDEX_DTYPE)
 
         beam_1._dt = dt_1
         beam_1._dE = dE_1

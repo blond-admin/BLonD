@@ -245,6 +245,12 @@ workflow:
     # test measured locally (6.8s), while still turning a deadlock into a
     # 5 minute failure instead of a 2h one.
     - mpirun -n 2 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 2); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; if [ "$OMPI_COMM_WORLD_RANK" = "0" ]; then python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; else python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread; fi'
+    # Again on 3 ranks: some bugs need a rank that is neither the first
+    # nor the last, e.g. size mismatches on two ranks that cancel out while
+    # a third rank with matching sizes carries on alone, and uneven chunks
+    # in `scatter_from_root`. `--oversubscribe` lets OpenMPI start more
+    # ranks than the runner has slots.
+    - mpirun --oversubscribe -n 3 bash -c 'export OMP_NUM_THREADS=$(python3 dev_tools/ci_omp_threads.py --divide 3); export NUMBA_NUM_THREADS=$OMP_NUM_THREADS; python3 -m pytest -v -m "mpi" -p no:randomly -x --timeout=300 --timeout-method=thread'
     # The following pytest runs use pytest-xdist workers. `--dist loadfile`
     # keeps each test module on one worker, so module-level fixtures and
     # backend state behave as in a serial run. The thread pools are split

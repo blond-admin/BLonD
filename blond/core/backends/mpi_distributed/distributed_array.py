@@ -37,6 +37,12 @@ class DistributedArray:
     This class is intended to hold the beam dE and dt coordinates,
     which are arrays with the size up to some TB.
 
+    Each rank holds its own chunk. Creating it and assigning
+    `array_local` are collectives, which every rank makes together:
+    they reduce `global_size` right away, so that reading it never is
+    one. Data that only rank 0 holds is not distributed yet; turn it
+    into chunks with `scatter_from_root` first.
+
     Parameters
     ----------
     array
@@ -66,8 +72,9 @@ class DistributedArray:
         """
         The array data on this rank.
 
-        Every rank replaces its array together (e.g. when purging lost
-        particles), so replacing it forgets the global size on all ranks.
+        Replacing it is a collective, which every rank must make
+        together (e.g. when purging lost particles): it reduces the new
+        `global_size`.
 
         Returns
         -------
@@ -78,8 +85,14 @@ class DistributedArray:
 
     @array_local.setter
     def array_local(self, array: NumpyArray | CupyArray) -> None:
+        if array is None:
+            raise TypeError(
+                "A rank holding no array is not distributed: scatter "
+                "rank 0's array with `scatter_from_root` first."
+            )
         self._array_local = array
-        self._global_size: int | None = None
+        # np.size: user input (e.g. a list) is converted only afterwards
+        self._global_size = int(global_reduce(np.size(array))[0])
 
     def copy_as_numpy(self) -> NumpyArray:
         """
@@ -120,91 +133,12 @@ class DistributedArray:
         """
         return self._is_distributed
 
-    def mpi_scatter(self) -> None:
-        """
-        Scatter rank 0's 1D array; each rank keeps its contiguous chunk.
-
-        Only rank 0's array is read; the other ranks' may be None. If
-        rank 0's array is None, every rank ends up with None. Chunk
-        sizes and order are those of `np.array_split`. The chunks travel
-        as host buffers, not pickled, so no GPU holds more than its own
-        chunk and a chunk may exceed 2 GiB. Afterwards each rank holds an
-        array of the active backend, with the dtype of rank 0's array.
-        """
-        if not self._is_distributed:
-            return
-
-        size = self._comm.Get_size()
-        rank = self._comm.Get_rank()
-
-        host_array = None
-        header = None
-        root_exception: Exception | None = None
-        root_error: str | None = None
-
-        if rank == 0:
-            # Any failure here must be announced before the transfer
-            # below: every other rank is already blocking in it, so
-            # raising straight away would deadlock the whole run.
-            try:
-                array = self.array_local
-                host_array = (
-                    None
-                    if array is None
-                    else (
-                        copy_to_cpu(array)
-                        if is_cupy_array(array)
-                        else np.ascontiguousarray(array)
-                    )
-                )
-                if host_array is not None and host_array.ndim != 1:
-                    raise ValueError(
-                        f"Only 1D arrays can be scattered, "
-                        f"got {host_array.ndim}D."
-                    )
-                if host_array is not None:
-                    header = (host_array.size, host_array.dtype.str)
-            except Exception as exc:
-                root_exception = exc
-                root_error = f"{type(exc).__name__}: {exc}"
-
-        header, root_error = self._comm.bcast((header, root_error), root=0)
-        if root_error is not None:
-            if root_exception is not None:
-                raise root_exception
-            raise RuntimeError(  # pragma: no cover # only non-root ranks
-                f"Rank 0 failed to prepare the array for `mpi_scatter`, "
-                f"so there is nothing to scatter: {root_error}"
-            )
-
-        if header is None:
-            self.array_local = None
-            return
-        n_global, dtype_str = header
-        chunk_sizes = [
-            n_global // size + (1 if r < n_global % size else 0)
-            for r in range(size)
-        ]
-        if rank == 0:
-            start = chunk_sizes[0]
-            for dest in range(1, size):
-                stop = start + chunk_sizes[dest]
-                self._comm.Send(host_array[start:stop], dest=dest)
-                start = stop
-            chunk = host_array[: chunk_sizes[0]]
-        else:  # pragma: no cover # only non-root ranks
-            chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
-            self._comm.Recv(chunk, source=0)
-        # `backend.array` copies, so rank 0 drops the global array
-        self.array_local = backend.array(chunk, dtype=chunk.dtype)
-
     def mpi_gather(self) -> NumpyArray | CupyArray | None:
         """
         Gather the distributed data and return it as a single array.
 
-        Gather a 1D NumPy array.
-        Rank 0 owns the global array after scatter.
-        Before scatter, each rank owns its local chunk.
+        The chunks are joined in rank order, which undoes
+        `scatter_from_root`.
 
         Returns
         -------
@@ -227,12 +161,12 @@ class DistributedArray:
     @property
     def local_size(self) -> int:
         """
-        Get the number of elements on the local processes.
+        Get the number of elements on this rank.
 
         Returns
         -------
         int
-            The total size of the distributed array across all processes.
+            The number of elements on this rank.
         """
         return self.array_local.size
 
@@ -241,15 +175,14 @@ class DistributedArray:
         """
         Get the total number of elements across all processes.
 
-        Reduced once, and again only after `array_local` was replaced.
+        Reduced when `array_local` is assigned, so reading it is not a
+        collective and may happen on a single rank.
 
         Returns
         -------
         int
             The total size of the distributed array across all processes.
         """
-        if self._global_size is None:
-            self._global_size = int(global_reduce(self.local_size)[0])
         return self._global_size
 
     def min_max(self) -> tuple[float, float]:
@@ -272,12 +205,10 @@ class DistributedArray:
         ValueError
             On every rank, if no rank holds any element.
         """
+        array = self.array_local
         local = (-inf, -inf)  # negated minimum, so that MAX reduces both
-        if self.local_size:
-            local = (
-                -float(backend.min(self.array_local)),
-                float(backend.max(self.array_local)),
-            )
+        if array.size:
+            local = (-float(array.min()), float(array.max()))
         negative_min, global_max = global_reduce(*local, op="MAX")
         if global_max == -inf:  # same on all ranks, so is the raise
             raise ValueError(
@@ -353,7 +284,8 @@ class DistributedArray:
         float
             The sum of all values across all distributed array chunks.
         """
-        return float(global_reduce(float(backend.sum(self.array_local)))[0])
+        local_sum = float(backend.sum(self.array_local))
+        return float(global_reduce(local_sum)[0])
 
     def histogram(
         self,
@@ -521,3 +453,142 @@ def concatenate(
     return DistributedArray(
         backend.concatenate((array_1.array_local, array_2.array_local))
     )
+
+
+def local_sizes_match(*arrays: DistributedArray) -> bool:
+    """
+    Tell whether `arrays` have the same local size on every rank.
+
+    One collective, which every rank must make: a mismatch on any rank
+    makes all ranks return False, so that they can raise together.
+    Matching local sizes imply matching global sizes, but not the
+    other way round, since local mismatches can cancel out.
+
+    Parameters
+    ----------
+    *arrays
+        The arrays to compare.
+
+    Returns
+    -------
+    bool
+        True if all local sizes are equal on every rank.
+    """
+    local_mismatch = len({array.local_size for array in arrays}) > 1
+    return not global_reduce(float(local_mismatch), op="MAX")[0]
+
+
+def scatter_from_root(
+    global_array: NumpyArray | CupyArray | None,
+) -> NumpyArray | CupyArray | None:
+    """
+    Split rank 0's 1D array into one contiguous chunk per rank.
+
+    A collective, which every rank must make. Only rank 0's
+    `global_array` is read; the other ranks may pass None. Chunk sizes
+    and order are those of `np.array_split`. The chunks travel as host
+    buffers, not pickled, so no GPU holds more than its own chunk and a
+    chunk may exceed 2 GiB. A failure on rank 0 (e.g. a 2D array) is
+    raised on every rank, instead of leaving the others waiting.
+
+    Parameters
+    ----------
+    global_array
+        The whole array on rank 0; ignored on the other ranks.
+
+    Returns
+    -------
+    chunk
+        This rank's chunk, an array of the active backend with the
+        dtype of rank 0's array, ready for `DistributedArray`. None on
+        every rank if rank 0 passed None. Without MPI, `global_array`
+        itself.
+
+    Raises
+    ------
+    RuntimeError
+        On the other ranks, if rank 0 failed to prepare its array.
+    """
+    comm = None if MPI is None else MPI.COMM_WORLD
+    if comm is None or comm.Get_size() == 1:
+        return global_array
+    n_ranks = comm.Get_size()
+    rank = comm.Get_rank()
+
+    host_array, header = None, None
+    root_exception: Exception | None = None
+    root_error: str | None = None
+    if rank == 0:
+        # Any failure here must be announced before the transfer below:
+        # every other rank is already blocking in it, so raising straight
+        # away would deadlock the whole run.
+        try:
+            host_array = _host_1d_array_or_none(global_array)
+            if host_array is not None:
+                header = (host_array.size, host_array.dtype.str)
+        except Exception as exc:
+            root_exception = exc
+            root_error = f"{type(exc).__name__}: {exc}"
+
+    header, root_error = comm.bcast((header, root_error), root=0)
+    if root_error is not None:
+        if root_exception is not None:
+            raise root_exception
+        raise RuntimeError(
+            "Rank 0 failed to prepare the array for `scatter_from_root`, "
+            f"so there is nothing to scatter: {root_error}"
+        )
+    if header is None:
+        return None
+
+    n_global, dtype_str = header
+    chunk_sizes = [
+        n_global // n_ranks + (1 if r < n_global % n_ranks else 0)
+        for r in range(n_ranks)
+    ]
+    if rank == 0:
+        start = chunk_sizes[0]
+        for dest in range(1, n_ranks):
+            stop = start + chunk_sizes[dest]
+            comm.Send(host_array[start:stop], dest=dest)
+            start = stop
+        chunk = host_array[: chunk_sizes[0]]
+    else:
+        chunk = np.empty(chunk_sizes[rank], dtype=np.dtype(dtype_str))
+        comm.Recv(chunk, source=0)
+    # `backend.array` copies, so rank 0 drops the global array
+    return backend.array(chunk, dtype=chunk.dtype)
+
+
+def _host_1d_array_or_none(
+    array: NumpyArray | CupyArray | None,
+) -> NumpyArray | None:
+    """
+    `array` as a contiguous 1D host array, for sending it with MPI.
+
+    Parameters
+    ----------
+    array
+        A NumPy or CuPy array, or None.
+
+    Returns
+    -------
+    host_array
+        A contiguous host copy (or view) of `array`, or None.
+
+    Raises
+    ------
+    ValueError
+        If `array` is not 1D.
+    """
+    if array is None:
+        return None
+    if is_cupy_array(array):
+        host_array = copy_to_cpu(array)
+    else:
+        host_array = np.ascontiguousarray(array)
+    if host_array.ndim != 1:
+        raise ValueError(
+            f"Only 1D arrays can be scattered, got {host_array.ndim}D."
+        )
+    return host_array
