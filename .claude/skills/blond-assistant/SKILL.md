@@ -133,6 +133,17 @@ beam = Beam(intensity=1e9, particle_type=proton)
 ring.add_elements([drift, rf], reorder=True)   # reorder=True lets BLonD sort elements
 # or reorder=False to keep your explicit order
 ring.add_element(drift)                        # singular variant — adds one element
+```
+
+**Element order matters.** All changes to particle energies (RF, wakefields,
+feedbacks, losses) must happen before changes to their phase (drift). The
+canonical order — losses → profiles → feedbacks → wakefields/impedances → RF →
+drifts — is a convention that guarantees this. Always use it (either by listing
+elements in that order or with `reorder=True`) unless the user asks for
+something non-standard. Note `reorder=False` is the default, so an unordered
+list runs as written.
+
+```python
 
 from blond import Simulation
 # Option A – explicit (recommended when you want full control):

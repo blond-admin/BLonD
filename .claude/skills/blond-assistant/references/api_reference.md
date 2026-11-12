@@ -23,9 +23,10 @@ ring = Ring(circumference: float)
 ```
 
 - `circumference` — machine circumference in metres
-- `ring.add_elements(elements, reorder=True)` — add a list/tuple of elements
-  - `reorder=True`: BLonD sorts elements into the canonical order (drifts → RF → wakefields → profiles)
+- `ring.add_elements(elements, reorder=False)` — add a list/tuple of elements (default `reorder=False`)
+  - `reorder=True`: BLonD sorts elements within each section into the canonical order (losses → profiles → feedbacks → wakefields/impedances → RF → drifts)
   - `reorder=False`: use your explicit ordering (required for multi-section machines)
+  - Execution order matters: all changes to particle energies must happen before changes to their phase (time). The canonical order is a convention that guarantees this. Follow it unless the user asks for something else.
 - `ring.add_element(element, section_index=0)` — singular variant; adds one element
 - `ring.circumference` — read back circumference
 
