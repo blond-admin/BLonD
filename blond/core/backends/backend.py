@@ -744,18 +744,32 @@ class BackendBaseClass(ABC):
             (Numpy64Bit, "numba"),
             (Numpy64Bit, "python"),
         )
-        for backend_, mode_ in order:
-            try:
-                self.change_backend(new_backend=backend_)
-                self.set_specials(mode=mode_)
-                return
-            except Exception as exc:
-                logger.debug(
-                    "autoselect: `%s`/`%s` is not available: %r",
-                    backend_.__name__,
-                    mode_,
-                    exc,
-                )
+        # Silence the intermediate (possibly failing) attempts and report
+        # only the final, self-consistent backend/specials pair.
+        verbose = self.verbose
+        self.verbose = False
+        try:
+            for backend_, mode_ in order:
+                try:
+                    self.change_backend(new_backend=backend_)
+                    self.set_specials(mode=mode_)
+                    break
+                except Exception as exc:
+                    logger.debug(
+                        "autoselect: `%s`/`%s` is not available: %r",
+                        backend_.__name__,
+                        mode_,
+                        exc,
+                    )
+        finally:
+            # `change_backend` swaps `__dict__`, so restore on the final
+            # instance state rather than on the one at entry.
+            self.verbose = verbose
+        if self.verbose:
+            print(
+                f"Auto-selected backend `{type(self).__name__}` "
+                f"with specials `{self.specials_mode}`"
+            )
 
     def change_backend(
         self,
@@ -782,9 +796,10 @@ class BackendBaseClass(ABC):
         if self.__class__ is new_backend:
             # requesting the already active backend must be a no-op
             return
+        _new_backend = new_backend()
+        # Report only once the new backend could actually be created.
         if self.verbose:
             print(f"Changing backend to `{new_backend.__name__}`")
-        _new_backend = new_backend()
         # transfer variables that should be kept when changing backend.
         _new_backend.verbose = self.verbose
         specials_mode_org = self.specials_mode
