@@ -18,18 +18,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy import ndarray
 
-from blond.acc_math.empiric.potential_well import PotentialWellHelper
 from blond.beam_preparation.base import MatchingRoutine
-from blond.beam_preparation.helpers import (
-    generate_particle_coordinates,
-    populate_beam,
-)
+from blond.beam_preparation.helpers import populate_beam
 from blond.core.backends.backend import (
     backend,
 )
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
+)
+from blond.experimental.beam_preparation.bucket_windows import (
+    BucketWindows,
 )
 from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import AllowPlotting, copy_to_cpu
@@ -376,182 +375,6 @@ def _curvature_at_minimum(
     return float(2 * coefficients[2] / half_width**2)
 
 
-def select_bucket(
-    ts: NumpyArray,
-    potential_well: NumpyArray,
-    window_centre: float,
-    bucket_length: float,
-) -> slice:
-    """Index slice of the bucket to fill in a window around a bucket.
-
-    The window should span :math:`\\pm` ``bucket_length`` around the nominal
-    bucket centre. Among the buckets of
-    :class:`~blond.acc_math.empiric.potential_well.PotentialWellHelper`
-    that do not touch the window edges (partial neighbours) and are not
-    nested inside another one (inner wells of e.g. a double-harmonic
-    potential), the one whose centre is nearest to ``window_centre`` is
-    selected. It spans from the lower of its two barriers to where the
-    potential reaches that height again, i.e. the separatrix at
-    :math:`\\Delta E = 0`.
-
-    Parameters
-    ----------
-    ts
-        Time coordinates of ``potential_well``, uniformly spaced, in [s].
-    potential_well
-        Potential well on the host, in [eV].
-    window_centre
-        Nominal centre of the bucket, in [s].
-    bucket_length
-        Nominal length of a bucket, half the window, in [s].
-
-    Returns
-    -------
-    selection
-        Slice of ``ts`` from the first to the last point of the bucket.
-
-    Raises
-    ------
-    SemiEmpiricMatcherError
-        If there is no complete bucket in the window, or if the nearest one
-        is more than half a bucket away from ``window_centre``.
-    """
-    step = ts[1] - ts[0]
-    buckets = np.asarray(
-        PotentialWellHelper(ts, potential_well).bucket_list, dtype=float
-    ).reshape(-1, 2)
-    complete = [
-        bucket
-        for bucket in buckets
-        if bucket[0] > ts[0] + 0.5 * step and bucket[1] < ts[-1] - 0.5 * step
-    ]
-    if not complete:
-        raise SemiEmpiricMatcherError(
-            "No complete bucket in the window around"
-            f" {window_centre=:.6e} s. The window is too narrow, or there"
-            " is no stationary bucket, e.g. because the beam loading exceeds"
-            " the restoring RF voltage."
-        )
-    outermost = [
-        bucket
-        for bucket in complete
-        if not any(
-            other[0] <= bucket[0]
-            and bucket[1] <= other[1]
-            and not np.array_equal(other, bucket)
-            for other in complete
-        )
-    ]
-    centres = np.array([0.5 * (bucket[0] + bucket[1]) for bucket in outermost])
-    nearest = outermost[int(np.argmin(np.abs(centres - window_centre)))]
-    offset = 0.5 * (nearest[0] + nearest[1]) - window_centre
-    if abs(offset) > 0.5 * bucket_length:
-        raise SemiEmpiricMatcherError(
-            f"The bucket nearest to {window_centre=:.6e} s is"
-            f" {offset / bucket_length:+.2f} bucket lengths away, more than"
-            " half a bucket: its identity is lost. Typically, there is no"
-            " static equilibrium with intensity effects."
-        )
-    i_start = int(np.searchsorted(ts, nearest[0] - 0.5 * step))
-    i_stop = int(np.searchsorted(ts, nearest[1] + 0.5 * step))
-    return slice(i_start, i_stop)
-
-
-def check_bucket_continuity(
-    previous_centres: Sequence[float],
-    centres: Sequence[float],
-    bucket_lengths: Sequence[float],
-) -> None:
-    """Check that no selected bucket jumped between two iterations.
-
-    A bucket shifted by more than half a bucket is indistinguishable from
-    its neighbour in a single potential well (a shift of :math:`+0.55` looks
-    like :math:`-0.45`), so :func:`select_bucket` alone cannot detect it.
-    Buckets may drift between iterations, but not jump.
-
-    Parameters
-    ----------
-    previous_centres
-        Centres of the selected buckets in the previous iteration, in [s].
-    centres
-        Centres of the selected buckets now, in [s].
-    bucket_lengths
-        Nominal bucket length of each window, in [s].
-
-    Raises
-    ------
-    SemiEmpiricMatcherError
-        If a bucket moved by more than half a bucket length.
-    """
-    for i, (previous, centre, bucket_length) in enumerate(
-        zip(previous_centres, centres, bucket_lengths, strict=True)
-    ):
-        jump = (centre - previous) / bucket_length
-        if abs(jump) > 0.5:
-            raise SemiEmpiricMatcherError(
-                f"The selected bucket {i} jumped by {jump:+.2f} bucket"
-                " lengths between two iterations: it drifted out of its"
-                " window. Typically, there is no static equilibrium with"
-                " intensity effects."
-            )
-
-
-def _stitch_potential_wells(
-    windows_ts: Sequence[NumpyArray],
-    wells: Sequence[NumpyArray],
-) -> list[NumpyArray]:
-    """Shift the potential wells of overlapping windows onto one another.
-
-    Each window is integrated and minimum-subtracted on its own, so its
-    offset is arbitrary. Where two windows overlap, they integrate the same
-    kicks and differ by a constant only: shifting each window by its mean
-    difference to the windows placed before it restores one continuous
-    well. Windows without overlap stay separate. Each connected group is
-    finally minimum-subtracted again. For plotting only; the matching does
-    not depend on these offsets.
-
-    Parameters
-    ----------
-    windows_ts
-        Time coordinates of each window, increasing, in [s].
-    wells
-        Potential well of each window, on the host, in [eV].
-
-    Returns
-    -------
-    stitched
-        The shifted wells, in the order of ``wells``.
-    """
-    order = np.argsort([ts[0] for ts in windows_ts])
-    stitched: list[NumpyArray | None] = [None] * len(wells)
-    group_of = [-1] * len(wells)
-    for i in order:
-        ts, well = windows_ts[i], wells[i]
-        differences = []
-        for j in order:
-            if stitched[j] is None:
-                continue
-            overlap = (ts >= windows_ts[j][0]) & (ts <= windows_ts[j][-1])
-            if np.count_nonzero(overlap) < 2:  # noqa: PLR2004
-                continue
-            differences.append(
-                np.interp(ts[overlap], windows_ts[j], stitched[j])
-                - well[overlap]
-            )
-            group_of[i] = group_of[j]
-        if differences:
-            stitched[i] = well + np.mean(np.concatenate(differences))
-        else:
-            stitched[i] = np.asarray(well, dtype=float)
-            group_of[i] = i
-    for group in set(group_of):
-        members = [i for i in range(len(wells)) if group_of[i] == group]
-        minimum = min(stitched[i].min() for i in members)
-        for i in members:
-            stitched[i] = stitched[i] - minimum
-    return stitched  # type: ignore[return-value]
-
-
 class DebuggingEndpoints:
     """
     Helper to expose variables when debugging `SemiEmpiricMatcher`.
@@ -845,19 +668,23 @@ class SemiEmpiricMatcher(MatchingRoutine):
             if seed is not None
             else None
         )
-        # One (start, stop) per bucket to fill, or None for a single
-        # `time_limit`, see `_init_windows`
-        self.windows: list[tuple[float, float]] | None = None
-        self.bucket_weights: NumpyArray | None = None
-        self._density_kwargs_per_window: list[dict[str, Any]] | None = None
-        # (start, stop) of the bucket selected in each window, in the last
-        # iteration, in [s]
-        self.selected_buckets: list[tuple[float, float]] | None = None
-        self.time_limit: tuple[float, float] = self._init_windows(
+        # One window per bucket to fill, or None for a single `time_limit`
+        self._bucket_windows = BucketWindows.from_time_limit(
             time_limit=time_limit,
             hamilton_to_density_kwargs=hamilton_to_density_kwargs,
             bucket_weights=bucket_weights,
-            correct_to_one_turn_map=correct_to_one_turn_map,
+            n_time=internal_grid_shape[0],
+        )
+        if self._bucket_windows is not None and correct_to_one_turn_map:
+            raise NotImplementedError(
+                "`correct_to_one_turn_map` is not available with windows."
+            )
+        self.time_limit = time_limit
+        # Time range of all windows together, or `time_limit`, in [s]
+        self._time_span: tuple[float, float] = (
+            time_limit
+            if self._bucket_windows is None
+            else self._bucket_windows.span
         )
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
@@ -891,85 +718,19 @@ class SemiEmpiricMatcher(MatchingRoutine):
         if debug:
             self.debug_helper = DebuggingEndpoints()
 
-    def _init_windows(
-        self,
-        time_limit: tuple[float, float] | Sequence[tuple[float, float]],
-        hamilton_to_density_kwargs: dict[str, Any] | Sequence[dict[str, Any]],
-        bucket_weights: Sequence[float] | None,
-        correct_to_one_turn_map: bool,
-    ) -> tuple[float, float]:
-        """Validate the per-window arguments and store them.
-
-        Parameters
-        ----------
-        time_limit
-            See class docstring.
-        hamilton_to_density_kwargs
-            See class docstring.
-        bucket_weights
-            See class docstring.
-        correct_to_one_turn_map
-            See class docstring.
+    @property
+    def selected_buckets(self) -> list[tuple[float, float]] | None:
+        """``(start, stop)`` of the bucket selected in each window, in [s].
 
         Returns
         -------
-        time_limit
-            ``time_limit`` itself, or the span of all windows.
-
-        Raises
-        ------
-        ValueError
-            On inconsistent per-window arguments.
-        NotImplementedError
-            For windows combined with ``correct_to_one_turn_map``.
+        selected_buckets
+            Selection of the last iteration, or ``None`` without windows
+            or before the first one.
         """
-        has_windows = np.ndim(time_limit) == 2  # noqa: PLR2004
-        if not has_windows:
-            if bucket_weights is not None or not isinstance(
-                hamilton_to_density_kwargs, dict
-            ):
-                raise ValueError(
-                    "`bucket_weights` and one `hamilton_to_density_kwargs`"
-                    " per window require one window per bucket in"
-                    " `time_limit`."
-                )
-            return time_limit  # type: ignore[return-value]
-
-        windows = [(float(start), float(stop)) for start, stop in time_limit]
-        n_windows = len(windows)
-        if any(stop <= start for start, stop in windows):
-            raise ValueError(f"Every window must have start < stop: {windows}")
-        if correct_to_one_turn_map:
-            raise NotImplementedError(
-                "`correct_to_one_turn_map` is not available with windows."
-            )
-        weights = (
-            np.ones(n_windows)
-            if bucket_weights is None
-            else np.array(bucket_weights, dtype=float)
-        )
-        if weights.shape != (n_windows,) or np.any(weights < 0):
-            raise ValueError(
-                f"`bucket_weights` needs {n_windows} non-negative values,"
-                f" one per window, but got {bucket_weights}."
-            )
-        if isinstance(hamilton_to_density_kwargs, dict):
-            hamilton_to_density_kwargs = [
-                hamilton_to_density_kwargs
-            ] * n_windows
-        if len(hamilton_to_density_kwargs) != n_windows:
-            raise ValueError(
-                "`hamilton_to_density_kwargs` needs one dict for all windows"
-                f" or one per window, {n_windows}, but got"
-                f" {len(hamilton_to_density_kwargs)}."
-            )
-        self.windows = windows
-        self.bucket_weights = weights
-        self._density_kwargs_per_window = list(hamilton_to_density_kwargs)
-        return (
-            min(start for start, _ in windows),
-            max(stop for _, stop in windows),
-        )
+        if self._bucket_windows is None:
+            return None
+        return self._bucket_windows.selected_buckets
 
     def prepare_beam(
         self,
@@ -990,8 +751,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
-        # a matcher may be reused: no bucket identity from an earlier beam
-        self.selected_buckets = None
+        if self._bucket_windows is not None:
+            # a matcher may be reused: no bucket identity from an earlier beam
+            self._bucket_windows.selected_buckets = None
 
         # make sure there is not a mixed state
         simulation.intensity_effect_manager.is_active_wakefields()
@@ -1000,7 +762,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         sim_tmp = deepcopy(simulation)  # prevent side effects
 
         ts = backend.linspace(
-            self.time_limit[0], self.time_limit[1], self.internal_grid_shape[0]
+            self._time_span[0], self._time_span[1], self.internal_grid_shape[0]
         )
         # match beam without intensity effects
         sim_tmp.intensity_effect_manager.set_wakefields(active=False)
@@ -1188,13 +950,20 @@ class SemiEmpiricMatcher(MatchingRoutine):
             else:
                 # neither converged nor stalled (`break`)
                 if self.maxiter_intensity_effects > 0:
+                    error_state = (
+                        "before the convergence error could be computed,"
+                        " which needs three iterations"
+                        if math.isnan(error)
+                        else f"with error {error:.3g}, above"
+                        " tolerance_potential_well="
+                        f"{self.tolerance_potential_well}"
+                    )
                     warnings.warn(
                         "SemiEmpiricMatcher did not converge: the"
                         " intensity-effects iteration ended after"
                         f" maxiter_intensity_effects="
-                        f"{self.maxiter_intensity_effects} iterations with"
-                        f" error {error:.3g}, above tolerance_potential_well"
-                        f"={self.tolerance_potential_well}. Increase"
+                        f"{self.maxiter_intensity_effects} iterations"
+                        f" {error_state}. Increase"
                         " `maxiter_intensity_effects`, or check whether a"
                         " static equilibrium exists.",
                         stacklevel=3,
@@ -1224,7 +993,19 @@ class SemiEmpiricMatcher(MatchingRoutine):
             `Simulation` context manager
         ts
             Time coordinate, in [s] for observation of the potential well.
+            Not used with windows, which have their own.
         """
+        if self._bucket_windows is not None:
+            self._populate_beam_from_windows(
+                beam=beam,
+                simulation=simulation,
+                avg_potential_well=self._average_with_previous(
+                    self._observe_potential_wells_of_windows(
+                        beam=beam, simulation=simulation
+                    )
+                ),
+            )
+            return
         time_grid, deltaE_grid, hamilton_2D = self._get_hamilton(
             beam=beam, simulation=simulation, ts=ts
         )
@@ -1260,22 +1041,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
             `Simulation` context manager, used only for ``ring`` parameters.
         ts
             Time coordinate, in [s] for observation of the potential well.
+            Not used with windows, which have their own.
         avg_potential_well
             Previously observed (already-averaged) potential well [V].
         """
-        if self.windows is not None:
-            time_grid, deltaE_grid, hamilton_2D = (
-                self._hamiltonians_of_windows(
-                    beam=beam,
-                    simulation=simulation,
-                    avg_potential_well=avg_potential_well,
-                )
-            )
-            self._populate_beam_from_hamiltonian(
+        if self._bucket_windows is not None:
+            self._populate_beam_from_windows(
                 beam=beam,
-                time_grid=time_grid,
-                deltaE_grid=deltaE_grid,
-                hamilton_2D=hamilton_2D,
+                simulation=simulation,
+                avg_potential_well=avg_potential_well,
             )
             return
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
@@ -1313,17 +1087,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         deltaE_grid
             2D grid of energy offset :math:`\\Delta E` [eV].
         hamilton_2D
-            2D Hamiltonian evaluated on the grid [eV]. With windows, each
-            of the three is a list with one grid per window.
+            2D Hamiltonian evaluated on the grid [eV].
         """
-        if self.windows is not None:
-            self._populate_beam_from_windows(
-                beam=beam,
-                time_grids=time_grid,
-                deltaE_grids=deltaE_grid,
-                hamiltons_2D=hamilton_2D,
-            )
-            return
         density = self.hamilton_to_density_function(
             time_grid=time_grid,
             deltaE_grid=deltaE_grid,
@@ -1401,10 +1166,69 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         """
         assert simulation.turn_counter.value == 0
-        if self.windows is not None:
-            return self._get_hamiltonians_of_windows(
-                beam=beam, simulation=simulation
+        potential_well, potential_well_oversampled, ts_oversampled = (
+            self._observe_potential_well(
+                beam=beam, simulation=simulation, ts=ts
             )
+        )
+        avg_potential_well = self._average_with_previous(potential_well)
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
+        deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
+            ts=ts,
+            potential_well=avg_potential_well,
+            reference_total_energy=beam.reference.total_energy,
+            beta=beam.reference.beta,
+            eta=eta,
+            shape=self.internal_grid_shape,
+        )
+        # averaged like `avg_potential_well`, to which it down-samples
+        if self._last_potential_well_oversampled is None:
+            avg_potential_well_oversampled = potential_well_oversampled
+        else:
+            avg_potential_well_oversampled = (
+                potential_well_oversampled
+                + self._last_potential_well_oversampled
+            ) / 2
+        self._last_potential_well_oversampled = potential_well_oversampled
+        if self.correct_to_one_turn_map:
+            self._grid_correction = self._measure_grid_correction(
+                beam=beam,
+                simulation=simulation,
+                ts=ts_oversampled,
+                potential_well=avg_potential_well_oversampled,
+                eta=eta,
+                deltaE_max=float(deltaE_grid.max()),
+            )
+        return time_grid, deltaE_grid, hamilton_2D
+
+    def _observe_potential_well(
+        self,
+        beam: BeamBaseClass,
+        simulation: Simulation,
+        ts: NumpyArray | CupyArray,
+    ) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray]:
+        """Empiric potential well on ``ts``, from an oversampled grid.
+
+        Parameters
+        ----------
+        beam
+            Beam whose particle type and intensity define the well.
+        simulation
+            Simulation providing
+            :meth:`~blond.core.simulation.simulation.Simulation.get_potential_well_empiric`.
+        ts
+            Time coordinates of the potential well, in [s].
+
+        Returns
+        -------
+        potential_well
+            Potential well at ``ts``, in [eV].
+        potential_well_oversampled
+            The same on ``ts_oversampled``, in [eV].
+        ts_oversampled
+            ``ts`` with ``_POTENTIAL_WELL_OVERSAMPLING`` points per step,
+            in [s].
+        """
         # Fine grid with dt[::_POTENTIAL_WELL_OVERSAMPLING] == ts (up to
         # rounding), so the down-sampled potential well below is evaluated
         # at ts. ts has len(ts) - 1 intervals; splitting each into
@@ -1418,7 +1242,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ts.max(),
             (len(ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
         )
-        potential_well_oversampled, factor, tilt_dt_per_dE = (
+        potential_well_oversampled, factor, _ = (
             simulation.get_potential_well_empiric(
                 dt=ts_oversampled,
                 particle_type=beam.particle_type,
@@ -1430,95 +1254,31 @@ class SemiEmpiricMatcher(MatchingRoutine):
         potential_well = (
             potential_well_oversampled[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
-        potential_well_oversampled = potential_well_oversampled * factor
-
-        self._prelast_potential_well = self._last_potential_well
-        self._last_potential_well = potential_well
-        if self._prelast_potential_well is None:
-            avg_pot_well = potential_well
-        else:
-            avg_pot_well = (potential_well + self._prelast_potential_well) / 2
-        if self.debug_helper is not None:
-            self.debug_helper.last_potential_well = avg_pot_well
-        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
-        deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
-            ts=ts,
-            potential_well=avg_pot_well,
-            reference_total_energy=beam.reference.total_energy,
-            beta=beam.reference.beta,
-            eta=eta,
-            shape=self.internal_grid_shape,
+        return (
+            potential_well,
+            potential_well_oversampled * factor,
+            ts_oversampled,
         )
-        # averaged like `avg_pot_well`, to which it down-samples
-        if self._last_potential_well_oversampled is None:
-            avg_pot_well_oversampled = potential_well_oversampled
-        else:
-            avg_pot_well_oversampled = (
-                potential_well_oversampled
-                + self._last_potential_well_oversampled
-            ) / 2
-        self._last_potential_well_oversampled = potential_well_oversampled
-        if self.correct_to_one_turn_map:
-            self._grid_correction = self._measure_grid_correction(
-                beam=beam,
-                simulation=simulation,
-                ts=ts_oversampled,
-                potential_well=avg_pot_well_oversampled,
-                eta=eta,
-                deltaE_max=float(deltaE_grid.max()),
-            )
-        return time_grid, deltaE_grid, hamilton_2D
 
-    def _get_hamiltonians_of_windows(
-        self,
-        beam: BeamBaseClass,
-        simulation: Simulation,
-    ) -> tuple[list[NumpyArray], list[NumpyArray], list[NumpyArray]]:
-        """Like `_get_hamiltonian_semianalytic`, one grid per window.
+    def _average_with_previous(
+        self, potential_well: NumpyArray | CupyArray
+    ) -> NumpyArray | CupyArray:
+        """Store ``potential_well`` and average it with the previous one.
 
-        The potential well of every window is obtained like the one of a
-        single `time_limit`, oversampled and averaged with the previous
-        call. The wells of all windows are kept concatenated, so that the
-        error, the averaging and the roll-back in `prepare_beam` work as
-        for a single `time_limit`. The offset of each window is arbitrary:
-        each window is minimum-subtracted on its own.
+        The average damps oscillations between successive iterations; the
+        last two potential wells are kept for the convergence error.
 
         Parameters
         ----------
-        beam
-            Simulation beam object.
-        simulation
-            `Simulation` context manager.
+        potential_well
+            Newly observed potential well, in [eV].
 
         Returns
         -------
-        time_grids
-            2D grid of time coordinates of each selected bucket, in [s].
-        deltaE_grids
-            2D grid of energy offsets of each selected bucket, in [eV].
-        hamiltons_2D
-            Hamiltonian of each selected bucket, in [eV].
+        avg_potential_well
+            Mean of ``potential_well`` and the previous one, or
+            ``potential_well`` itself in the first call.
         """
-        wells = []
-        for window_ts in self._windows_ts():
-            ts_oversampled = np.linspace(
-                window_ts[0],
-                window_ts[-1],
-                (len(window_ts) - 1) * _POTENTIAL_WELL_OVERSAMPLING + 1,
-            )
-            well_oversampled, factor, _ = (
-                simulation.get_potential_well_empiric(
-                    dt=ts_oversampled,
-                    particle_type=beam.particle_type,
-                    intensity=beam.intensity,
-                    until_section_index=self.until_section_index,
-                )
-            )
-            wells.append(
-                well_oversampled[::_POTENTIAL_WELL_OVERSAMPLING] * factor
-            )
-        potential_well = backend.concatenate(wells)
-
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:
@@ -1529,36 +1289,49 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ) / 2
         if self.debug_helper is not None:
             self.debug_helper.last_potential_well = avg_potential_well
-        return self._hamiltonians_of_windows(
-            beam=beam,
-            simulation=simulation,
-            avg_potential_well=avg_potential_well,
-        )
+        return avg_potential_well
 
-    def _windows_ts(self) -> list[NumpyArray]:
-        """Time coordinates of the potential well in each window, in [s].
+    def _observe_potential_wells_of_windows(
+        self,
+        beam: BeamBaseClass,
+        simulation: Simulation,
+    ) -> NumpyArray | CupyArray:
+        """Potential wells of all windows, concatenated.
+
+        Each window is observed like a single `time_limit`; its offset is
+        arbitrary. Concatenated, the error, the averaging and the roll-back
+        in `prepare_beam` work as for a single `time_limit`.
+
+        Parameters
+        ----------
+        beam
+            Beam whose particle type and intensity define the wells.
+        simulation
+            `Simulation` context manager.
 
         Returns
         -------
-        windows_ts
-            One array of ``internal_grid_shape[0]`` points per window.
+        potential_well
+            Potential wells of all windows, concatenated, in [eV].
         """
-        assert self.windows is not None
-        return [
-            np.linspace(start, stop, self.internal_grid_shape[0])
-            for start, stop in self.windows
-        ]
+        assert self._bucket_windows is not None
+        assert simulation.turn_counter.value == 0
+        return backend.concatenate(
+            [
+                self._observe_potential_well(
+                    beam=beam, simulation=simulation, ts=window_ts
+                )[0]
+                for window_ts in self._bucket_windows.windows_ts
+            ]
+        )
 
-    def _hamiltonians_of_windows(
+    def _populate_beam_from_windows(
         self,
         beam: BeamBaseClass,
         simulation: Simulation,
         avg_potential_well: NumpyArray | CupyArray,
-    ) -> tuple[list[NumpyArray], list[NumpyArray], list[NumpyArray]]:
-        """Select the bucket in each window and build its Hamiltonian.
-
-        Sets `selected_buckets`, after checking that no bucket jumped since
-        the previous call and that no two windows selected the same bucket.
+    ) -> None:
+        """Populate ``beam`` bucket by bucket, see `BucketWindows`.
 
         Parameters
         ----------
@@ -1568,177 +1341,22 @@ class SemiEmpiricMatcher(MatchingRoutine):
             `Simulation` context manager, used only for ``ring`` parameters.
         avg_potential_well
             Averaged potential wells of all windows, concatenated, in [eV].
-
-        Returns
-        -------
-        time_grids
-            2D grid of time coordinates of each selected bucket, in [s].
-        deltaE_grids
-            2D grid of energy offsets of each selected bucket, in [eV].
-        hamiltons_2D
-            Hamiltonian of each selected bucket, zero at its bottom, in [eV].
-
-        Raises
-        ------
-        SemiEmpiricMatcherError
-            See :func:`select_bucket` and :func:`check_bucket_continuity`,
-            and if two windows selected overlapping buckets.
         """
-        assert self.windows is not None
-        avg_potential_well = copy_to_cpu(avg_potential_well)
-        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
-        n_time = self.internal_grid_shape[0]
-        time_grids, deltaE_grids, hamiltons_2D = [], [], []
-        selected_buckets = []
-        for i_window, window_ts in enumerate(self._windows_ts()):
-            start, stop = self.windows[i_window]
-            well = avg_potential_well[
-                i_window * n_time : (i_window + 1) * n_time
-            ]
-            selection = select_bucket(
-                ts=window_ts,
-                potential_well=well,
-                window_centre=0.5 * (start + stop),
-                bucket_length=0.5 * (stop - start),
-            )
-            bucket_well = well[selection] - well[selection].min()
-            deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
-                ts=window_ts[selection],
-                potential_well=bucket_well,
-                reference_total_energy=beam.reference.total_energy,
-                beta=beam.reference.beta,
-                eta=eta,
-                shape=self.internal_grid_shape,
-            )
-            time_grids.append(time_grid)
-            deltaE_grids.append(deltaE_grid)
-            hamiltons_2D.append(hamilton_2D)
-            selected_buckets.append(
-                (
-                    float(window_ts[selection][0]),
-                    float(window_ts[selection][-1]),
-                )
-            )
-
-        bucket_lengths = [0.5 * (stop - start) for start, stop in self.windows]
-        if self.selected_buckets is not None:
-            check_bucket_continuity(
-                previous_centres=[
-                    0.5 * (start + stop)
-                    for start, stop in self.selected_buckets
-                ],
-                centres=[
-                    0.5 * (start + stop) for start, stop in selected_buckets
-                ],
-                bucket_lengths=bucket_lengths,
-            )
-        # neighbouring buckets share their barrier, up to one grid step
-        grid_step = max(
-            (stop - start) / (n_time - 1) for start, stop in self.windows
-        )
-        in_time_order = sorted(selected_buckets)
-        for (start, stop), (next_start, next_stop) in zip(
-            in_time_order, in_time_order[1:], strict=False
-        ):
-            if next_start < stop - grid_step:
-                raise SemiEmpiricMatcherError(
-                    "Two windows selected overlapping buckets,"
-                    f" [{start:.6e}, {stop:.6e}] and"
-                    f" [{next_start:.6e}, {next_stop:.6e}] s."
-                )
-        self.selected_buckets = selected_buckets
-        return time_grids, deltaE_grids, hamiltons_2D
-
-    def _populate_beam_from_windows(
-        self,
-        beam: BeamBaseClass,
-        time_grids: list[NumpyArray],
-        deltaE_grids: list[NumpyArray],
-        hamiltons_2D: list[NumpyArray],
-    ) -> None:
-        """Populate ``beam`` bucket by bucket, each with its share.
-
-        The density of each bucket is cut at its separatrix, the lower of
-        its two barriers, where :math:`H` equals the potential at the edges
-        of the selected bucket.
-
-        Parameters
-        ----------
-        beam
-            Simulation beam object.
-        time_grids
-            2D grid of time coordinates of each selected bucket, in [s].
-        deltaE_grids
-            2D grid of energy offsets of each selected bucket, in [eV].
-        hamiltons_2D
-            Hamiltonian of each selected bucket, zero at its bottom, in
-            [eV].
-        """
-        assert self.bucket_weights is not None
-        assert self._density_kwargs_per_window is not None
-        weights = self.bucket_weights / self.bucket_weights.sum()
-        n_per_bucket = np.floor(weights * self.n_macroparticles).astype(int)
-        # the rounding remainder goes to the heaviest bucket
-        n_per_bucket[np.argmax(weights)] += (
-            self.n_macroparticles - n_per_bucket.sum()
-        )
-
-        densities = []
-        dts, dEs = [], []
-        for i_window, (time_grid, deltaE_grid, hamilton_2D) in enumerate(
-            zip(time_grids, deltaE_grids, hamiltons_2D, strict=True)
-        ):
-            density = np.array(
-                self.hamilton_to_density_function(
-                    time_grid=time_grid,
-                    deltaE_grid=deltaE_grid,
-                    hamilton_2D=hamilton_2D,
-                    **self._density_kwargs_per_window[i_window],
-                ),
-                dtype=float,
-            )
-            # H(t, dE=0) is the potential well, its edges the separatrix
-            potential_well = hamilton_2D.min(axis=1)
-            hamilton_separatrix = min(potential_well[0], potential_well[-1])
-            outside = hamilton_2D > hamilton_separatrix
-            total = density.sum()
-            fraction_outside = (
-                float(density[outside].sum() / total) if total > 0 else 0.0
-            )
-            if fraction_outside > 0.01:  # noqa: PLR2004
-                warnings.warn(
-                    f"SemiEmpiricMatcher: {fraction_outside:.1%} of the"
-                    f" density in window {i_window} lies outside the"
-                    " separatrix and is removed.",
-                    stacklevel=2,
-                )
-            density[outside] = 0.0
-            densities.append(density)
-            if n_per_bucket[i_window] == 0:
-                continue
-            dt, dE = generate_particle_coordinates(
-                time_grid=time_grid.T,
-                deltaE_grid=deltaE_grid.T,
-                density_grid=density.T,
-                n_macroparticles=int(n_per_bucket[i_window]),
-                seed=None if self.seed is None else self.seed + i_window,
-                backend_dependent_random_numbers=(
-                    self.backend_dependent_random_numbers
-                ),
-            )
-            dts.append(dt)
-            dEs.append(dE)
-
-        if self.debug_helper is not None:
-            self.debug_helper.last_density = densities
-            self.debug_helper.last_hamilton_2D = hamiltons_2D
-
-        # fresh arrays, a copy would double the memory
-        beam.setup_beam(
-            dt=backend.concatenate(dts),
-            dE=backend.concatenate(dEs),
-            mpi_mode="all-ranks",
-            copy=False,
+        assert self._bucket_windows is not None
+        self._bucket_windows.populate_beam(
+            beam=beam,
+            potential_well=avg_potential_well,
+            eta=float(
+                simulation.ring.calc_average_eta_0(beam.reference.gamma)
+            ),
+            n_energy=self.internal_grid_shape[1],
+            hamilton_to_density_function=self.hamilton_to_density_function,
+            n_macroparticles=self.n_macroparticles,
+            seed=self.seed,
+            backend_dependent_random_numbers=(
+                self.backend_dependent_random_numbers
+            ),
+            debug_helper=self.debug_helper,
         )
 
     def _measure_grid_correction(
@@ -1862,35 +1480,28 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.hist(
                 copy_to_cpu(beam.read_partial_dt()),
                 bins=self.internal_grid_shape[0],
-                range=self.time_limit,
+                range=self._time_span,
                 density=True,
             )
             plt.xlabel("Time (s)")
             plt.ylabel("Density (arb. unit)")
 
             plt.subplot(2, 1, 2)
-            # with windows, the potential wells of all windows are
-            # concatenated, each with its own offset
-            windows_ts = (
-                [copy_to_cpu(ts)]
-                if self.windows is None
-                else self._windows_ts()
-            )
             for color, potential_well in (
                 ("C0", self._last_potential_well),
                 ("C1", self._prelast_potential_well),
             ):
                 if potential_well is None:
                     continue
-                potential_well = copy_to_cpu(potential_well)
-                bounds = np.cumsum([0] + [len(t) for t in windows_ts])
-                wells = [
-                    potential_well[start:stop]
-                    for start, stop in zip(bounds, bounds[1:], strict=False)
-                ]
-                if self.windows is not None:
-                    wells = _stitch_potential_wells(windows_ts, wells)
-                for window_ts, well in zip(windows_ts, wells, strict=True):
-                    plt.plot(window_ts, well, color=color)
+                if self._bucket_windows is None:
+                    plt.plot(
+                        copy_to_cpu(ts),
+                        copy_to_cpu(potential_well),
+                        color=color,
+                    )
+                else:
+                    self._bucket_windows.plot_potential_well(
+                        potential_well, color=color
+                    )
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")

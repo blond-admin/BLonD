@@ -234,7 +234,7 @@ In every iteration, each window is treated on its own:
    minimum-subtracted, so :math:`H = 0` at the bottom of every bucket and
    ``hamilton_max`` means the same depth everywhere. Offsets between
    windows have no meaning.
-2. :func:`select_bucket` picks the bucket to fill. Among the buckets found
+2. :func:`~blond.experimental.beam_preparation.bucket_windows.select_bucket` picks the bucket to fill. Among the buckets found
    by :class:`~blond.acc_math.empiric.potential_well.PotentialWellHelper`,
    it drops the partial ones at the window edges and the ones nested in
    another (the inner wells of e.g. a double-harmonic bucket, which is
@@ -258,7 +258,7 @@ apart from its neighbour (a shift of :math:`+0.55` buckets looks like
 :math:`-0.45`). The matcher therefore raises a
 :class:`~blond.generals.exceptions_.SemiEmpiricMatcherError` if a bucket is
 more than half a bucket away from its window centre, if it jumped between
-two iterations (:func:`check_bucket_continuity`), if two windows select
+two iterations (:func:`~blond.experimental.beam_preparation.bucket_windows.check_bucket_continuity`), if two windows select
 overlapping buckets, or if a window holds no complete bucket. Typically,
 this means that there is no static equilibrium: e.g. the beam loading needs
 more voltage than the RF can restore.
@@ -297,9 +297,14 @@ API Reference
 
 .. autofunction:: get_grid_correction_from_one_turn_map
 
-.. autofunction:: select_bucket
+.. autofunction:: blond.experimental.beam_preparation.bucket_windows.select_bucket
 
-.. autofunction:: check_bucket_continuity
+.. autofunction:: blond.experimental.beam_preparation.bucket_windows.check_bucket_continuity
+
+.. autoclass:: blond.experimental.beam_preparation.bucket_windows.BucketWindows
+   :members:
+
+.. autoclass:: DebuggingEndpoints
 
 .. autoclass:: SemiEmpiricMatcher
    :members:

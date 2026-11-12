@@ -25,6 +25,7 @@ from blond.handle_results.observables import RFStationPhaseObservation
 from blond.physics.drifts import DriftSimple
 from blond.physics.impedances.base import WakeField
 from blond.physics.impedances.solvers import (
+    PeriodicFreqSolver,
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
@@ -263,3 +264,54 @@ class SimulationTwoRFStationsWithWake:
 
         self.simulation = simulation
         self.beam1 = beam1
+
+
+def ring_with_resonator_near_rf(
+    n_protons: float,
+) -> tuple[Simulation, Beam, float]:
+    """
+    Small ring with a resonator close to the RF frequency.
+
+    The h=16 ring of blond/BLonD#407 (PS-like, 14 GeV/c, 20 kV), with a
+    resonator at 7.6 MHz, close to ``h * f_rev`` = 7.617 MHz, so that beam
+    loading shifts the buckets strongly. The profile covers one turn,
+    starting at zero, so bucket ``k`` is centred at ``(k + 0.5) * t_rf``.
+
+    Parameters
+    ----------
+    n_protons
+        Beam intensity, in number of protons.
+
+    Returns
+    -------
+    simulation
+        The simulation, without a matched beam.
+    beam
+        Empty beam of protons with ``n_protons``.
+    t_rf
+        RF period, in [s].
+    """
+    harmonic = 16
+    circumference = 2 * np.pi * 100
+    ring = Ring(circumference=circumference)
+    cycle = ConstantMagneticCycle(value=14e9, reference_particle=proton)
+    t_rev = cycle.get_t_rev_init(circumference, proton)
+    profile = StaticProfile(cut_left=0, cut_right=t_rev, n_bins=64 * harmonic)
+    ring.add_elements(
+        [
+            SingleHarmonicRFStation(harmonic=harmonic, voltage=20e3, phi_rf=0),
+            profile,
+            WakeField(
+                sources=(Resonators(6e3, 7.6e6, 10),),
+                solver=PeriodicFreqSolver(t_periodicity=t_rev),
+                profile=profile,
+            ),
+            DriftSimple(
+                orbit_length=circumference,
+                momentum_compaction_factor=momentum_compaction_factor(6.1),
+            ),
+        ]
+    )
+    simulation = Simulation(ring=ring, magnetic_cycle=cycle)
+    beam = Beam(intensity=n_protons, particle_type=proton)
+    return simulation, beam, t_rev / harmonic

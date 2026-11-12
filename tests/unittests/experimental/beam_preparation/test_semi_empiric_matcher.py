@@ -13,12 +13,9 @@ from blond import (
     BeamStatisticsOncePerTurn,
     ConstantMagneticCycle,
     DriftSimple,
-    PeriodicFreqSolver,
-    Resonators,
     Ring,
     Simulation,
     SingleHarmonicRFStation,
-    StaticProfile,
     WakeField,
     backend,
     momentum_compaction_factor,
@@ -28,12 +25,9 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     _POTENTIAL_WELL_OVERSAMPLING,
     SemiEmpiricMatcher,
     _curvature_at_minimum,
-    _stitch_potential_wells,
-    check_bucket_continuity,
     get_grid_correction_from_one_turn_map,
     get_hamilton_semi_analytic,
     get_one_turn_map_empiric,
-    select_bucket,
 )
 from blond.experimental.simulation.warmup import warmup
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
@@ -42,6 +36,7 @@ from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import (
     SimulationTwoRFStations,
     SimulationTwoRFStationsWithWake,
+    ring_with_resonator_near_rf,
 )
 
 
@@ -965,176 +960,7 @@ class TestCallables(BLonDTestCase):
         )
 
 
-def _synthetic_well(x, shift=0.0, slope=0.0, ratio=0.0, n=2, psi=0.0):
-    """Potential well of single/double harmonic RF, ``x`` in RF periods.
-
-    The bucket centre is at ``x = 0.5`` without ``shift``; ``slope`` tilts
-    the well like acceleration (:math:`\\sin\\phi_s`), ``ratio`` and ``n``
-    add a higher harmonic: ``psi = 0`` lengthens (flat bottom),
-    ``psi = pi`` shortens the bunch.
-    """
-    phase = 2 * np.pi * (x - shift)
-    well = np.cos(phase) + ratio / n * np.cos(n * phase + psi) + slope * phase
-    return well - well.min()
-
-
-class TestSelectBucket(BLonDTestCase):
-    """`select_bucket` in a window of +- one RF period around the centre."""
-
-    x = np.linspace(-0.5, 1.5, 1023)  # in RF periods, nominal centre 0.5
-
-    def _select(self, **well_kwargs):
-        selected = select_bucket(
-            ts=self.x,
-            potential_well=_synthetic_well(self.x, **well_kwargs),
-            window_centre=0.5,
-            bucket_length=1.0,
-        )
-        return self.x[selected][0], self.x[selected][-1]
-
-    def assertBucket(self, bucket, start, stop):  # noqa: N802
-        np.testing.assert_allclose(bucket, (start, stop), atol=0.01)
-
-    def test_single_rf(self):
-        self.assertBucket(self._select(), 0.0, 1.0)
-
-    def test_follows_phase_shift(self):
-        for shift in (-0.3, 0.17, 0.45):
-            with self.subTest(shift=shift):
-                self.assertBucket(
-                    self._select(shift=shift), shift, 1.0 + shift
-                )
-
-    def test_accelerating_bucket_is_bounded_by_lower_barrier(self):
-        # separatrix through the unstable fixed point at x = 0.083, closing
-        # at the same height at x = 0.613
-        self.assertBucket(self._select(slope=0.5), 0.083, 0.613)
-
-    def test_two_complete_buckets_takes_nearest_to_centre(self):
-        # small accelerating buckets: the window holds two complete ones,
-        # and neither contains the nominal centre
-        self.assertBucket(self._select(slope=0.9), 0.18, 0.39)
-
-    def test_double_well_is_filled_as_one_bucket(self):
-        # bunch lengthening mode, ratio 1: two minima inside the bucket
-        self.assertBucket(self._select(ratio=1.0, psi=0.0), 0.0, 1.0)
-
-    def test_split_barrier_keeps_central_bucket(self):
-        # bunch shortening mode, ratio 1: each barrier splits in two, with
-        # a small bucket in between that belongs to neither neighbour
-        self.assertBucket(self._select(ratio=1.0, psi=np.pi), 0.17, 0.83)
-
-    def test_no_bucket_raises(self):
-        with self.assertRaisesRegex(
-            SemiEmpiricMatcherError, "No complete bucket"
-        ):
-            self._select(slope=1.2)
-
-    def test_bucket_further_than_half_a_bucket_raises(self):
-        # the only complete bucket, [0.18, 0.39], is 0.6 away from the
-        # nominal centre
-        x = np.linspace(0.0, 1.0, 511)
-        well = _synthetic_well(x, slope=0.9)
-        with self.assertRaisesRegex(SemiEmpiricMatcherError, "half a bucket"):
-            select_bucket(
-                ts=x, potential_well=well, window_centre=0.9, bucket_length=1.0
-            )
-
-
-class TestStitchPotentialWells(BLonDTestCase):
-    """Undo the arbitrary offset of each window, for plotting."""
-
-    @staticmethod
-    def _windowed(windows, n_points=201):
-        windows_ts = [
-            np.linspace(start, stop, n_points) for start, stop in windows
-        ]
-        wells = [_synthetic_well(ts, slope=0.3) for ts in windows_ts]
-        return windows_ts, wells
-
-    def test_overlapping_windows_give_one_continuous_well(self):
-        # unordered on purpose
-        windows_ts, wells = self._windowed(
-            [(1.5, 3.5), (-0.5, 1.5), (0.5, 2.5)]
-        )
-
-        stitched = _stitch_potential_wells(windows_ts, wells)
-
-        all_ts = np.concatenate(windows_ts)
-        reference = _synthetic_well(all_ts, slope=0.3)  # one integral
-        reference -= reference.min()
-        np.testing.assert_allclose(
-            np.concatenate(stitched), reference, atol=1e-12
-        )
-
-    def test_separate_windows_keep_their_own_minimum(self):
-        windows_ts, wells = self._windowed([(-0.5, 1.5), (4.5, 6.5)])
-
-        stitched = _stitch_potential_wells(windows_ts, wells)
-
-        for well, stitched_well in zip(wells, stitched, strict=True):
-            np.testing.assert_allclose(stitched_well, well, atol=1e-12)
-
-
-class TestCheckBucketContinuity(BLonDTestCase):
-    def test_drift_is_accepted(self):
-        check_bucket_continuity(
-            previous_centres=[0.5, 1.5],
-            centres=[0.3, 1.8],
-            bucket_lengths=[1.0, 1.0],
-        )
-
-    def test_jump_raises(self):
-        # +0.55 is indistinguishable from -0.45 in a single snapshot, only
-        # the previous iteration tells that the bucket left its window
-        with self.assertRaisesRegex(
-            SemiEmpiricMatcherError, "bucket 1 jumped"
-        ):
-            check_bucket_continuity(
-                previous_centres=[0.5, 1.5],
-                centres=[0.5, 0.95],
-                bucket_lengths=[1.0, 1.0],
-            )
-
-
-_RING_HARMONIC = 16
-_RING_CIRCUMFERENCE = 2 * np.pi * 100
 _N_PROTONS_ISSUE_407 = 4 * 700e10  # blond/BLonD#407
-
-
-def _ring_with_resonator(n_protons):
-    """h=16 ring of blond/BLonD#407, with a resonator close to h*f_rev.
-
-    Returns
-    -------
-    simulation, beam, t_rf
-    """
-    ring = Ring(circumference=_RING_CIRCUMFERENCE)
-    cycle = ConstantMagneticCycle(value=14e9, reference_particle=proton)
-    t_rev = cycle.get_t_rev_init(_RING_CIRCUMFERENCE, proton)
-    profile = StaticProfile(
-        cut_left=0, cut_right=t_rev, n_bins=64 * _RING_HARMONIC
-    )
-    ring.add_elements(
-        [
-            SingleHarmonicRFStation(
-                harmonic=_RING_HARMONIC, voltage=20e3, phi_rf=0
-            ),
-            profile,
-            WakeField(
-                sources=(Resonators(6e3, 7.6e6, 10),),
-                solver=PeriodicFreqSolver(t_periodicity=t_rev),
-                profile=profile,
-            ),
-            DriftSimple(
-                orbit_length=_RING_CIRCUMFERENCE,
-                momentum_compaction_factor=momentum_compaction_factor(6.1),
-            ),
-        ]
-    )
-    simulation = Simulation(ring=ring, magnetic_cycle=cycle)
-    beam = Beam(intensity=n_protons, particle_type=proton)
-    return simulation, beam, t_rev / _RING_HARMONIC
 
 
 def _windows(buckets, t_rf):
@@ -1164,7 +990,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
         return SemiEmpiricMatcher(time_limit=time_limit, **kwargs)
 
     def test_particles_only_in_selected_buckets_with_weights(self):
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         matcher = self._matcher(
             _windows([3, 7], t_rf), bucket_weights=[1.0, 3.0]
         )
@@ -1181,12 +1007,14 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
     def test_one_window_equals_one_bucket_time_limit(self):
         # Without intensity, a window around a bucket gives the bunch of a
         # `time_limit` that spans exactly that bucket.
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         simulation.prepare_beam(
             beam=beam,
             preparation_routine=self._matcher(_windows([5], t_rf)),
         )
-        simulation_ref, beam_ref, _ = _ring_with_resonator(n_protons=1e10)
+        simulation_ref, beam_ref, _ = ring_with_resonator_near_rf(
+            n_protons=1e10
+        )
         simulation_ref.prepare_beam(
             beam=beam_ref,
             preparation_routine=self._matcher((5 * t_rf, 6 * t_rf)),
@@ -1204,7 +1032,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
             )
 
     def test_density_kwargs_per_window(self):
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         matcher = self._matcher(
             _windows([3, 7], t_rf),
             hamilton_to_density_kwargs=[
@@ -1220,7 +1048,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
         self.assertLess(dt[bucket == 3].std(), 0.7 * dt[bucket == 7].std())
 
     def test_density_outside_separatrix_is_cut(self):
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         matcher = self._matcher(
             _windows([5], t_rf),
             hamilton_to_density_kwargs=dict(
@@ -1241,7 +1069,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
     def test_beam_loading_shifts_bunches_along_train(self):
         # Transient beam loading: each bunch of the train sits further
         # behind its nominal bucket centre than the one before.
-        simulation, beam, t_rf = _ring_with_resonator(
+        simulation, beam, t_rf = ring_with_resonator_near_rf(
             n_protons=0.5 * _N_PROTONS_ISSUE_407
         )
         buckets = [4, 5, 6, 7]
@@ -1260,7 +1088,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
     def test_no_static_equilibrium_raises(self):
         # blond/BLonD#407: the beam loading exceeds what the RF can restore,
         # the buckets drift away instead of converging
-        simulation, beam, t_rf = _ring_with_resonator(
+        simulation, beam, t_rf = ring_with_resonator_near_rf(
             n_protons=_N_PROTONS_ISSUE_407
         )
         matcher = self._matcher(
@@ -1271,7 +1099,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
             simulation.prepare_beam(beam=beam, preparation_routine=matcher)
 
     def test_overlapping_selection_raises(self):
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         windows = _windows([5], t_rf) * 2
 
         with self.assertRaisesRegex(SemiEmpiricMatcherError, "overlapping"):
@@ -1280,7 +1108,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
             )
 
     def test_animation_plots_each_window_separately(self):
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         windows = _windows([3, 7], t_rf)
         matcher = self._matcher(windows, animate=True, animate_pause_time=0)
         plt.close("SemiEmpiricMatcher")
@@ -1301,7 +1129,7 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
     def test_animation_stitches_neighbouring_windows(self):
         # Windows of neighbouring buckets overlap by one bucket; there, the
         # plotted wells coincide and have one colour, like a single well.
-        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
         matcher = self._matcher(
             _windows([3, 4], t_rf), animate=True, animate_pause_time=0
         )
@@ -1326,6 +1154,65 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
         )
         plt.close("SemiEmpiricMatcher")
 
+    def test_zero_weight_bucket_stays_empty(self):
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
+        matcher = self._matcher(
+            _windows([3, 7], t_rf), bucket_weights=[0.0, 1.0]
+        )
+
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+        buckets = np.unique(_bucket_of(beam.read_partial_dt(), t_rf))
+        np.testing.assert_array_equal(buckets, [7])
+        # the empty bucket is selected anyway
+        self.assertEqual(len(matcher.selected_buckets), 2)
+
+    def test_same_seed_gives_same_beam(self):
+        beams = []
+        for _ in range(2):
+            simulation, beam, t_rf = ring_with_resonator_near_rf(
+                n_protons=1e10
+            )
+            simulation.prepare_beam(
+                beam=beam,
+                preparation_routine=self._matcher(_windows([3, 7], t_rf)),
+            )
+            beams.append(copy_to_cpu(beam.read_partial_dt()))
+        np.testing.assert_array_equal(beams[0], beams[1])
+
+    def test_stall_rolls_back_with_windows(self):
+        simulation, beam, t_rf = ring_with_resonator_near_rf(
+            n_protons=0.25 * _N_PROTONS_ISSUE_407
+        )
+        matcher = self._matcher(
+            _windows([4, 5], t_rf),
+            maxiter_intensity_effects=6,
+            tolerance_potential_well=1e-15,
+            stagnation_patience=0,
+        )
+        rematch = SemiEmpiricMatcher._rematch_beam_to_potential_well
+
+        with mock.patch.object(
+            SemiEmpiricMatcher,
+            "_rematch_beam_to_potential_well",
+            autospec=True,
+            side_effect=rematch,
+        ) as rematch_spy:
+            simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+        rematch_spy.assert_called_once()
+        self.assertEqual(len(copy_to_cpu(beam.read_partial_dt())), 20_000)
+        self.assertEqual(len(matcher.selected_buckets), 2)
+
+    def test_debug_keeps_one_density_per_window(self):
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
+        matcher = self._matcher(_windows([3, 7], t_rf), debug=True)
+
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+        self.assertEqual(len(matcher.debug_helper.last_density), 2)
+        self.assertEqual(len(matcher.debug_helper.last_hamilton_2D), 2)
+
     def test_invalid_arguments_raise(self):
         windows = [(0.0, 2.0), (1.0, 3.0)]
         with self.assertRaises(NotImplementedError):
@@ -1334,6 +1221,8 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
             self._matcher(windows, bucket_weights=[1.0])
         with self.assertRaises(ValueError):
             self._matcher(windows, bucket_weights=[1.0, -1.0])
+        with self.assertRaises(ValueError):
+            self._matcher(windows, bucket_weights=[0.0, 0.0])
         with self.assertRaises(ValueError):
             self._matcher(
                 windows,
@@ -1352,6 +1241,17 @@ class TestSemiEmpiricMatcherNotConverged(BLonDTestCase):
             TestSemiEmpiricMatcherWarmup._run_matching(
                 self, maxiter_intensity_effects=4, stagnation_patience=100
             )
+
+    def test_warning_before_error_is_computed(self):
+        # The error needs two previous potential wells: with two
+        # iterations, there is none to report.
+        with self.assertWarnsRegex(UserWarning, "did not converge") as caught:
+            TestSemiEmpiricMatcherWarmup._run_matching(
+                self, maxiter_intensity_effects=2
+            )
+        message = str(caught.warning)
+        self.assertIn("before the convergence error", message)
+        self.assertNotIn("nan", message)
 
     def test_no_warning_if_stall_ends_iteration(self):
         with warnings.catch_warnings(record=True) as caught:
