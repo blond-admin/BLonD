@@ -496,6 +496,62 @@ def check_bucket_continuity(
             )
 
 
+def _stitch_potential_wells(
+    windows_ts: Sequence[NumpyArray],
+    wells: Sequence[NumpyArray],
+) -> list[NumpyArray]:
+    """Shift the potential wells of overlapping windows onto one another.
+
+    Each window is integrated and minimum-subtracted on its own, so its
+    offset is arbitrary. Where two windows overlap, they integrate the same
+    kicks and differ by a constant only: shifting each window by its mean
+    difference to the windows placed before it restores one continuous
+    well. Windows without overlap stay separate. Each connected group is
+    finally minimum-subtracted again. For plotting only; the matching does
+    not depend on these offsets.
+
+    Parameters
+    ----------
+    windows_ts
+        Time coordinates of each window, increasing, in [s].
+    wells
+        Potential well of each window, on the host, in [eV].
+
+    Returns
+    -------
+    stitched
+        The shifted wells, in the order of ``wells``.
+    """
+    order = np.argsort([ts[0] for ts in windows_ts])
+    stitched: list[NumpyArray | None] = [None] * len(wells)
+    group_of = [-1] * len(wells)
+    for i in order:
+        ts, well = windows_ts[i], wells[i]
+        differences = []
+        for j in order:
+            if stitched[j] is None:
+                continue
+            overlap = (ts >= windows_ts[j][0]) & (ts <= windows_ts[j][-1])
+            if np.count_nonzero(overlap) < 2:  # noqa: PLR2004
+                continue
+            differences.append(
+                np.interp(ts[overlap], windows_ts[j], stitched[j])
+                - well[overlap]
+            )
+            group_of[i] = group_of[j]
+        if differences:
+            stitched[i] = well + np.mean(np.concatenate(differences))
+        else:
+            stitched[i] = np.asarray(well, dtype=float)
+            group_of[i] = i
+    for group in set(group_of):
+        members = [i for i in range(len(wells)) if group_of[i] == group]
+        minimum = min(stitched[i].min() for i in members)
+        for i in members:
+            stitched[i] = stitched[i] - minimum
+    return stitched  # type: ignore[return-value]
+
+
 class DebuggingEndpoints:
     """
     Helper to expose variables when debugging `SemiEmpiricMatcher`.
@@ -1798,20 +1854,27 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
             plt.subplot(2, 1, 2)
             # with windows, the potential wells of all windows are
-            # concatenated
-            windows_ts = [ts] if self.windows is None else self._windows_ts()
-            for potential_well in (
-                self._last_potential_well,
-                self._prelast_potential_well,
+            # concatenated, each with its own offset
+            windows_ts = (
+                [copy_to_cpu(ts)]
+                if self.windows is None
+                else self._windows_ts()
+            )
+            for color, potential_well in (
+                ("C0", self._last_potential_well),
+                ("C1", self._prelast_potential_well),
             ):
                 if potential_well is None:
                     continue
-                i_start = 0
-                for window_ts in windows_ts:
-                    plt.plot(
-                        window_ts,
-                        potential_well[i_start : i_start + len(window_ts)],
-                    )
-                    i_start += len(window_ts)
+                potential_well = copy_to_cpu(potential_well)
+                bounds = np.cumsum([0] + [len(t) for t in windows_ts])
+                wells = [
+                    potential_well[start:stop]
+                    for start, stop in zip(bounds, bounds[1:], strict=False)
+                ]
+                if self.windows is not None:
+                    wells = _stitch_potential_wells(windows_ts, wells)
+                for window_ts, well in zip(windows_ts, wells, strict=True):
+                    plt.plot(window_ts, well, color=color)
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")

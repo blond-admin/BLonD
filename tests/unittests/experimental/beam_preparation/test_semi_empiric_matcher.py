@@ -28,6 +28,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
     _POTENTIAL_WELL_OVERSAMPLING,
     SemiEmpiricMatcher,
     _curvature_at_minimum,
+    _stitch_potential_wells,
     check_bucket_continuity,
     get_grid_correction_from_one_turn_map,
     get_hamilton_semi_analytic,
@@ -1040,6 +1041,41 @@ class TestSelectBucket(BLonDTestCase):
             )
 
 
+class TestStitchPotentialWells(BLonDTestCase):
+    """Undo the arbitrary offset of each window, for plotting."""
+
+    @staticmethod
+    def _windowed(windows, n_points=201):
+        windows_ts = [
+            np.linspace(start, stop, n_points) for start, stop in windows
+        ]
+        wells = [_synthetic_well(ts, slope=0.3) for ts in windows_ts]
+        return windows_ts, wells
+
+    def test_overlapping_windows_give_one_continuous_well(self):
+        # unordered on purpose
+        windows_ts, wells = self._windowed(
+            [(1.5, 3.5), (-0.5, 1.5), (0.5, 2.5)]
+        )
+
+        stitched = _stitch_potential_wells(windows_ts, wells)
+
+        all_ts = np.concatenate(windows_ts)
+        reference = _synthetic_well(all_ts, slope=0.3)  # one integral
+        reference -= reference.min()
+        np.testing.assert_allclose(
+            np.concatenate(stitched), reference, atol=1e-12
+        )
+
+    def test_separate_windows_keep_their_own_minimum(self):
+        windows_ts, wells = self._windowed([(-0.5, 1.5), (4.5, 6.5)])
+
+        stitched = _stitch_potential_wells(windows_ts, wells)
+
+        for well, stitched_well in zip(wells, stitched, strict=True):
+            np.testing.assert_allclose(stitched_well, well, atol=1e-12)
+
+
 class TestCheckBucketContinuity(BLonDTestCase):
     def test_drift_is_accepted(self):
         check_bucket_continuity(
@@ -1260,6 +1296,34 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
             np.testing.assert_allclose(
                 line.get_xdata()[[0, -1]], (start, stop), rtol=1e-12
             )
+        plt.close("SemiEmpiricMatcher")
+
+    def test_animation_stitches_neighbouring_windows(self):
+        # Windows of neighbouring buckets overlap by one bucket; there, the
+        # plotted wells coincide and have one colour, like a single well.
+        simulation, beam, t_rf = _ring_with_resonator(n_protons=1e10)
+        matcher = self._matcher(
+            _windows([3, 4], t_rf), animate=True, animate_pause_time=0
+        )
+        plt.close("SemiEmpiricMatcher")
+
+        with mock.patch("matplotlib.pyplot.pause"):
+            simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+
+        _, potential_well_axes = plt.figure("SemiEmpiricMatcher").axes
+        first, second = potential_well_axes.lines
+        self.assertEqual(first.get_color(), second.get_color())
+        overlap = second.get_xdata() <= first.get_xdata()[-1]
+        depth = np.ptp(first.get_ydata())
+        np.testing.assert_allclose(
+            np.interp(
+                second.get_xdata()[overlap],
+                first.get_xdata(),
+                first.get_ydata(),
+            ),
+            second.get_ydata()[overlap],
+            atol=1e-3 * depth,
+        )
         plt.close("SemiEmpiricMatcher")
 
     def test_invalid_arguments_raise(self):
