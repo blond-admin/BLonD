@@ -11,9 +11,11 @@ from unittest import mock
 
 import numpy as np
 
+from blond.beam_preparation import filamentation_matcher
 from blond.beam_preparation.filamentation_matcher import (
     FilamentationMatcher,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import ExampleSimulation01
 
@@ -61,6 +63,36 @@ class TestFilamentationMatcher(BLonDTestCase):
         self.assertTrue(np.all(dt <= self.time_limit[1]))
         self.assertTrue(np.all(dE >= self.energy_limit[0]))
         self.assertTrue(np.all(dE <= self.energy_limit[1]))
+
+    def test_ranks_split_the_grid_instead_of_repeating_it(self):
+        matcher = FilamentationMatcher(
+            time_limit=self.time_limit,
+            energy_limit=self.energy_limit,
+            n_macroparticles=100,
+            n_iter=0,
+            animate=False,
+        )
+        matcher.prepare_beam(simulation=self.sim, beam=self.beam)
+        serial_dt = copy_to_cpu(self.beam.read_partial_dt())
+        serial_dE = copy_to_cpu(self.beam.read_partial_dE())
+
+        dt_parts, dE_parts = [], []
+        n_ranks = 3  # 100 particles do not split evenly
+        for rank in range(n_ranks):
+            with (
+                mock.patch.object(
+                    filamentation_matcher, "MPI_RANK", rank, create=True
+                ),
+                mock.patch.object(
+                    filamentation_matcher, "MPI_SIZE", n_ranks, create=True
+                ),
+            ):
+                matcher.prepare_beam(simulation=self.sim, beam=self.beam)
+            dt_parts.append(copy_to_cpu(self.beam.read_partial_dt()))
+            dE_parts.append(copy_to_cpu(self.beam.read_partial_dE()))
+
+        np.testing.assert_array_equal(np.concatenate(dt_parts), serial_dt)
+        np.testing.assert_array_equal(np.concatenate(dE_parts), serial_dE)
 
     def test_prepare_beam_with_purge(self):
         matcher = FilamentationMatcher(

@@ -18,6 +18,7 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.backends.mpi_distributed.helpers import MPI_RANK, MPI_SIZE
 from blond.core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -226,12 +227,14 @@ class FilamentationMatcher(MatchingRoutine):
             self.energy_limit[0], self.energy_limit[1], n, dtype=backend.float
         )
 
-        dt_grid, dE_grid = np.meshgrid(dt_vals, dE_vals)
+        # Each rank builds only its share of the n x n grid, in the order
+        # of ``np.meshgrid(dt_vals, dE_vals)`` raveled
+        start, stop = _local_share(n * n)
+        flat_index = backend.arange(start, stop)
+        dt_init = dt_vals[flat_index % n]
+        dE_init = dE_vals[flat_index // n]
 
-        dt_init = dt_grid.ravel()
-        dE_init = dE_grid.ravel()
-
-        beam.setup_beam(dt=dt_init, dE=dE_init)
+        beam.setup_beam(dt=dt_init, dE=dE_init, mpi_mode="all-ranks")
 
         if self.animate:
             plt.ion()
@@ -301,3 +304,28 @@ class FilamentationMatcher(MatchingRoutine):
                 purge_flagged_macroparticles=True,
             ).track(beam)
             beam.intensity = intensity_before
+
+
+def _local_share(n_total: int) -> tuple[int, int]:
+    """
+    Index range of this MPI rank's share of `n_total` items.
+
+    Splits like `np.array_split`, so the shares of all ranks, in rank
+    order, cover ``range(n_total)`` exactly once.
+
+    Parameters
+    ----------
+    n_total
+        Number of items over all ranks.
+
+    Returns
+    -------
+    start
+        First index of this rank's share.
+    stop
+        One past the last index of this rank's share.
+    """
+    base, remainder = divmod(n_total, MPI_SIZE)
+    start = MPI_RANK * base + min(MPI_RANK, remainder)
+    stop = start + base + (remainder > MPI_RANK)
+    return start, stop
