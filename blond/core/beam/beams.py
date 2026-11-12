@@ -21,6 +21,7 @@ from blond.core.backends.flags import BeamFlags
 from blond.core.backends.mpi_distributed.callables import rms_emittance
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
+    scatter_from_root,
 )
 from blond.core.backends.mpi_distributed.helpers import (
     distributed_arange,
@@ -157,29 +158,20 @@ class Beam(BeamBaseClass):
         """
         if mpi_mode not in ("root-distributes", "all-ranks"):
             raise NameError(f"Unknown {mpi_mode=}")
-        self._dE: DistributedArray = DistributedArray(dE)
-        self._dt: DistributedArray = DistributedArray(dt)
-        self._flags: DistributedArray = DistributedArray(flags)
         if mpi_mode == "root-distributes":
             # before moving to the backend, so no GPU holds the whole beam
-            self._dE.mpi_scatter()
-            self._dt.mpi_scatter()
-            self._flags.mpi_scatter()
+            dE = scatter_from_root(dE)
+            dt = scatter_from_root(dt)
+            flags = scatter_from_root(flags)
 
-        self._dE.array_local = backend.array(
-            self._dE.array_local, dtype=backend.float
-        )
-        self._dt.array_local = backend.array(
-            self._dt.array_local, dtype=backend.float
-        )
-        if self._flags.array_local is None:
-            self._flags.array_local = np.int32(
-                BeamFlags.ACTIVE.value
-            ) * backend.ones(self._dt.local_size, dtype=np.int32)
+        self._dE = DistributedArray(backend.array(dE, dtype=backend.float))
+        self._dt = DistributedArray(backend.array(dt, dtype=backend.float))
+        if flags is None:
+            flags = np.int32(BeamFlags.ACTIVE.value) * backend.ones(
+                self._dt.local_size, dtype=np.int32
+            )
         # intentionally 32 bit, this should be enough for all thinkable flags
-        self._flags.array_local = backend.array(
-            self._flags.array_local, dtype=np.int32
-        )
+        self._flags = DistributedArray(backend.array(flags, dtype=np.int32))
         # global checks, so that a bad input fails on all ranks together
         n_dt, n_dE, n_flags = (
             array.global_size for array in (self._dt, self._dE, self._flags)

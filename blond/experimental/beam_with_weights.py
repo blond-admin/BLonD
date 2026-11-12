@@ -14,8 +14,10 @@ import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
+from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
+    scatter_from_root,
 )
 from blond.core.beam.beams import Beam
 from blond.core.beam.particle_types import ParticleType
@@ -69,24 +71,21 @@ class WeightenedBeam(Beam):
               large datasets (e.g., with `np.loadtxt(...)`) and distributing parts of the data
               across ranks.
 
-            - "all-ranks": Each rank independently generates and stores a full copy of the data.
-              While this mode uses more memory, it can be simpler to implement in scenarios where
-              each rank needs to work with its own independent data (e.g., generating separate
-              random distributions with `np.random.randn()`).
+            - "all-ranks": Each rank passes only its own macro-particles, its chunk
+              of the beam; the beam is the union of all chunks. Use this when each rank
+              can generate its share independently (e.g., random distributions drawn
+              with a different random stream on each rank).
         weights
             Weight per macro-particle
         """
-        assert weights is not None
-        assert len(dt) == len(weights)
-        super().setup_beam(dt=dt, dE=dE, flags=flags)
-        self._weights = DistributedArray(weights.astype(np.int32))
-
+        super().setup_beam(dt=dt, dE=dE, flags=flags, mpi_mode=mpi_mode)
         if mpi_mode == "root-distributes":
-            self._weights.mpi_scatter()
-        elif mpi_mode == "all-ranks":
-            pass
-        else:
-            raise NameError(f"Unknown {mpi_mode=}")
+            weights = scatter_from_root(weights)
+        assert weights is not None
+        self._weights = DistributedArray(
+            backend.array(weights, dtype=np.int32)
+        )
+        assert self._weights.local_size == self._dt.local_size
 
     @staticmethod
     def from_beam(beam: Beam):

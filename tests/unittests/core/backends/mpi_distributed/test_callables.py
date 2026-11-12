@@ -12,6 +12,7 @@ from blond.core.backends.mpi_distributed.callables import (
 )
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
+    scatter_from_root,
 )
 from blond.core.backends.mpi_distributed.helpers import mpi_is_distributed
 from blond.testing.backend_testing import BLonDTestCase, skip_if_no_cupy
@@ -77,8 +78,8 @@ class TestCallables(BLonDTestCase):
             np.average(centered_dt**2) * np.average(centered_dE**2)
             - (np.average(centered_dt * centered_dE)) ** 2
         )
-        dt.mpi_scatter()
-        dE.mpi_scatter()
+        dt = DistributedArray(scatter_from_root(dt.array_local))
+        dE = DistributedArray(scatter_from_root(dE.array_local))
         self.assertLess(dt.local_size, 512)
         rms = rms_emittance(dt=dt, dE=dE)
         self.assertAlmostEqual(rms_expected, rms)
@@ -104,8 +105,8 @@ class TestCallables(BLonDTestCase):
             cp.average(centered_dt**2) * cp.average(centered_dE**2)
             - (cp.average(centered_dt * centered_dE)) ** 2
         )
-        dt.mpi_scatter()
-        dE.mpi_scatter()
+        dt = DistributedArray(scatter_from_root(dt.array_local))
+        dE = DistributedArray(scatter_from_root(dE.array_local))
         self.assertLess(dt.local_size, 512)
         rms = rms_emittance(dt=dt, dE=dE)
         self.assertAlmostEqual(float(copy_to_cpu(rms_expected)), rms)
@@ -126,13 +127,11 @@ class _RmsEmittanceCancellationCases:
 
     def _rms_emittance_of(self, dt: np.ndarray, dE: np.ndarray) -> float:
         dt_distributed = DistributedArray(
-            backend.array(dt, dtype=backend.float)
+            scatter_from_root(backend.array(dt, dtype=backend.float))
         )
         dE_distributed = DistributedArray(
-            backend.array(dE, dtype=backend.float)
+            scatter_from_root(backend.array(dE, dtype=backend.float))
         )
-        dt_distributed.mpi_scatter()
-        dE_distributed.mpi_scatter()
         return rms_emittance(dt=dt_distributed, dE=dE_distributed)
 
     def test_rms_emittance_large_dt_offset(self):
@@ -385,18 +384,20 @@ class TestCallablesCollectives(BLonDTestCase):
 
         with identical_mpi_ranks(n_ranks=2) as fake_mpi:
             distributed = [DistributedArray(backend.array(a)) for a in arrays]
+            # creating reduces the sizes, outside of `function`
+            fake_mpi.COMM_WORLD.reset_mock()
             result = function(*distributed)
         comm = fake_mpi.COMM_WORLD
         self.assertEqual(comm.allreduce.call_count, 0, "pickled collective")
         return result, comm.Allreduce.call_count
 
-    def test_rms_emittance_in_three_collectives(self):
+    def test_rms_emittance_in_two_collectives(self):
         rng = np.random.default_rng(1)
         dt = rng.normal(scale=1e-9, size=100)
         dE = 1e8 * dt + rng.normal(scale=1e6, size=100)
         rms, n_collectives = self._run_on_two_ranks(rms_emittance, dt, dE)
-        # size, the two means, the three second moments
-        self.assertEqual(n_collectives, 3)
+        # the two means, the three second moments; size known already
+        self.assertEqual(n_collectives, 2)
         expected = _two_pass_rms_emittance(dt, dE)
         self.assertAlmostEqual(rms, expected, delta=1e-12 * expected)
 

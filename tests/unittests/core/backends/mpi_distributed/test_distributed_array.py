@@ -1,5 +1,6 @@
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -9,6 +10,7 @@ from blond import backend, copy_to_cpu
 from blond.core.backends.mpi_distributed.distributed_array import (
     DistributedArray,
     concatenate,
+    scatter_from_root,
 )
 from blond.core.backends.mpi_distributed.helpers import (
     mpi_barrier,
@@ -31,17 +33,11 @@ class TestDistributedArray(BLonDTestCase):
             rng.normal(loc=0, scale=1.0, size=128), backend.float
         )
         self.distributed_array = DistributedArray(
-            backend.array(self.array.copy())
+            scatter_from_root(backend.array(self.array.copy()))
         )
 
     def test_local_size(self):
-        mpi_active = mpi_is_distributed()
-
-        self.assertEqual(self.distributed_array.local_size, 128)
-        if mpi_active:
-            self.distributed_array.mpi_scatter()
-
-        if mpi_active:
+        if mpi_is_distributed():
             self.assertEqual(
                 self.distributed_array.local_size, 64
             )  # assumes `mpirun -n 2`
@@ -51,6 +47,30 @@ class TestDistributedArray(BLonDTestCase):
             self.assertEqual(self.distributed_array.local_size, 128)
             self.assertFalse(self.distributed_array._is_distributed)
             self.assertEqual(self.distributed_array.global_size, 128)
+
+    def test_global_size_read_on_root_only_after_scatter(self):
+        """Reading the size after creating it needs no other rank."""
+        if self.distributed_array._rank == 0:
+            self.assertEqual(self.distributed_array.global_size, 128)
+        mpi_barrier()
+
+    def test_global_size_read_on_root_only_after_assignment(self):
+        """Assigning reduces the size, so reading it needs no rank."""
+        self.distributed_array.array_local = (
+            self.distributed_array.array_local[:16]
+        )
+        if self.distributed_array._rank == 0:
+            n_ranks = self.distributed_array._size
+            self.assertEqual(self.distributed_array.global_size, 16 * n_ranks)
+        mpi_barrier()
+
+    def test_scatter_of_data_on_root_only(self):
+        """Only rank 0 holds the data; the other ranks pass None."""
+        on_root = self.distributed_array._rank == 0
+        chunk = scatter_from_root(
+            backend.array(self.array.copy()) if on_root else None
+        )
+        self.assertEqual(DistributedArray(chunk).global_size, 128)
 
     def test_copy_as_numpy(self):
         array = self.distributed_array.copy_as_numpy()
@@ -67,15 +87,9 @@ class TestDistributedArray(BLonDTestCase):
     def _call_test(self, func, func_name):
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")
-        mpi_active = mpi_is_distributed()
-
         expected = func(self.array)
-        if mpi_active:
-            self.distributed_array.mpi_scatter()
         actual = getattr(self.distributed_array, func_name)()
         np.testing.assert_almost_equal(actual, expected, 11)
-        if mpi_active:
-            self.distributed_array.mpi_scatter()
 
     def test_min(self):
         self._call_test(np.min, "min")
@@ -93,18 +107,11 @@ class TestDistributedArray(BLonDTestCase):
         self._call_test(lambda x: float(np.sum(x)), "sum")
 
     def test_histogram(self):
-        mpi_active = mpi_is_distributed()
-
         expected, _ = np.histogram(self.array, bins=8)
-        if mpi_active:
-            self.distributed_array.mpi_scatter()
         actual = self.distributed_array.histogram(bins=8)
         np.testing.assert_allclose(expected, copy_to_cpu(actual))
 
     def test_histogram_cache_hit(self):
-        mpi_active = mpi_is_distributed()
-        if mpi_active:
-            self.distributed_array.mpi_scatter()
         self.distributed_array.histogram(bins=8)  # cache miss
         actual = self.distributed_array.histogram(bins=8)  # cache hit
         expected, _ = np.histogram(self.array, bins=8)
@@ -113,11 +120,7 @@ class TestDistributedArray(BLonDTestCase):
     def test_histogram_with_out(self):
         from blond import backend
 
-        mpi_active = mpi_is_distributed()
-
         expected, _ = np.histogram(self.array, bins=8)
-        if mpi_active:
-            self.distributed_array.mpi_scatter()
         actual = backend.zeros_like(expected, dtype=backend.float)
         self.distributed_array.histogram(bins=8, out=actual)
         np.testing.assert_allclose(expected, copy_to_cpu(actual))
@@ -198,10 +201,12 @@ class TestDistributedArray(BLonDTestCase):
         mpi_active = mpi_is_distributed()
 
         if mpi_active:
-            array_1 = DistributedArray(backend.array([1, 2, 3, 4, 5, 6]))
-            array_2 = DistributedArray(backend.array([7, 8, 9, 10, 11, 12]))
-            array_1.mpi_scatter()
-            array_2.mpi_scatter()
+            array_1 = DistributedArray(
+                scatter_from_root(backend.array([1, 2, 3, 4, 5, 6]))
+            )
+            array_2 = DistributedArray(
+                scatter_from_root(backend.array([7, 8, 9, 10, 11, 12]))
+            )
 
             array_3 = concatenate(array_1, array_2)
 
@@ -231,8 +236,7 @@ class TestDistributedArray(BLonDTestCase):
 
     def test_gather(self):
         in_array = np.array([1, 2, 3, 4, 5, 6])
-        array = DistributedArray(in_array)
-        array.mpi_scatter()
+        array = DistributedArray(scatter_from_root(in_array))
         out_array = array.mpi_gather()
 
         mpi_active = mpi_is_distributed()
@@ -274,9 +278,8 @@ class _StdCancellationCases:
 
     def _std_of(self, array: np.ndarray) -> float:
         distributed_array = DistributedArray(
-            backend.array(array, dtype=backend.float)
+            scatter_from_root(backend.array(array, dtype=backend.float))
         )
-        distributed_array.mpi_scatter()
         return distributed_array.std()
 
     def test_std_constant_array_is_zero(self):
@@ -314,7 +317,7 @@ if __name__ == "__main__":
 class TestScatterRootFailure(BLonDTestCase):
     """A failure on rank 0 must not strand the other ranks.
 
-    `mpi_scatter` prepares the chunks inside an ``if rank == 0`` block. If
+    `scatter_from_root` prepares the chunks in an ``if rank == 0`` block. If
     that raises, rank 0 never reaches ``comm.scatter`` while every other
     rank is already blocked inside it, and the run hangs forever instead
     of reporting the error.
@@ -326,12 +329,8 @@ class TestScatterRootFailure(BLonDTestCase):
 
         rank = MPI.COMM_WORLD.Get_rank()
         # only 1D arrays can be scattered; rank 0 must say so to everyone
-        distributed_array = DistributedArray(
-            backend.zeros((4, 4), dtype=backend.float)
-        )
-
         with self.assertRaises(Exception) as caught:
-            distributed_array.mpi_scatter()
+            scatter_from_root(backend.zeros((4, 4), dtype=backend.float))
 
         if rank == 0:
             self.assertIsInstance(caught.exception, ValueError)
@@ -344,12 +343,8 @@ class TestScatterRootFailure(BLonDTestCase):
 
         comm = MPI.COMM_WORLD
         array = backend.arange(13, dtype=np.int32)
-        distributed_array = DistributedArray(
-            array if comm.Get_rank() == 0 else None
-        )
-        distributed_array.mpi_scatter()
+        local = scatter_from_root(array if comm.Get_rank() == 0 else None)
 
-        local = distributed_array.array_local
         self.assertEqual(local.dtype, np.int32)
         self.assertIs(type(local), type(backend.zeros(1)))
         np.testing.assert_array_equal(
@@ -359,9 +354,7 @@ class TestScatterRootFailure(BLonDTestCase):
 
     @unittest.skipUnless(mpi_is_distributed(), "Runs only with `mpirun`")
     def test_scatter_of_none_gives_none_on_every_rank(self):
-        distributed_array = DistributedArray(None)
-        distributed_array.mpi_scatter()
-        self.assertIsNone(distributed_array.array_local)
+        self.assertIsNone(scatter_from_root(None))
 
 
 class TestMinMaxWithoutElements(BLonDTestCase):
@@ -435,8 +428,9 @@ class TestDistributedArrayCupyMPI(BLonDTestCase):
         self.addCleanup(backend.change_backend, Numpy64Bit)
         array = np.random.default_rng(0).normal(size=128)
         expected, _ = np.histogram(array, bins=8)
-        distributed_array = DistributedArray(cp.asarray(array))
-        distributed_array.mpi_scatter()
+        distributed_array = DistributedArray(
+            scatter_from_root(cp.asarray(array))
+        )
         actual = distributed_array.histogram(bins=8)
         self.assertTrue(is_cupy_array(actual))
         np.testing.assert_allclose(copy_to_cpu(actual), expected)
@@ -481,6 +475,27 @@ class TestReductionsCollectives(BLonDTestCase):
             self.assertEqual(array.global_size, 2)
         self.assertEqual(fake_mpi.COMM_WORLD.allreduce.call_count, 0)
 
+    def test_assignment_reduces_global_size(self):
+        """Every rank assigns together, so reading needs no other rank."""
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2) as fake_mpi:
+            array = DistributedArray(backend.array(self.values))
+            array.array_local = array.array_local[:1]
+            comm = fake_mpi.COMM_WORLD
+            n_after_assignment = comm.Allreduce.call_count
+            self.assertEqual(array.global_size, 2)
+            self.assertEqual(comm.Allreduce.call_count, n_after_assignment)
+
+    def test_concatenate_global_size(self):
+        from blond.testing.mocks import identical_mpi_ranks
+
+        with identical_mpi_ranks(n_ranks=2):
+            array_1 = DistributedArray(backend.array(self.values))
+            array_2 = DistributedArray(backend.array(self.values[:1]))
+            joined = concatenate(array_1, array_2)
+            self.assertEqual(joined.global_size, 10)
+
     def test_min_max_in_one_collective(self):
         result, n_collectives = self._reduce("min_max")
         self.assertEqual(result, (-2.0, 7.0))
@@ -505,3 +520,80 @@ class TestReductionsCollectives(BLonDTestCase):
         empty = DistributedArray(backend.zeros(0, dtype=backend.float))
         with self.assertRaises(ValueError):
             empty.min_max()
+
+
+class _FakeNonRootComm:
+    """Stands in for ``MPI.COMM_WORLD`` as seen from rank 1 of 2.
+
+    Coverage is only collected on rank 0 of an ``mpirun``, so the
+    receiving side of `scatter_from_root` is checked here without MPI.
+    """
+
+    def __init__(self, global_array: np.ndarray | None, root_error=None):
+        self._global_array = global_array
+        self._root_error = root_error
+
+    def Get_size(self) -> int:
+        return 2
+
+    def Get_rank(self) -> int:
+        return 1
+
+    def bcast(self, obj, root: int):
+        if self._global_array is None:
+            return None, self._root_error
+        header = (self._global_array.size, self._global_array.dtype.str)
+        return header, self._root_error
+
+    def Recv(self, buffer: np.ndarray, source: int) -> None:
+        buffer[:] = np.array_split(self._global_array, 2)[1]
+
+
+class TestScatterFromRoot(BLonDTestCase):
+    """`scatter_from_root` turns rank 0's array into local chunks."""
+
+    def setUp(self):
+        if mpi_is_distributed():
+            self.skipTest("Fakes the MPI ranks, runs only without `mpirun`")
+
+    def _on_rank_1(self, comm: _FakeNonRootComm):
+        """Run `scatter_from_root` as rank 1, which holds None."""
+        fake_mpi = SimpleNamespace(COMM_WORLD=comm)
+        with patch(
+            "blond.core.backends.mpi_distributed.distributed_array.MPI",
+            fake_mpi,
+        ):
+            return scatter_from_root(None)
+
+    def test_without_mpi_returns_the_array(self):
+        array = backend.array([1.0, 2.0, 3.0])
+        self.assertIs(scatter_from_root(array), array)
+
+    def test_without_mpi_none_stays_none(self):
+        self.assertIsNone(scatter_from_root(None))
+
+    def test_non_root_rank_receives_its_chunk(self):
+        global_array = np.arange(13, dtype=np.int32)
+        local = self._on_rank_1(_FakeNonRootComm(global_array))
+        self.assertEqual(local.dtype, np.int32)
+        self.assertIs(type(local), type(backend.zeros(1)))
+        np.testing.assert_array_equal(
+            copy_to_cpu(local), np.array_split(global_array, 2)[1]
+        )
+
+    def test_non_root_rank_gets_none_if_root_has_none(self):
+        self.assertIsNone(self._on_rank_1(_FakeNonRootComm(None)))
+
+    def test_non_root_rank_raises_rank_zero_error(self):
+        comm = _FakeNonRootComm(
+            np.arange(3), root_error="ValueError: bad input"
+        )
+        with self.assertRaisesRegex(RuntimeError, "bad input"):
+            self._on_rank_1(comm)
+
+
+class TestNoNoneArray(BLonDTestCase):
+    def test_none_is_not_an_array(self):
+        """Ranks hold their chunk; root-only data is not distributed."""
+        with self.assertRaisesRegex(TypeError, "scatter_from_root"):
+            DistributedArray(None)
