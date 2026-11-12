@@ -3,7 +3,7 @@ from unittest import mock
 
 import numpy as np
 
-from blond import Beam, BiGaussian
+from blond import Beam, BiGaussian, backend, copy_to_cpu
 from blond.beam_preparation.bigaussian import (
     _get_dE_from_dt,
     _get_dE_from_dt_core,
@@ -104,6 +104,29 @@ class TestBiGaussianHandsOverArrays(BLonDTestCase):
                 simulation=simulation_.simulation, beam=simulation_.beam1
             )
         self.assertIs(setup_beam.call_args.kwargs["copy"], False)
+
+
+class TestBiGaussianBackendDependentRandomNumbers(BLonDTestCase):
+    def _prepare(self, **kwargs):
+        simulation_ = ExampleSimulation01()
+        BiGaussian(
+            n_macroparticles=1000,
+            sigma_dt=0.3e-9,
+            reinsertion=True,
+            seed=3,
+            **kwargs,
+        ).prepare_beam(
+            simulation=simulation_.simulation, beam=simulation_.beam1
+        )
+        return copy_to_cpu(simulation_.beam1.read_partial_dt())
+
+    def test_change_nothing_on_cpu(self):
+        if backend.is_gpu:
+            self.skipTest("Only on a CPU backend")
+        np.testing.assert_array_equal(
+            self._prepare(backend_dependent_random_numbers=True),
+            self._prepare(),
+        )
 
 
 if __name__ == "__main__":

@@ -421,6 +421,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
     seed : int, optional
         Random seed ensuring reproducibility.
         Runs with the same seed will produce identical distributions.
+    backend_dependent_random_numbers : bool, default=False
+        If False, the same seed gives the same beam on every backend: the
+        random numbers are drawn on the CPU and moved to the GPU in
+        chunks. If True, a GPU backend draws them directly on the GPU,
+        which is faster and needs no host memory for the beam, but the
+        same seed then gives a different beam than on the CPU.
     animate : bool, default=False
         If ``True``, draws a plot using ``matplotlib.pyplot.draw()`` at each iteration.
     animate_pause_time : float, default=0.1
@@ -595,6 +601,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         debug=False,
         until_section_index: int = -1,
         correct_to_one_turn_map: bool = False,
+        backend_dependent_random_numbers: bool = False,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -635,6 +642,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
         self.until_section_index = until_section_index
         self.correct_to_one_turn_map = correct_to_one_turn_map
+        self.backend_dependent_random_numbers = (
+            backend_dependent_random_numbers
+        )
         # (shear_dt_per_dE, deltaE_scale), see
         # `get_grid_correction_from_one_turn_map`
         self._grid_correction: tuple[float, float] | None = None
@@ -996,6 +1006,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
             density_grid=density.T,
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
+            backend_dependent_random_numbers=(
+                self.backend_dependent_random_numbers
+            ),
         )
 
     def _get_hamiltonian_semianalytic(

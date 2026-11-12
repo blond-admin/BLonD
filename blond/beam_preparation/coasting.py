@@ -25,6 +25,7 @@ import numpy as np
 
 from blond.beam_preparation import base
 from blond.core import helpers as core_help
+from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed import helpers as mpi_help
 from blond.generals.cupy_ import no_cupy_import
 
@@ -65,6 +66,12 @@ class Coasting(base.BeamPreparationRoutine):
         units are [s, eV].
     seed
         The seed for the random generator.
+    backend_dependent_random_numbers
+        If False (default), the same seed gives the same beam on every
+        backend, as the random numbers are drawn on the CPU. If True, a
+        GPU backend draws them directly on the GPU, which is faster and
+        needs no host memory for the beam, but the same seed then gives a
+        different beam than on the CPU.
     """
 
     def __init__(
@@ -76,6 +83,7 @@ class Coasting(base.BeamPreparationRoutine):
         stop_time: float | None = None,
         energy_offset: float | AnyArray = 0,
         seed: int | None = None,
+        backend_dependent_random_numbers: bool = False,
     ):
         super().__init__()
 
@@ -124,6 +132,9 @@ class Coasting(base.BeamPreparationRoutine):
             )
 
         self._seed = seed
+        self._backend_dependent_random_numbers = (
+            backend_dependent_random_numbers
+        )
 
     def prepare_beam(self, simulation: Simulation, beam: BeamBaseClass):
         """
@@ -138,8 +149,11 @@ class Coasting(base.BeamPreparationRoutine):
         """
         super().prepare_beam(simulation, beam)
 
-        rng = mpi_help.mpi_aware_random_generator_cpu(
+        rng = mpi_help.mpi_aware_random_generator(
             seed=self._seed if self._seed is not None else None,
+            backend_dependent_random_numbers=(
+                self._backend_dependent_random_numbers
+            ),
         )
 
         dE = rng.choice(
@@ -176,7 +190,15 @@ class Coasting(base.BeamPreparationRoutine):
         )
 
         if isinstance(self.energy_offset, np.ndarray):
-            dE += np.interp(dt, self.energy_offset[0], self.energy_offset[1])
+            offset_time, offset_energy = self.energy_offset
+            if no_cupy_import.is_cupy_array(dt):  # drawn on the GPU
+                dE += backend.interp(
+                    dt,
+                    backend.asarray(offset_time),
+                    backend.asarray(offset_energy),
+                )
+            else:  # drawn on the CPU, whatever the backend
+                dE += np.interp(dt, offset_time, offset_energy)
         else:
             dE += self.energy_offset
 
