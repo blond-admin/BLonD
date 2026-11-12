@@ -20,6 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from types import ModuleType
 
+    from cupy.random import RandomState as CupyRandomState  # type: ignore
     from numpy.random import Generator as NumpyGenerator
 
     from blond.core.backends.mpi_distributed.distributed_array import (
@@ -209,6 +210,64 @@ def mpi_aware_random_generator_cpu(seed: int | None) -> NumpyGenerator:
     # `jumped(0)` is the unjumped generator, i.e. `default_rng(seed)`.
     bit_generator = np.random.PCG64(seed).jumped(MPI_RANK)
     return np.random.Generator(bit_generator)
+
+
+def mpi_aware_random_generator_gpu(seed: int | None) -> CupyRandomState:
+    """
+    Get a random generator compatible with MPI that draws on the GPU.
+
+    Every rank gets its own seed, spawned from `seed`, so the ranks draw
+    independent streams.
+
+    Parameters
+    ----------
+    seed
+        Random seed.
+
+    Returns
+    -------
+    random_generator_gpu
+        The CuPy random generator of this rank.
+
+    Notes
+    -----
+    The same seed gives different numbers than
+    `mpi_aware_random_generator_cpu`, so a beam drawn with it depends on
+    the backend.
+    """
+    import cupy as cp
+
+    rank_seed = np.random.SeedSequence(seed).spawn(MPI_SIZE)[MPI_RANK]
+    return cp.random.RandomState(seed=int(rank_seed.generate_state(1)[0]))
+
+
+def mpi_aware_random_generator(
+    seed: int | None, backend_dependent_random_numbers: bool = False
+) -> NumpyGenerator | CupyRandomState:
+    """
+    Get this rank's random generator for the active backend.
+
+    Parameters
+    ----------
+    seed
+        Random seed.
+    backend_dependent_random_numbers
+        If False (default), return `mpi_aware_random_generator_cpu`, so
+        the same seed gives the same numbers on every backend. If True and
+        the backend uses the GPU, return `mpi_aware_random_generator_gpu`,
+        which draws directly on the GPU: faster and needs no host memory,
+        but the same seed then gives different numbers than on the CPU.
+
+    Returns
+    -------
+    random_generator
+        The random generator of this rank.
+    """
+    from blond.core.backends.backend import backend
+
+    if backend_dependent_random_numbers and backend.is_gpu:
+        return mpi_aware_random_generator_gpu(seed=seed)
+    return mpi_aware_random_generator_cpu(seed=seed)
 
 
 def distributed_arange(

@@ -26,7 +26,7 @@ from blond.core.backends.mpi_distributed.distributed_array import (
 )
 from blond.core.backends.mpi_distributed.helpers import (
     distributed_arange,
-    mpi_aware_random_generator_cpu,
+    mpi_aware_random_generator,
     mpi_is_distributed,
     mpi_local_size,
 )
@@ -442,6 +442,7 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
         is_counter_rotating: bool = False,
+        backend_dependent_random_numbers: bool = False,
     ) -> Beam:
         """
         Generate a beam with gaussian macro-particle positions.
@@ -483,6 +484,12 @@ class Beam(BeamBaseClass):
         is_counter_rotating
            Whether this beam rotates in the opposite direction to the main beam.
            Default is False (co-rotating beam).
+        backend_dependent_random_numbers
+            If False (default), the same seed gives the same beam on every
+            backend, as the random numbers are drawn on the CPU. If True, a
+            GPU backend draws them directly on the GPU, which is faster and
+            needs no host memory for the beam, but the same seed then gives a
+            different beam than on the CPU.
 
         Returns
         -------
@@ -509,15 +516,21 @@ class Beam(BeamBaseClass):
             warning_hint="n_macroparticles",
         )
         dts = (
-            mpi_aware_random_generator_cpu(seed=seed).standard_normal(
-                size=local_size
-            )
+            mpi_aware_random_generator(
+                seed=seed,
+                backend_dependent_random_numbers=(
+                    backend_dependent_random_numbers
+                ),
+            ).standard_normal(size=local_size)
             * dt_scale
             + dt_offset
         )
         dEs = (
-            mpi_aware_random_generator_cpu(
+            mpi_aware_random_generator(
                 seed=None if seed is None else seed + 1,
+                backend_dependent_random_numbers=(
+                    backend_dependent_random_numbers
+                ),
             ).standard_normal(size=local_size)
             * dE_scale
             + dE_offset

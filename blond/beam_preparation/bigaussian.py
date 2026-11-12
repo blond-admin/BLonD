@@ -23,7 +23,7 @@ from blond.acc_math.analytic.hamilton import (
 )
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.backends.mpi_distributed.helpers import (
-    mpi_aware_random_generator_cpu,
+    mpi_aware_random_generator,
     mpi_local_size,
 )
 from blond.core.helpers import int_from_float_with_warning
@@ -225,6 +225,12 @@ class BiGaussian(MatchingRoutine):
         This affects the effective `sigma_dt` and `sigma_dE`.
     seed
         Random seed parameter.
+    backend_dependent_random_numbers
+        If False (default), the same seed gives the same beam on every
+        backend, as the random numbers are drawn on the CPU. If True, a
+        GPU backend draws them directly on the GPU, which is faster and
+        needs no host memory for the beam, but the same seed then gives a
+        different beam than on the CPU.
 
     Examples
     --------
@@ -243,6 +249,7 @@ class BiGaussian(MatchingRoutine):
         sigma_dE: float | None = None,
         reinsertion: bool = False,
         seed: int | None = 0,
+        backend_dependent_random_numbers: bool = False,
     ) -> None:
         super().__init__()
         self._n_macroparticles_local = mpi_local_size(
@@ -255,6 +262,9 @@ class BiGaussian(MatchingRoutine):
         self._sigma_dE = sigma_dE
         self._reinsertion = reinsertion
         self._seed = seed
+        self._backend_dependent_random_numbers = (
+            backend_dependent_random_numbers
+        )
 
     def prepare_beam(
         self,
@@ -325,29 +335,33 @@ class BiGaussian(MatchingRoutine):
         if eta0 < 0:
             phi_rf -= np.pi
 
-        rng_dt_cpu_only = mpi_aware_random_generator_cpu(
+        rng_dt = mpi_aware_random_generator(
             seed=(self._seed + 0) if self._seed is not None else None,
+            backend_dependent_random_numbers=(
+                self._backend_dependent_random_numbers
+            ),
         )
-        rng_dE_cpu_only = mpi_aware_random_generator_cpu(
+        rng_dE = mpi_aware_random_generator(
             seed=(self._seed + 1) if self._seed is not None else None,
+            backend_dependent_random_numbers=(
+                self._backend_dependent_random_numbers
+            ),
         )
 
-        dt = backend.array(  # potentially on GPU
+        dt = backend.asarray(  # potentially on GPU
             self._sigma_dt
-            * rng_dt_cpu_only.standard_normal(
+            * rng_dt.standard_normal(
                 size=self._n_macroparticles_local,
                 dtype=backend.float,
             )
-            + (phi_s - phi_rf) / omega_rf,
-            copy=False,
+            + (phi_s - phi_rf) / omega_rf
         )
-        dE = backend.array(  # potentially on GPU
+        dE = backend.asarray(  # potentially on GPU
             sigma_dE
-            * rng_dE_cpu_only.standard_normal(
+            * rng_dE.standard_normal(
                 size=self._n_macroparticles_local,
                 dtype=backend.float,
-            ),
-            copy=False,
+            )
         )
 
         # Re-insert if necessary
@@ -375,25 +389,23 @@ class BiGaussian(MatchingRoutine):
                 if n_new == 0:
                     break
                 dt[sel] = (
-                    backend.array(  # potentially on GPU  # pragma: no cover
+                    backend.asarray(  # potentially on GPU  # pragma: no cover
                         self._sigma_dt
-                        * rng_dt_cpu_only.standard_normal(
+                        * rng_dt.standard_normal(
                             size=n_new,
                             dtype=backend.float,
                         )
-                        + (phi_s - phi_rf) / omega_rf,
-                        copy=False,
+                        + (phi_s - phi_rf) / omega_rf
                     )
                 )
 
                 dE[sel] = (
-                    backend.array(  # potentially on GPU  # pragma: no cover
+                    backend.asarray(  # potentially on GPU  # pragma: no cover
                         sigma_dE
-                        * rng_dE_cpu_only.standard_normal(
+                        * rng_dE.standard_normal(
                             size=n_new,
                             dtype=backend.float,
-                        ),
-                        copy=False,
+                        )
                     )
                 )
         beam.setup_beam(

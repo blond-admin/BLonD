@@ -969,5 +969,36 @@ class TestSemiEmpiricMatcherDocstringExample(BLonDTestCase):
         self.assertEqual(results.failed, 0)
 
 
+class TestSemiEmpiricMatcherBackendDependentRandomNumbers(BLonDTestCase):
+    def test_is_passed_to_populate_beam(self):
+        from blond.experimental.beam_preparation import semi_empiric_matcher
+
+        matcher = SemiEmpiricMatcher(
+            time_limit=(0.0, 1.0),
+            hamilton_to_density_kwargs=dict(
+                hamilton_max=1.0, density_modifier=1.0
+            ),
+            n_macroparticles=100,
+            verbose=False,
+            backend_dependent_random_numbers=True,
+        )
+        time_grid, deltaE_grid = np.meshgrid(
+            np.linspace(0, 1, 4), np.linspace(-1, 1, 5)
+        )
+        with mock.patch.object(
+            semi_empiric_matcher, "populate_beam"
+        ) as populate_beam:
+            matcher._populate_beam_from_hamiltonian(
+                beam=mock.Mock(),
+                time_grid=time_grid,
+                deltaE_grid=deltaE_grid,
+                hamilton_2D=time_grid**2 + deltaE_grid**2,
+            )
+        self.assertIs(
+            populate_beam.call_args.kwargs["backend_dependent_random_numbers"],
+            True,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

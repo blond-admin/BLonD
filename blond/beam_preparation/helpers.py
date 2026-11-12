@@ -16,7 +16,7 @@ import numpy as np
 
 from blond.core.backends.backend import backend
 from blond.core.backends.mpi_distributed.helpers import (
-    mpi_aware_random_generator_cpu,
+    mpi_aware_random_generator,
     mpi_local_size,
 )
 from blond.core.beam.base import BeamBaseClass
@@ -110,6 +110,7 @@ def generate_particle_coordinates(
     density_grid: NumpyArray,
     n_macroparticles: int,
     seed: int | None,
+    backend_dependent_random_numbers: bool = False,
 ) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Fill bunch with macroparticles according to `density_distribution`.
@@ -127,6 +128,12 @@ def generate_particle_coordinates(
     seed
         Random seed, to make function with same seed
         always return the same value.
+    backend_dependent_random_numbers
+        If False (default), the same seed gives the same coordinates on
+        every backend, as the random numbers are drawn on the CPU. If
+        True, a GPU backend draws them directly on the GPU, which is
+        faster and needs no host memory for the coordinates, but the same
+        seed then gives different coordinates than on the CPU.
 
     Returns
     -------
@@ -141,17 +148,19 @@ def generate_particle_coordinates(
     n_macroparticles_local = mpi_local_size(
         n_macroparticles, warning_hint="n_macroparticles"
     )
-    random_generator_cpu = mpi_aware_random_generator_cpu(seed=seed)
+    random_generator = mpi_aware_random_generator(
+        seed=seed,
+        backend_dependent_random_numbers=backend_dependent_random_numbers,
+    )
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
-    indexes = random_generator_cpu.choice(
-        np.arange(0, np.size(density_grid)),
-        n_macroparticles_local,
-        p=copy_to_cpu(density_grid.flatten() / np.sum(density_grid)),
+    indexes = backend.asarray(
+        random_generator.choice(
+            np.size(density_grid),  # gives the same as an `arange` of it
+            n_macroparticles_local,
+            p=copy_to_cpu(density_grid.flatten() / np.sum(density_grid)),
+        )
     )
-    indexes = np.array(
-        indexes
-    )  # finally convert to the correct backend. See above why.
     time_step = time_grid[0, 1] - time_grid[0, 0]
     assert time_step > 0, f"{time_step=}"
     deltaE_step = deltaE_grid[1, 0] - deltaE_grid[0, 0]
@@ -159,16 +168,14 @@ def generate_particle_coordinates(
     # Randomize particles inside each grid cell (uniform distribution)
     # ``backend.random.triangular`` has rotational symmetry, but is
     # distributed within a square.
-    dt_local = backend.array(
-        time_grid.flatten()[indexes]
-        + random_generator_cpu.triangular(
+    dt_local = backend.asarray(time_grid).ravel()[indexes] + backend.asarray(
+        random_generator.triangular(
             left=-1, mode=0, right=1, size=n_macroparticles_local
         )
         * time_step
     )
-    dE_local = backend.array(
-        deltaE_grid.flatten()[indexes]
-        + random_generator_cpu.triangular(
+    dE_local = backend.asarray(deltaE_grid).ravel()[indexes] + backend.asarray(
+        random_generator.triangular(
             left=-1, mode=0, right=1, size=n_macroparticles_local
         )
         * deltaE_step
@@ -183,6 +190,7 @@ def populate_beam(
     density_grid: NumpyArray,
     n_macroparticles: int,
     seed: int | None,
+    backend_dependent_random_numbers: bool = False,
 ) -> None:
     """
     Fill bunch with macroparticles according to `density_distribution`.
@@ -202,6 +210,9 @@ def populate_beam(
     seed
         Random seed, to make function with same seed
         always return the same value.
+    backend_dependent_random_numbers
+        If True, a GPU backend draws the random numbers directly on the
+        GPU, see `generate_particle_coordinates`.
 
     Notes
     -----
@@ -213,6 +224,7 @@ def populate_beam(
         density_grid=density_grid,
         n_macroparticles=n_macroparticles,
         seed=seed,
+        backend_dependent_random_numbers=backend_dependent_random_numbers,
     )
 
     # fresh arrays, a copy would double the memory
