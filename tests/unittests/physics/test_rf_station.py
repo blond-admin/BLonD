@@ -52,7 +52,11 @@ from blond.physics.rf_station import (
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
-from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
+from blond.testing.backend_testing import (
+    ArrayLikeScan,
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 from blond.testing.helpers import allclose_tolerances
 
 
@@ -1767,7 +1771,7 @@ class TestOmegaRfDesignFollowsReference(unittest.TestCase):
         )
 
 
-class TestArbitraryRFWaveform(unittest.TestCase):
+class TestArbitraryRFWaveform(BLonDTestCase):
     def test_init(self):
         time = backend.linspace(0, 2e-6, 1024)
         waveform = backend.linspace(-5e3, 5e3, 1024)
@@ -1792,6 +1796,7 @@ class TestArbitraryRFWaveform(unittest.TestCase):
         with self.assertRaises(ValueError):
             ArbitraryRFWaveform(time[1:], waveform)
 
+    @multi_backend_testcase
     def test_track(self):
 
         beam = Beam(0, proton)
@@ -1803,13 +1808,16 @@ class TestArbitraryRFWaveform(unittest.TestCase):
         waveform = backend.linspace(-5e3, 5e3, 1024)
         gain = 0.5
 
-        arbitrary_waveform = ArbitraryRFWaveform(time, waveform, gain)
+        for inp_cast in ArrayLikeScan():
+            arbitrary_waveform = ArbitraryRFWaveform(
+                inp_cast(time), inp_cast(waveform), gain
+            )
         arbitrary_waveform.track(beam)
 
         expected = backend.interp(beam.dt.array_local, time, waveform * gain)
 
         np.testing.assert_array_almost_equal(
-            copy_to_cpu(beam.dE.array_local), expected
+            copy_to_cpu(beam.dE.array_local), copy_to_cpu(expected)
         )
 
 
