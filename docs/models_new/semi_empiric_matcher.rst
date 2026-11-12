@@ -197,7 +197,75 @@ The matching routine proceeds as follows:
                         \right)^2}
 
    The iteration stops when :math:`\epsilon < \mathrm{tolerance}` **and** the
-   intensity has reached full strength (:math:`i > N_\mathrm{ramp}`).
+   intensity has reached full strength (:math:`i > N_\mathrm{ramp}`), or
+   when :math:`\epsilon` has not reached a new minimum for
+   ``stagnation_patience`` iterations (the beam of the best iteration is
+   restored). If ``maxiter_intensity_effects`` ends the iteration first, the
+   matcher warns that it did not converge.
+
+---
+
+Filling Selected Buckets (Windows)
+----------------------------------
+
+With intensity effects, every bucket moves and changes its depth while the
+matcher iterates: beam loading shifts the synchronous phase, and in a train
+each bunch sees a different induced voltage. A single ``time_limit`` that
+spans exactly one bucket then cuts the moved bucket, and a ``time_limit``
+over many buckets lets the absolute ``hamilton_max`` fill the buckets
+depending on their offsets. Instead, ``time_limit`` can be a list with one
+window per bucket to fill. This also allows sparse filling, e.g. a few
+bunches of the LHC, without computing the potential well of the whole
+ring.
+
+Each window is centred on the nominal centre of its bucket and spans
+:math:`\pm T_\mathrm{rf}` around it, :math:`T_\mathrm{rf}` being the period
+of the fundamental RF harmonic:
+
+.. code-block:: python
+
+   t_rf = t_rev / harmonic
+   buckets = [4, 5, 6, 7]  # bucket k is centred at (k + 0.5) * t_rf here
+   time_limit = [((k - 0.5) * t_rf, (k + 1.5) * t_rf) for k in buckets]
+
+In every iteration, each window is treated on its own:
+
+1. Its potential well is obtained as for a single ``time_limit`` and
+   minimum-subtracted, so :math:`H = 0` at the bottom of every bucket and
+   ``hamilton_max`` means the same depth everywhere. Offsets between
+   windows have no meaning.
+2. :func:`select_bucket` picks the bucket to fill. Among the buckets found
+   by :class:`~blond.acc_math.empiric.potential_well.PotentialWellHelper`,
+   it drops the partial ones at the window edges and the ones nested in
+   another (the inner wells of e.g. a double-harmonic bucket, which is
+   filled as a whole), and takes the one nearest to the window centre. The
+   bucket reaches from its lower barrier to where the potential is as high
+   again, which is the separatrix also for an accelerating bucket.
+3. The Hamiltonian grid is cut to that bucket, its energy range follows
+   from the bucket depth, and the density from ``hamilton_to_density_function``
+   is set to zero above the separatrix (with a warning if more than 1 %
+   is removed).
+4. The bucket is populated with its share ``bucket_weights`` of
+   ``n_macroparticles``.
+
+The potential wells of all windows are concatenated for the convergence
+error, the averaging and the roll-back, which work as for a single
+``time_limit``. ``hamilton_to_density_kwargs`` can be one dict per window,
+e.g. to fill the buckets differently.
+
+A bucket may move by up to half a bucket. Beyond that, it cannot be told
+apart from its neighbour (a shift of :math:`+0.55` buckets looks like
+:math:`-0.45`). The matcher therefore raises a
+:class:`~blond.generals.exceptions_.SemiEmpiricMatcherError` if a bucket is
+more than half a bucket away from its window centre, if it jumped between
+two iterations (:func:`check_bucket_continuity`), if two windows select
+overlapping buckets, or if a window holds no complete bucket. Typically,
+this means that there is no static equilibrium: e.g. the beam loading needs
+more voltage than the RF can restore.
+
+The potential well is what the tracked probe particles see. Where a window
+reaches beyond the time range of a wakefield's profile, there is no induced
+voltage, exactly as for particles that are tracked there.
 
 ---
 
@@ -209,6 +277,12 @@ Practical Notes
   (`increment_intensity_effects_until_iteration_i`).
 - The beam shape (bunch length, energy spread) is automatically adjusted to the
   matched potential.
+- **Matched is not stable.** The matcher finds a static equilibrium of the
+  beam with its own intensity effects. Whether it is dynamically stable,
+  e.g. against Robinson or coupled-bunch instabilities, is not checked.
+  Close to such limits, track the matched beam: an instability grows out
+  of the macroparticle noise at the same rate for every seed and number of
+  macroparticles, while a residual mismatch keeps its initial amplitude.
 
 ---
 
@@ -222,6 +296,10 @@ API Reference
 .. autofunction:: get_one_turn_map_empiric
 
 .. autofunction:: get_grid_correction_from_one_turn_map
+
+.. autofunction:: select_bucket
+
+.. autofunction:: check_bucket_continuity
 
 .. autoclass:: SemiEmpiricMatcher
    :members:
