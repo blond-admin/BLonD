@@ -277,6 +277,18 @@ The tests with distributed computing (MPI) can be executed via
 export MPLBACKEND=Agg  # Prevent matplotlib deadlock
 mpirun -n 2 python3 -m pytest -v tests/unittests/ -m "mpi"
 ```
+CI runs them on 2 and on 3 ranks, so write MPI tests for any number of
+ranks: take it from `MPI_SIZE`, not from a hard-coded 2.
+
+To run a simulation with MPI, launch it through mpi4py's runner:
+```bash
+mpirun -n 4 python -m mpi4py my_simulation.py
+```
+All ranks take part in BLonD's collectives (sums, histograms, sizes). If
+one rank raises, the others keep waiting in the next collective, and the
+job hangs until its wall-clock limit. `python -m mpi4py` calls
+`MPI_Abort` on an uncaught exception instead, which ends every rank and
+prints the traceback. Use it in cluster job scripts too.
 
 BLonD only initialises MPI when it detects an MPI launcher (Open MPI,
 PMIx, PMI/PMI2 or MVAPICH environment variables). If your launcher is not
