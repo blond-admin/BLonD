@@ -303,6 +303,44 @@ class _StdCancellationCases:
         self.assertAlmostEqual(std, expected, delta=1e-6 * expected)
 
 
+@pytest.mark.backend_mutation
+class TestStdDoesNotCopyArray(BLonDTestCase):
+    """`std` of a beam-sized array must not allocate a centred copy."""
+
+    def setUp(self):
+        self.specials_mode_original = backend.specials_mode
+        self.backend_original = type(backend)
+        from blond import Numpy64Bit
+
+        backend.change_backend(Numpy64Bit)
+
+    def tearDown(self):
+        backend.change_backend(self.backend_original)
+        backend.set_specials(self.specials_mode_original)
+
+    def test_std_does_not_copy_array(self):
+        import tracemalloc
+
+        rng = np.random.default_rng(13)
+        array = DistributedArray(rng.normal(1e-6, 1e-9, 1_000_000))
+        for specials_mode in ("numba", "cpp"):
+            try:
+                backend.set_specials(specials_mode)
+            except (FileNotFoundError, OSError):  # pragma: no cover
+                print(f"Could not perform `{specials_mode}` test")
+                continue
+            array.std()  # warm-up: JIT compilation allocates too
+            tracemalloc.start()
+            try:
+                array.std()
+                peak = tracemalloc.get_traced_memory()[1]
+            finally:
+                tracemalloc.stop()
+            self.assertLess(
+                peak, array.array_local.nbytes // 16, msg=specials_mode
+            )
+
+
 class TestStdCancellationWithoutMPI(_StdCancellationCases, BLonDTestCase):
     def setUp(self):
         if mpi_is_distributed():

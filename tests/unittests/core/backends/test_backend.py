@@ -4289,6 +4289,121 @@ class TestSpecials(BLonDTestCase):
             )
 
     @pytest.mark.backend_mutation
+    def test_centred_dot_product_1d_array(self) -> None:
+        """Sum of (x - a)(y - b) matches NumPy on every backend."""
+        dtype = np.float64
+        rng = np.random.default_rng(3)
+        x = rng.random(10_000)
+        y = rng.random(10_000)
+        x_offset, y_offset = 0.4, 0.6
+        expected = np.dot(x - x_offset, y - y_offset)
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            result = backend.specials.centred_dot_product_1d_array(
+                backend.array(x, dtype=backend.float),
+                x_offset,
+                backend.array(y, dtype=backend.float),
+                y_offset,
+            )
+            np.testing.assert_allclose(
+                float(copy_to_cpu(result)),
+                expected,
+                rtol=1e-12,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_centred_dot_product_1d_array_large_offset(self) -> None:
+        """A 1 ms offset on a 0.3 ns spread keeps all significant digits.
+
+        The one-pass form dot(x, x) - n * mean**2 cancels to noise here,
+        so this fails for any kernel that does not subtract the offset
+        per element before multiplying.
+        """
+        dtype = np.float64
+        rng = np.random.default_rng(7)
+        dt = 1e-3 + rng.normal(scale=0.3e-9, size=100_000)
+        mean_dt = float(np.mean(dt))
+        expected = float(np.sum((dt - mean_dt) ** 2))
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            dt_backend = backend.array(dt, dtype=backend.float)
+            result = backend.specials.centred_dot_product_1d_array(
+                dt_backend, mean_dt, dt_backend, mean_dt
+            )
+            np.testing.assert_allclose(
+                float(copy_to_cpu(result)),
+                expected,
+                rtol=1e-9,
+                err_msg=f"{special=} {dtype=}",
+            )
+
+    @pytest.mark.backend_mutation
+    def test_centred_dot_product_1d_array_zero_macroparticles(self) -> None:
+        """`centred_dot_product_1d_array` of empty arrays must equal 0."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty = backend.zeros(0, dtype=backend.float)
+            result = backend.specials.centred_dot_product_1d_array(
+                empty, 1.0, empty, 2.0
+            )
+            self.assertEqual(float(copy_to_cpu(result)), 0.0, msg=special)
+
+    @pytest.mark.backend_mutation
+    def test_count_flag(self) -> None:
+        """`count_flag` counts the entries equal to `flag`."""
+        dtype = np.float64
+        rng = np.random.default_rng(5)
+        flags = rng.choice(
+            np.array(
+                [BeamFlags.ACTIVE.value, BeamFlags.LOST.value, 7],
+                dtype=np.int32,
+            ),
+            size=10_001,
+        )
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            flags_backend = backend.array(flags, dtype=np.int32)
+            for flag in (BeamFlags.ACTIVE.value, BeamFlags.LOST.value, 3):
+                result = backend.specials.count_flag(flags_backend, flag)
+                self.assertEqual(
+                    int(result),
+                    int(np.count_nonzero(flags == flag)),
+                    msg=f"{special=} {flag=}",
+                )
+
+    @pytest.mark.backend_mutation
+    def test_count_flag_zero_macroparticles(self) -> None:
+        """`count_flag` of an empty array must equal 0."""
+        dtype = np.float64
+        for special in self.special_modes:
+            try:
+                self._setUp(dtype=dtype, special_mode=special)
+            except (FileNotFoundError, OSError):
+                print(f"Could not perform `{special}` test for {dtype}")
+                continue
+            empty = backend.zeros(0, dtype=np.int32)
+            result = backend.specials.count_flag(empty, BeamFlags.ACTIVE.value)
+            self.assertEqual(int(result), 0, msg=special)
+
+    @pytest.mark.backend_mutation
     def test_wake_from_pole_residue(self) -> None:
         """Cross-backend parity for `wake_from_pole_residue` voltage output.
 

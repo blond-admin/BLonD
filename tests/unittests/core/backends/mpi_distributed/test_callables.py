@@ -205,6 +205,74 @@ class TestRmsEmittanceRounding(BLonDTestCase):
                 )
 
 
+def _peak_traced_bytes(function, *args) -> int:
+    """Peak memory NumPy (and Python) allocates while `function` runs."""
+    import tracemalloc
+
+    function(*args)  # warm-up: JIT compilation allocates too
+    tracemalloc.start()
+    try:
+        function(*args)
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+@pytest.mark.backend_mutation
+class TestReductionsDoNotCopyBeam(BLonDTestCase):
+    """Reductions over beam-sized arrays must not allocate a copy of them.
+
+    A single temporary of a multi-GB beam can exhaust host or GPU memory
+    and costs a full extra write pass. Measured on the CPU kernels, as
+    NumPy reports its allocations to `tracemalloc`; CuPy does not.
+    """
+
+    n_macroparticles = 1_000_000
+
+    def setUp(self):
+        self.specials_mode_original = backend.specials_mode
+        self.backend_original = type(backend)
+        backend.change_backend(Numpy64Bit)
+        rng = np.random.default_rng(11)
+        self.dt = DistributedArray(
+            rng.normal(1e-6, 1e-9, self.n_macroparticles)
+        )
+        self.dE = DistributedArray(rng.normal(0.0, 1e6, self.n_macroparticles))
+        self.no_copy_limit = self.dt.array_local.nbytes // 16
+
+    def tearDown(self):
+        backend.change_backend(self.backend_original)
+        backend.set_specials(self.specials_mode_original)
+
+    def _compiled_modes(self):
+        for specials_mode in ("numba", "cpp"):
+            try:
+                backend.set_specials(specials_mode)
+            except (FileNotFoundError, OSError):  # pragma: no cover
+                print(f"Could not perform `{specials_mode}` test")
+                continue
+            yield specials_mode
+
+    def test_rms_emittance_does_not_copy_beam(self):
+        for specials_mode in self._compiled_modes():
+            peak = _peak_traced_bytes(rms_emittance, self.dt, self.dE)
+            self.assertLess(peak, self.no_copy_limit, msg=specials_mode)
+
+    def test_count_active_macroparticles_does_not_copy_flags(self):
+        from blond.core.backends.flags import BeamFlags
+        from blond.core.backends.mpi_distributed.callables import (
+            count_active_macroparticles,
+        )
+
+        flags = DistributedArray(
+            np.full(self.n_macroparticles, BeamFlags.ACTIVE.value, np.int32)
+        )
+        for specials_mode in self._compiled_modes():
+            peak = _peak_traced_bytes(count_active_macroparticles, flags)
+            # a bool mask is a quarter of the int32 flags
+            self.assertLess(peak, flags.array_local.nbytes // 16)
+
+
 class TestGlobalSumArray(BLonDTestCase):
     @unittest.skipIf(is_distributed, "Runs only without `mpirun`")
     def test_without_mpi_returns_input_unchanged(self):

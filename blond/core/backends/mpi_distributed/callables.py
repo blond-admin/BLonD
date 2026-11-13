@@ -156,17 +156,15 @@ def rms_emittance(dt: DistributedArray, dE: DistributedArray) -> float:
     # Centre on the global mean before taking second moments. The
     # one-pass form sum(x**2)/n - mean**2 cancels catastrophically when
     # the spread is small compared to the mean (e.g. a bunch far from
-    # dt = 0) and can even turn negative.
-    dt_centred = dt.array_local - dt_mean
-    dE_centred = dE.array_local - dE_mean
-
-    # use dot(x,x) for faster calculation of sum(x**2)
-    dot = backend.specials.dot_product_1d_array
+    # dt = 0) and can even turn negative. The kernel centres per
+    # element, so the beam-sized coordinates are never copied.
+    dt_local, dE_local = dt.array_local, dE.array_local
+    centred_dot = backend.specials.centred_dot_product_1d_array
     sigma_dt_squared, sigma_dE_squared, sigma_dE_dt = (
         global_reduce(
-            float(dot(dt_centred, dt_centred)),
-            float(dot(dE_centred, dE_centred)),
-            float(dot(dt_centred, dE_centred)),
+            float(centred_dot(dt_local, dt_mean, dt_local, dt_mean)),
+            float(centred_dot(dE_local, dE_mean, dE_local, dE_mean)),
+            float(centred_dot(dt_local, dt_mean, dE_local, dE_mean)),
         )
         / n
     )
@@ -192,5 +190,7 @@ def count_active_macroparticles(flags: DistributedArray) -> int:
         Number of macro-particles with the flag
         ``BeamFlags.ACTIVE``.
     """
-    local_count = int(backend.sum(flags.array_local == BeamFlags.ACTIVE.value))
+    local_count = backend.specials.count_flag(
+        flags.array_local, BeamFlags.ACTIVE.value
+    )
     return int(global_reduce(local_count)[0])

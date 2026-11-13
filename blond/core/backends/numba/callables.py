@@ -139,6 +139,10 @@ sig_sum_1d_array = nb_f(nb_f[:])
 
 sig_dot_product_1d_array = nb_f(nb_f[:], nb_f[:])
 
+sig_centred_dot_product_1d_array = nb_f(nb_f[:], nb_f, nb_f[:], nb_f)
+
+sig_count_flag = numba.int64(numba.int32[:], numba.int32)
+
 sig_drift_simple = void(
     sig_dt,
     sig_dE,
@@ -252,6 +256,16 @@ _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
     _move_flagged_elements_to_end_py
 )
 _lost = BeamFlags.LOST.value
+
+
+@njit(sig_count_flag, parallel=True, cache=True)
+def _count_flag_nb(flags: NumpyArray, flag: int) -> int:
+    """Count the entries of `flags` equal to `flag`, without a mask."""
+    count = 0
+    for idx in prange(flags.shape[0]):
+        if flags[idx] == flag:
+            count += 1
+    return count
 
 
 @njit(
@@ -649,6 +663,30 @@ class NumbaSpecials(Specials):  # pragma: no cover # NOQA PLR0915 # NOQA: D102
         for idx in prange(array_1.shape[0]):
             acc += array_1[idx] * array_2[idx]
         return acc
+
+    @staticmethod
+    @enforce_precision(FLOAT)
+    @enforce_return_precision(FLOAT)
+    @njit(
+        sig_centred_dot_product_1d_array,
+        parallel=True,
+        cache=False,
+        fastmath=True,
+    )
+    def centred_dot_product_1d_array(  # NOQA: D102
+        array_1: NumpyArray,
+        offset_1: float,
+        array_2: NumpyArray,
+        offset_2: float,
+    ):
+        acc = FLOAT(0.0)
+        for idx in prange(array_1.shape[0]):
+            acc += (array_1[idx] - offset_1) * (array_2[idx] - offset_2)
+        return acc
+
+    @staticmethod
+    def count_flag(flags: NumpyArray, flag: int) -> int:  # NOQA: D102
+        return int(_count_flag_nb(flags, np.int32(flag)))
 
     @staticmethod
     @enforce_precision(FLOAT)

@@ -69,6 +69,27 @@ gpu_module = cp.RawModule(
 # Refresh the LRU stamp on the cache dir we loaded from.
 mark_used(_basepath)
 
+# Fused map-reduce kernels: the element-wise part runs inside the
+# reduction, so no beam-sized temporary array is allocated.
+_centred_dot_product_kernel = cp.ReductionKernel(
+    in_params="T array_1, T offset_1, T array_2, T offset_2",
+    out_params="T acc",
+    map_expr="(array_1 - offset_1) * (array_2 - offset_2)",
+    reduce_expr="a + b",
+    post_map_expr="acc = a",
+    identity="0",
+    name="centred_dot_product_1d_array",
+)
+_count_flag_kernel = cp.ReductionKernel(
+    in_params="int32 flags, int32 flag",
+    out_params="int64 count",
+    map_expr="flags == flag ? 1 : 0",
+    reduce_expr="a + b",
+    post_map_expr="count = a",
+    identity="0",
+    name="count_flag",
+)
+
 _drift_simple = gpu_module.get_function("drift_simple")
 _drift_like_line_segment = gpu_module.get_function("drift_like_line_segment")
 _drift_exact = gpu_module.get_function("drift_exact")
@@ -287,6 +308,34 @@ class CudaSpecials(Specials):  # NOQA: D101
 
         """Return the sum of dot product of two 1d arrays."""
         return cp.dot(array_1, array_2)
+
+    @staticmethod
+    def centred_dot_product_1d_array(  # NOQA: D102
+        array_1: CupyArray,
+        offset_1: float,
+        array_2: CupyArray,
+        offset_2: float,
+    ) -> float:
+        assert array_1.device != "cpu", (
+            f"Requires Cupy array, but got {type(array_1)}."
+        )
+        assert array_2.device != "cpu", (
+            f"Requires Cupy array, but got {type(array_2)}."
+        )
+        assert array_1.dtype == FLOAT
+        assert array_2.dtype == FLOAT
+        assert array_1.size == array_2.size
+        return _centred_dot_product_kernel(
+            array_1, FLOAT(offset_1), array_2, FLOAT(offset_2)
+        )
+
+    @staticmethod
+    def count_flag(flags: CupyArray, flag: int) -> int:  # NOQA: D102
+        assert flags.device != "cpu", (
+            f"Requires Cupy array, but got {type(flags)}."
+        )
+        assert flags.dtype == np.int32
+        return int(_count_flag_kernel(flags, np.int32(flag)))
 
     @staticmethod
     def drift_simple(  # NOQA: D102

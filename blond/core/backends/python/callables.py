@@ -303,6 +303,59 @@ class PythonSpecials(Specials):
         return np.dot(array_1, array_2)
 
     @staticmethod
+    def centred_dot_product_1d_array(
+        array_1: NumpyArray,
+        offset_1: float,
+        array_2: NumpyArray,
+        offset_2: float,
+    ) -> float:
+        """
+        Return ``sum((array_1 - offset_1) * (array_2 - offset_2))``.
+
+        This readable reference allocates the two centred arrays; the
+        compiled backends do not.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        offset_1
+            Value subtracted from each element of `array_1`.
+        array_2
+            Input array 2, of the same size as `array_1`.
+        offset_2
+            Value subtracted from each element of `array_2`.
+
+        Returns
+        -------
+        centred_dot_product_1d_array
+            Dot product of the two centred arrays.
+        """
+        return np.dot(array_1 - offset_1, array_2 - offset_2)
+
+    @staticmethod
+    def count_flag(flags: NumpyArray, flag: int) -> int:
+        """
+        Return the number of entries in `flags` that equal `flag`.
+
+        This readable reference allocates a boolean mask; the compiled
+        backends do not.
+
+        Parameters
+        ----------
+        flags
+            The int32 macro-particle flags.
+        flag
+            The flag value to count, e.g. ``BeamFlags.ACTIVE.value``.
+
+        Returns
+        -------
+        count_flag
+            Number of entries equal to `flag`.
+        """
+        return int(np.count_nonzero(flags == flag))
+
+    @staticmethod
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,

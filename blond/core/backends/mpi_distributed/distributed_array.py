@@ -270,9 +270,14 @@ class DistributedArray:
         float
             The standard deviation across all distributed array chunks.
         """
-        centred = self.array_local - self.mean()
-        # dot(x, x) is a faster sum(x**2)
-        local_sum_sq = float(backend.dot(centred, centred))
+        mean = self.mean()
+        local = self.array_local
+        # centred per element in the kernel, without copying the array
+        local_sum_sq = float(
+            backend.specials.centred_dot_product_1d_array(
+                local, mean, local, mean
+            )
+        )
         return sqrt(global_reduce(local_sum_sq)[0] / self.global_size)
 
     def sum(self) -> float:

@@ -247,6 +247,67 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
+    def centred_dot_product_1d_array(
+        array_1: NumpyArray | CupyArray,
+        offset_1: float,
+        array_2: NumpyArray | CupyArray,
+        offset_2: float,
+    ) -> float:
+        """
+        Return ``sum((array_1 - offset_1) * (array_2 - offset_2))``.
+
+        The offsets are subtracted per element, without a temporary
+        array, so a beam-sized input is never copied. Centring on the
+        mean before multiplying avoids the cancellation of the one-pass
+        form ``dot(x, y) - n * mean_x * mean_y``.
+
+        Parameters
+        ----------
+        array_1
+            Input array 1.
+        offset_1
+            Value subtracted from each element of `array_1`.
+        array_2
+            Input array 2, of the same size as `array_1`.
+        offset_2
+            Value subtracted from each element of `array_2`.
+
+        Returns
+        -------
+        centred_dot_product_1d_array
+            Dot product of the two centred arrays.
+        """
+        raise NotImplementedError(
+            "Abstract method `centred_dot_product_1d_array` is not "
+            "implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def count_flag(flags: NumpyArray | CupyArray, flag: int) -> int:
+        """
+        Return the number of entries in `flags` that equal `flag`.
+
+        Counts without a temporary boolean mask.
+
+        Parameters
+        ----------
+        flags
+            The int32 macro-particle flags.
+        flag
+            The flag value to count, e.g. ``BeamFlags.ACTIVE.value``.
+
+        Returns
+        -------
+        count_flag
+            Number of entries equal to `flag`.
+        """
+        raise NotImplementedError(
+            "Abstract method `count_flag` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
     def drift_simple(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,

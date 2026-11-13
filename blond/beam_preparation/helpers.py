@@ -92,7 +92,9 @@ def make_multibunch_beam(
         sel = slice(
             i * n_macroparticles_local, (i + 1) * n_macroparticles_local
         )
-        full_dt[sel] = dt_local + t_offset
+        # `out=` writes in place, `dt_local + t_offset` would allocate
+        # a temporary copy of the bunch first
+        backend.add(dt_local, t_offset, out=full_dt[sel])
         full_dE[sel] = dE_local
 
     full_beam.setup_beam(

@@ -471,6 +471,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
     _LIBBLOND.beam_phase.restype = c_real_t(floattype)
     _LIBBLOND.sum_1d_array.restype = c_real_t(floattype)
     _LIBBLOND.dot_product_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.centred_dot_product_1d_array.restype = c_real_t(floattype)
+    _LIBBLOND.count_flag.restype = c_index_t
     _LIBBLOND.move_flagged_elements_to_end.restype = c_index_t
     _LIBBLOND.blond_omp_get_max_threads.restype = ct.c_int
     _LIBBLOND.blond_omp_get_max_threads.argtypes = []
@@ -740,6 +742,40 @@ def reload_cpp_backend(  # NOQA: PLR0915
                     _get_pointer(array_1),
                     _get_pointer(array_2),
                     _get_beam_len(array_2),
+                )
+            )
+
+        @staticmethod
+        def centred_dot_product_1d_array(
+            array_1: NumpyArray,
+            offset_1: float,
+            array_2: NumpyArray,
+            offset_2: float,
+        ) -> float:
+            assert _is_valid((array_1, floattype), (array_2, floattype))
+            assert len(array_1) == len(array_2)
+
+            # Relies on `.restype` set above.
+            return floattype(
+                _LIBBLOND.centred_dot_product_1d_array(
+                    _get_pointer(array_1),
+                    c_real(floattype(offset_1), floattype),
+                    _get_pointer(array_2),
+                    c_real(floattype(offset_2), floattype),
+                    _get_beam_len(array_2),
+                )
+            )
+
+        @staticmethod
+        def count_flag(flags: NumpyArray, flag: int) -> int:
+            assert _is_valid((flags, np.int32))
+
+            # Relies on `_LIBBLOND.count_flag.restype` set above.
+            return int(
+                _LIBBLOND.count_flag(
+                    _get_pointer(flags),
+                    ct.c_int(flag),
+                    _get_beam_len(flags),
                 )
             )
 
