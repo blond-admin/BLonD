@@ -8,8 +8,9 @@
 
 """Functions that turn the Hamiltonian of a bucket into a particle density.
 
-Each function has the signature of ``hamilton_to_density_function`` of
-:class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`.
+Each function can be passed as ``hamilton_to_density_function`` to
+:class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`,
+its keyword arguments besides the grids as ``hamilton_to_density_kwargs``.
 :func:`hamilton_to_density_by_bunch_length` and
 :func:`hamilton_to_density_by_emittance` fill the bucket to a target bunch
 length or emittance, :func:`hamilton_to_density_by_metric` to a target of
@@ -82,6 +83,16 @@ def hamilton_to_density_by_bunch_length(
     -----
     UserWarning
         If the target does not fit the bucket, or is too short for the grid.
+
+    See Also
+    --------
+    hamilton_to_density_by_emittance : Fill to a target emittance.
+    hamilton_to_density_by_metric : Fill to a target of any metric.
+    hamilton_to_density_by_max : Fill up to a given Hamiltonian.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon.hamilton_to_density_function :
+        Fill to a measured line density.
+    blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher :
+        Calls these functions, see its ``hamilton_to_density_function``.
     """
     return hamilton_to_density_by_metric(
         time_grid=time_grid,
@@ -139,6 +150,16 @@ def hamilton_to_density_by_emittance(
     -----
     UserWarning
         If the target does not fit the bucket, or is too small for the grid.
+
+    See Also
+    --------
+    hamilton_to_density_by_bunch_length : Fill to a target bunch length.
+    hamilton_to_density_by_metric : Fill to a target of any metric.
+    hamilton_to_density_by_max : Fill up to a given Hamiltonian.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon.hamilton_to_density_function :
+        Fill to a measured line density.
+    blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher :
+        Calls these functions, see its ``hamilton_to_density_function``.
     """
     return hamilton_to_density_by_metric(
         time_grid=time_grid,
@@ -223,6 +244,16 @@ def hamilton_to_density_by_metric(
         far as the distribution allows (binomial: up to the separatrix,
         Gaussian: uniformly), which gives the largest metric possible. Also
         if the target is too small for the grid.
+
+    See Also
+    --------
+    hamilton_to_density_by_bunch_length : Fill to a target bunch length.
+    hamilton_to_density_by_emittance : Fill to a target emittance.
+    hamilton_to_density_by_max : Fill up to a given Hamiltonian.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon.hamilton_to_density_function :
+        Fill to a measured line density.
+    blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher :
+        Calls these functions, see its ``hamilton_to_density_function``.
 
     Notes
     -----
@@ -390,71 +421,54 @@ def hamilton_to_density_by_max(
     density_modifier: float,
     hamilton_max: float,
 ) -> NumpyArray:
-    """
-    Converts a 2D Hamilton 2D array into a density distribution.
+    r"""Binomial density in :math:`H`, up to a given Hamiltonian.
 
-    This function normalizes the input Hamilton by a specified maximum value,
-    inverts it to represent particle density (i.e., lower energy = higher density),
-    and optionally adjusts the shape of the distribution using a power-law modifier.
+    The density is
 
-    Notes
-    -----
-    - The density is highest in regions with the lowest Hamilton values.
-    - Values in `hamilton_2D` greater than `hamilton_max` are clipped before processing.
-    - The function preserves the array type (NumPy or CuPy) of the input.
+    .. math::
+
+        \rho = \left(1 - \frac{H}{H_\mathrm{max}}\right)^{n}
+
+    for :math:`H < H_\mathrm{max}`, zero above, with :math:`n` =
+    ``density_modifier`` and :math:`H_\mathrm{max}` = ``hamilton_max``. This
+    is the default ``hamilton_to_density_function`` of
+    :class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`.
 
     Parameters
     ----------
-    deltaE_grid
-        The time coordinates corresponding to `hamilton_2D`, in [eV].
     time_grid
-        The time coordinates corresponding to `hamilton_2D`, in [s].
+        Time coordinates of the grid, in [s]; not used.
+    deltaE_grid
+        Energy coordinates of the grid, in [eV]; not used.
     hamilton_2D
-        A 2D array representing the spatial Hamilton field.
+        Hamiltonian on the grid, in [eV]. The matcher passes it about zero
+        at the bottom of the potential well (with windows: exactly zero at
+        the bottom of each bucket).
     density_modifier
-        Exponent applied to the normalized and inverted Hamilton values
-        to shape the final density distribution.
-        Higher values exaggerate differences in density.
+        Exponent :math:`n`: 0 fills uniformly up to ``hamilton_max``, larger
+        values give more peaked bunches.
     hamilton_max
-        The maximum reference value for normalizing the Hamilton.
-        Values above this threshold are truncated.
+        Hamiltonian up to which the bucket is filled, in [eV], counted from
+        zero. Above the separatrix, the particles are not bound: with
+        windows, they are removed with a warning; with a single
+        ``time_limit``, they are not. Set ``animate=True`` in the matcher to
+        see the potential well, or give a bunch length or emittance
+        instead, see See Also.
 
     Returns
     -------
-    density : NumpyArray or CupyArray
-        A 2D array of the same shape as `hamilton_2D`, representing the
-        computed density distribution. Values are scaled between 0 and 1.
+    density
+        Density on the grid, from 0 to 1.
 
-    Examples
+    See Also
     --------
-    Defining a custom function to convert between hamilton and particle
-    density.
-    >>> import numpy as np
-    >>>
-    >>> def custom_density_function(
-    ...         time_grid, deltaE_grid, hamilton_2D, # required arguments
-    ...         custom_param, hamilton_max # your custom arguments
-    ...    ):
-    ...    '''Example custom density mapping with exponential falloff.'''
-    ...    normalized_H = hamilton_2D / hamilton_max
-    ...    normalized_H[normalized_H > 1] = 1
-    ...    density = np.exp(-custom_param * normalized_H)
-    ...    return density / density.max()  # Normalize to [0, 1]
-    >>>
-    >>> matcher = SemiEmpiricMatcher(
-    ...    time_limit=(-2e-9, 2e-9),
-    ...    n_macroparticles=100_000,
-    ...    hamilton_to_density_function=custom_density_function,
-    ...    hamilton_to_density_kwargs=dict(
-    ...        custom_param=5.0,
-    ...        hamilton_max=1.0
-    ...    ),
-    ...    internal_grid_shape=(1023, 1023),
-    ...    tolerance_potential_well=1e-6,
-    ...    verbose=True,
-    ... )
-    >>> matcher.prepare_beam(...)
-
+    hamilton_to_density_by_bunch_length : Fill to a target bunch length.
+    hamilton_to_density_by_emittance : Fill to a target emittance.
+    hamilton_to_density_by_metric : Fill to a target of any metric.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon.hamilton_to_density_function :
+        Fill to a measured line density.
+    blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher :
+        Calls these functions, see its ``hamilton_to_density_function``.
     """
     _density = hamilton_2D.copy()  # So the changes stay in this scope
 

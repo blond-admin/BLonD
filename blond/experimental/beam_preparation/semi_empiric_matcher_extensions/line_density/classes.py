@@ -162,22 +162,38 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         hamilton_2D: NumpyArray,
     ) -> NumpyArray:
         """
-        This function is an endpoint for the `SemiEmpiricMatcher`.
+        Density in H whose line density matches the histogram.
+
+        Pass it as ``hamilton_to_density_function`` to
+        :class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`,
+        with ``hamilton_to_density_kwargs={}``: the target is the histogram
+        given to the addon.
 
         Parameters
         ----------
-        deltaE_grid
-            The time coordinates corresponding to `hamilton_2D`, in [eV].
         time_grid
-            The time coordinates corresponding to `hamilton_2D`, in [s].
+            Time coordinates of the grid, in [s].
+        deltaE_grid
+            Energy coordinates of the grid, in [eV].
         hamilton_2D
-            A 2D array representing the spatial Hamilton field.
+            Hamiltonian on the grid, in [eV].
 
         Returns
         -------
         density : NumpyArray
-            A 2D array of the same shape as `hamilton_2D`, representing the
-            computed density distribution. Values are scaled between 0 and 1.
+            Density on the grid, of the same shape as ``hamilton_2D``,
+            scaled between 0 and 1.
+
+        See Also
+        --------
+        blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length :
+            Fill to a target bunch length.
+        blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance :
+            Fill to a target emittance.
+        blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_metric :
+            Fill to a target of any metric.
+        blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max :
+            Fill up to a given Hamiltonian.
         """
         if self.recenter:
             correction = self._calculate_recentering_correction(

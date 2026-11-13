@@ -361,6 +361,9 @@ API Reference
 
 .. autofunction:: blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_metric
 
+.. autoclass:: blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon
+   :members: hamilton_to_density_function
+
 .. autofunction:: get_hamilton_semi_analytic
 
 .. autofunction:: get_one_turn_map_empiric

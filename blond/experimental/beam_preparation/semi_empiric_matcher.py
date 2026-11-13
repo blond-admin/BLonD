@@ -449,25 +449,22 @@ class SemiEmpiricMatcher(MatchingRoutine):
     n_macroparticles : int
         Number of macroparticles to inject into the beam.
     hamilton_to_density_kwargs : dict, or sequence of dict
-        Keyword arguments passed to ``hamilton_to_density_function``. With
-        windows, either one dict for all buckets or one per window. E.g.
-        ``bunch_length_4sigma`` and ``exponent`` for
-        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length`.
-        For the default function, the following keys may be used:
-
-        - ``density_modifier`` : float
-          Exponent that shapes the density distribution according to :math:`H^{\mathrm{density\_modifier}}`.
-        - ``hamilton_max`` : float
-          Maximum value of the Hamiltonian, in arbitrary units.
-          Tip: Set `animate=True` to see the internal state of the Hamilton values.
+        Keyword arguments of ``hamilton_to_density_function``, besides the
+        grids. Which keys it takes is documented with the function; the
+        functions provided with BLonD and their keys are listed under
+        See Also. With windows, one dict for all windows or one per window.
+        E.g. ``dict(bunch_length_4sigma=1e-9, exponent=2.0)`` for
+        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length`,
+        or ``dict(density_modifier=2.0, hamilton_max=40.0)`` for the default
+        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max`.
     hamilton_to_density_function : callable
-        Function that converts the 2D Hamiltonian array into a density function.
-        To give the bunch length or the emittance instead of a cut in the
-        Hamiltonian, use
-        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length`
-        or
-        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance`.
-        See also :func:`hamilton_to_density_by_max`.
+        Turns the Hamiltonian on the grid into a particle density, called as
+        ``hamilton_to_density_function(time_grid=..., deltaE_grid=...,
+        hamilton_2D=..., **hamilton_to_density_kwargs)``. The functions
+        provided with BLonD are listed under See Also: they fill the bucket
+        to a target bunch length, emittance or other metric, to a measured
+        line density, or up to a given Hamiltonian (the default). For a
+        custom function, see Notes.
     internal_grid_shape : tuple of int
         Shape of the internal grid as ``(n_time, n_energy)``, used to generate
         the beam particle coordinates.
@@ -540,13 +537,21 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
     See Also
     --------
-    hamilton_to_density_by_max : Default ``hamilton_to_density_function``.
     blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length :
-        Fill to a target bunch length.
+        ``hamilton_to_density_function`` filling to a target bunch length,
+        keys ``bunch_length_4sigma``, ``distribution``, ``exponent``.
     blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance :
-        Fill to a target emittance.
-    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon :
-        Match to a measured line density.
+        ``hamilton_to_density_function`` filling to a target emittance, keys
+        ``emittance_4pi_rms``, ``distribution``, ``exponent``.
+    blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_metric :
+        ``hamilton_to_density_function`` filling to a target of any metric,
+        keys ``metric``, ``target``, ``distribution``, ``exponent``.
+    blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max :
+        Default ``hamilton_to_density_function``, filling up to a given
+        Hamiltonian, keys ``density_modifier``, ``hamilton_max``.
+    blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon.hamilton_to_density_function :
+        ``hamilton_to_density_function`` matching a measured line density,
+        no keys (``hamilton_to_density_kwargs={}``).
     blond.core.simulation.simulation.Simulation.get_potential_well_empiric :
         Potential well that the Hamiltonian is built from.
 
