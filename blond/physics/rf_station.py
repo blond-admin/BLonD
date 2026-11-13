@@ -48,6 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
@@ -229,6 +230,124 @@ class RFManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super()._track(beam=beam)
         self.apply_active_schedules(reference_time=float(beam.reference.time))
+
+    def _track_interp(
+        self,
+        beam: BeamBaseClass,
+        reference_energy_change: float,
+        time_axis: NumpyArray | CupyArray,
+        voltage: NumpyArray | CupyArray,
+        sparse_metadata: dict | None = None,
+    ):
+        if self._delayed_kick is not None:
+            self._delayed_kick.register(
+                time_axis=time_axis,
+                voltage=voltage - reference_energy_change,
+                sparse_metadata=sparse_metadata,
+            )
+        else:
+            backend.specials.kick_interpolated(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=backend.array(voltage, dtype=backend.float),
+                bin_centers=backend.array(time_axis, dtype=backend.float),
+                charge=beam.signed_charge_with_direction(),
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+                **(sparse_metadata or {}),
+            )
+
+
+class ArbitraryRFWaveform(RFManipulationBaseClass):
+    """
+    Class to kick the beam with an arbitrary RF waveform.
+
+    The waveform is interpolated at the particle coordinates and treated
+    as a voltage that modifies the particle energy coordinates.  A gain
+    value can be specified, which the waveform is multiplied by to allow
+    for easy variation of the kick amplitude.
+
+    Parameters
+    ----------
+    time
+        The time array of the applied waveform, in [s].
+    waveform
+        The voltage waveform to be applied, in [V].
+    waveform_gain
+        A multiplication factor applied to the waveform.
+    section_index
+        Section index to group elements into sections.
+    name
+        User given name of the element.
+    **kwargs
+        Additional keyword arguments for method
+        resolution order of inheriting elements.
+    """
+
+    def __init__(
+        self,
+        time: ArrayLike,
+        waveform: ArrayLike,
+        waveform_gain: float = 1,
+        section_index: int = 0,
+        name: str | None = None,
+        **kwargs: dict[str, Any],  # for MRO of fused elements
+    ):
+        super().__init__(section_index=section_index, name=name, **kwargs)
+
+        self.time = backend.as_backend_array(time)
+        self.waveform = backend.as_backend_array(waveform)
+
+        if len(self.time.shape) != 1 or len(self.waveform.shape) != 1:
+            raise ValueError(
+                "Both time and waveform must be 1 dimensional, but got "
+                f"{self.time.shape=} and {self.waveform.shape=}."
+            )
+
+        if self.time.size != self.waveform.size:
+            raise ValueError(
+                "time and waveform array lengths must match, "
+                f"but they are {len(self.time)} and "
+                f"{len(self.waveform)} respectively."
+            )
+
+        time_delta = self.time[1:] - self.time[:-1]
+
+        if np.any(time_delta < 0):
+            raise ValueError("Time array must be strictly ascending.")
+
+        if np.max(time_delta) / np.min(time_delta) - 1 > 1e-10:  # noqa: PLR2004
+            raise ValueError(
+                "Continuous time is required, but the bin spacing varies too "
+                f"much.  Maximum delta {np.max(time_delta)}, minimum delta "
+                f"{np.min(time_delta)}."
+            )
+
+        self.waveform_gain: float = waveform_gain
+        self._register_schedulable_variables("waveform_gain")
+
+        # TODO:  Add delayed kick infrastructure
+        self._delayed_kick = None
+
+    def _track(self, beam: BeamBaseClass):
+        """
+        Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
+        super()._track(beam=beam)
+        reference_energy_change = self.track_reference(
+            beam.reference, beam.is_counter_rotating
+        )
+
+        self._track_interp(
+            beam=beam,
+            reference_energy_change=reference_energy_change,
+            time_axis=self.time,
+            voltage=self.waveform * self.waveform_gain,
+        )
 
 
 class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
@@ -953,31 +1072,6 @@ class RFStationBaseClass(RFManipulationBaseClass, AltersReference, ABC):
             else np.any(delta_omega_rf != 0)
         ):
             self._update_delta_phi_rf_from_beam_feedback()
-
-    def _track_interp(
-        self,
-        beam: BeamBaseClass,
-        reference_energy_change: float,
-        time_axis: NumpyArray | CupyArray,
-        voltage: NumpyArray | CupyArray,
-        sparse_metadata: dict | None = None,
-    ):
-        if self._delayed_kick is not None:
-            self._delayed_kick.register(
-                time_axis=time_axis,
-                voltage=voltage - reference_energy_change,
-                sparse_metadata=sparse_metadata,
-            )
-        else:
-            backend.specials.kick_interpolated(
-                dt=beam.read_partial_dt(),
-                dE=beam.write_partial_dE(),
-                voltage=backend.array(voltage, dtype=backend.float),
-                bin_centers=backend.array(time_axis, dtype=backend.float),
-                charge=beam.signed_charge_with_direction(),
-                acceleration_kick=-reference_energy_change,  # Mind the minus!
-                **(sparse_metadata or {}),
-            )
 
     def _update_delta_phi_rf_from_beam_feedback(self):
         """

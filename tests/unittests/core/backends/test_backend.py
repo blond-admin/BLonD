@@ -15,10 +15,12 @@ from scipy.constants import elementary_charge
 from blond import copy_to_cpu
 from blond.core.backends.backend import (
     INDEX_DTYPE,
+    BackendBaseClass,
     Cupy64Bit,
     CupyBackend,
     Numpy64Bit,
     NumpyBackend,
+    _array_like_to_numpy,
     backend,
 )
 from blond.core.backends.cpp.callables import _get_len, check_index_abi
@@ -26,6 +28,7 @@ from blond.core.beam.flags import BeamFlags
 from blond.generals.exceptions_ import ArrayCastingError
 from blond.generals.warnings_ import PrecisionWarning
 from blond.testing.backend_testing import (
+    ArrayLikeScan,
     BLonDTestCase,
     multi_backend_testcase,
     skip_if_no_cupy,
@@ -3760,6 +3763,72 @@ class TestSpecials(BLonDTestCase):
         target = backend.array([1, 2, 3], dtype=backend.complex)
         unchanged = backend.cast_arr_complex_if_needed(target)
         self.assertTrue(target is unchanged)
+
+    @multi_backend_testcase
+    def test_as_numpy_array(self):
+
+        source_array = np.array([1, 2, 3, 4, 5])
+        for inp_cast in ArrayLikeScan():
+            out_array = backend.as_numpy_array(inp_cast(source_array))
+            np.testing.assert_array_equal(source_array, out_array)
+            self.assertIsNot(source_array, out_array)
+            self.assertIsInstance(out_array, np.ndarray)
+
+    @multi_backend_testcase
+    def test_as_backend_array(self):
+
+        source_array = np.array([1, 2, 3, 4, 5])
+        target_type = type(backend.array([]))
+        for inp_cast in ArrayLikeScan():
+            out_array = backend.as_backend_array(inp_cast(source_array))
+
+            exp = _array_like_to_numpy(source_array)
+            got = _array_like_to_numpy(out_array)
+            np.testing.assert_array_equal(exp, got)
+            self.assertIsNot(source_array, out_array)
+            self.assertIsInstance(out_array, target_type)
+
+    def test_as_backend_array_unknown_backend(self):
+
+        with self.assertRaises(RuntimeError):
+            BackendBaseClass.as_backend_array(object(), [1, 2, 3])
+
+    @skip_if_no_cupy
+    @multi_backend_testcase
+    def test_as_cupy_array(self):
+        source_array = np.array([1, 2, 3, 4, 5])
+        for inp_cast in ArrayLikeScan():
+            out_array = backend.as_cupy_array(inp_cast(source_array))
+
+            exp = _array_like_to_numpy(source_array)
+            got = _array_like_to_numpy(out_array)
+            np.testing.assert_array_equal(exp, got)
+            self.assertIsNot(source_array, out_array)
+            self.assertIsInstance(out_array, cp.ndarray)
+
+    def test_as_cupy_array_no_cupy(self):
+        with mock.patch.dict(sys.modules, {"cupy": None}):
+            with self.assertRaises(RuntimeError):
+                backend.as_cupy_array([1, 2, 3])
+
+    def test_array_like_to_numpy(self):
+
+        source_array = np.array([1, 2, 3, 4, 5])
+        for inp_cast in ArrayLikeScan():
+            out_array = _array_like_to_numpy(inp_cast(source_array))
+            np.testing.assert_array_equal(source_array, out_array)
+            self.assertIsInstance(out_array, np.ndarray)
+
+        for inp_cast in ArrayLikeScan():
+            out_array = _array_like_to_numpy([inp_cast(source_array)])
+            np.testing.assert_array_equal([source_array], out_array)
+            self.assertIsInstance(out_array, np.ndarray)
+
+        source_array = np.array([[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]])
+        for inp_cast in ArrayLikeScan():
+            out_array = _array_like_to_numpy([[inp_cast(source_array)]])
+            np.testing.assert_array_equal([[source_array]], out_array)
+            self.assertIsInstance(out_array, np.ndarray)
 
     @pytest.mark.backend_mutation
     def test_sum_1d_array(self) -> None:

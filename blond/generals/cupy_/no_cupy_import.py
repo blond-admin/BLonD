@@ -67,10 +67,7 @@ def copy_to_cpu(array: NumpyArray | CupyArray) -> NumpyArray:
     Changes to the returned array will not
     be reflected on the original memory.
     """
-    if is_cupy_array(array):
-        return array.get()
-    else:
-        return array.copy()
+    return array.get() if is_cupy_array(array) else array.copy()
 
 
 class _AsarrayOverrideManager:

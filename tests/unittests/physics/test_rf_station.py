@@ -11,7 +11,6 @@ from numpy import ndarray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import (
-    Beam,
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
@@ -34,7 +33,7 @@ from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths i
 from blond.core.backends.backend import backend
 from blond.core.base import DynamicParameter
 from blond.core.beam.base import BeamBaseClass
-from blond.core.beam.beams import ProbeBeam
+from blond.core.beam.beams import Beam, ProbeBeam
 from blond.core.beam.particle_types import ParticleType, lead_82, proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.experimental import PooledInterpolationKick
@@ -49,10 +48,15 @@ from blond.physics.feedbacks.beam_feedback import BeamFeedbackBase
 from blond.physics.impedances.base import WakeField
 from blond.physics.profiles_sparse import EquidistantMultiProfile
 from blond.physics.rf_station import (
+    ArbitraryRFWaveform,
     MultiHarmonicRFStation,
     SingleHarmonicRFStation,
 )
-from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
+from blond.testing.backend_testing import (
+    ArrayLikeScan,
+    BLonDTestCase,
+    multi_backend_testcase,
+)
 from blond.testing.helpers import allclose_tolerances
 
 
@@ -1764,6 +1768,94 @@ class TestOmegaRfDesignFollowsReference(unittest.TestCase):
             copy_to_cpu(rf.omega_rf_design),
             self._expected_omega(harmonics, self.E_HI),
             rtol=1e-12,
+        )
+
+
+class TestArbitraryRFWaveform(BLonDTestCase):
+    def test_init(self):
+        time = backend.linspace(0, 2e-6, 1024)
+        waveform = backend.linspace(-5e3, 5e3, 1024)
+        gain = 0.5
+
+        arbitrary_waveform = ArbitraryRFWaveform(time, waveform, gain)
+
+        np.testing.assert_array_equal(
+            copy_to_cpu(time), copy_to_cpu(arbitrary_waveform.time)
+        )
+        np.testing.assert_array_equal(
+            copy_to_cpu(waveform), copy_to_cpu(arbitrary_waveform.waveform)
+        )
+        self.assertEqual(gain, arbitrary_waveform.waveform_gain)
+
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform([time], waveform)
+        self.assertIn(
+            "Both time and waveform must be 1 dimensional, but got "
+            f"self.time.shape=(1, 1024) and self.waveform.shape=(1024,).",
+            str(exc.exception),
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform(time, [waveform])
+        self.assertIn(
+            "Both time and waveform must be 1 dimensional, but got "
+            f"self.time.shape=(1024,) and self.waveform.shape=(1, 1024).",
+            str(exc.exception),
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform(time[1:], waveform)
+        self.assertIn(
+            "time and waveform array lengths must match, but they are 1023 and"
+            " 1024 respectively.",
+            str(exc.exception),
+        )
+
+    @multi_backend_testcase
+    def test_track(self):
+
+        beam = Beam(0, proton)
+        beam.setup_beam(
+            backend.linspace(0.1e-6, 1.9e-6, int(1e5)), backend.zeros(int(1e5))
+        )
+
+        time = backend.linspace(0, 2e-6, 1024)
+        waveform = backend.linspace(-5e3, 5e3, 1024)
+        gain = 0.5
+
+        for inp_cast in ArrayLikeScan():
+            arbitrary_waveform = ArbitraryRFWaveform(
+                inp_cast(time), inp_cast(waveform), gain
+            )
+        arbitrary_waveform.track(beam)
+
+        expected = backend.interp(beam.dt.array_local, time, waveform * gain)
+
+        np.testing.assert_array_almost_equal(
+            copy_to_cpu(beam.dE.array_local), copy_to_cpu(expected)
+        )
+
+    def test_discontinuous_and_descending_time(self):
+
+        time = backend.as_backend_array(
+            np.linspace(0, 1e-6, 1024).tolist()
+            + np.linspace(3e-6, 4e-6, 1024).tolist()
+        )
+        waveform = backend.as_backend_array(
+            backend.linspace(-5e3, 5e3, 1024).tolist() * 2
+        )
+        gain = 0.5
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform(time, waveform, gain)
+        self.assertIn(
+            "Continuous time is required, but the bin spacing varies",
+            str(exc.exception),
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            ArbitraryRFWaveform(time[::-1], waveform, gain)
+        self.assertIn(
+            "Time array must be strictly ascending.", str(exc.exception)
         )
 
 

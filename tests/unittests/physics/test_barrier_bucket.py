@@ -4,9 +4,12 @@ from unittest.mock import Mock
 
 import numpy as np
 import numpy.testing as nptest
+import scipy.constants as cont
 
 import blond.physics.barrier_bucket as bbuck
 from blond.core.backends.backend import CupyBackend, backend
+from blond.core.beam.beams import Beam
+from blond.core.beam.particle_types import proton
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import ArrayShapeError
@@ -576,6 +579,47 @@ class TestBarrierBucketGenerator(BLonDTestCase):
 
             self.assertAlmostEqual(bin_cents[high], c + w / 4)
             self.assertAlmostEqual(bin_cents[low], c - w / 4)
+
+    @multi_backend_testcase
+    def test_track(self):
+        n_macroparticles = int(1e5)
+        circumference = 2 * np.pi * 25.0
+        n_bins = 1024
+
+        beam = Beam(0, proton)
+        beam.setup_beam(
+            backend.zeros(n_macroparticles),
+            backend.zeros(n_macroparticles),
+            reference_total_energy=1.4e9,
+            reference_time=0.0,
+        )
+
+        t_rev = circumference / (beam.reference.beta * cont.c)
+        beam.dt.array_local[:] = backend.linspace(
+            0, t_rev, n_macroparticles, dtype=backend.float
+        )
+
+        barrier = bbuck.BarrierRF(
+            t_center=t_rev / 2,
+            t_width=200e-9,
+            peak_voltage=1e3,
+            n_bins=n_bins,
+        )
+        barrier.configure(
+            turn_counter=Mock(value=0),
+            magnetic_cycle=None,
+            ring=Mock(circumference=circumference),
+        )
+
+        barrier.track(beam)
+
+        bins = backend.linspace(0, t_rev, n_bins, dtype=backend.float)
+        waveform = barrier.waveform_at_turn_or_time(0, 0.0, bins)
+        expected = backend.interp(beam.dt.array_local, bins, waveform)
+
+        nptest.assert_array_almost_equal(
+            copy_to_cpu(beam.dE.array_local), copy_to_cpu(expected)
+        )
 
     def test_track_reference_without_magnetic_cycle_returns_zero(self):
         # ``BarrierRF`` uses the base ``RFManipulationBaseClass.track_reference``
