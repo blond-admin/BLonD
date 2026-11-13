@@ -69,8 +69,17 @@ class Beam(BeamBaseClass):
        Default is False (co-rotating beam).
     """
 
-    # Deprecated; reading it in the object walk would warn.
-    skip_find_instances_attributes = ["ratio"]
+    # Not read by the object walk: `ratio` is deprecated (it would warn) and
+    # the reductions are a pass over all particles, `rms_emittance` with
+    # three temporaries as long as the beam (half of a run's peak memory).
+    skip_find_instances_attributes = [
+        "ratio",
+        "dt_min",
+        "dt_max",
+        "dE_min",
+        "dE_max",
+        "rms_emittance",
+    ]
 
     def __init__(
         self,

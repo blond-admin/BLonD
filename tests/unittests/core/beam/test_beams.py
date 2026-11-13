@@ -20,6 +20,7 @@ from blond.core.backends.mpi_distributed.helpers import (
 from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.core.beam.beams import ProbeBeam
 from blond.core.beam.particle_types import lead_82
+from blond.core.helpers import find_instances_with_method
 from blond.generals.plotting_ import DEFAULT_CMAP
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -715,6 +716,25 @@ class TestSimpleGaussianBackendDependentRandomNumbers(BLonDTestCase):
         np.testing.assert_array_equal(
             self._dt(backend_dependent_random_numbers=True), self._dt()
         )
+
+
+class TestObjectWalkSkipsReductions(BLonDTestCase):
+    def test_walk_evaluates_no_reduction_over_the_particles(self) -> None:
+        """`finalize`'s walk must not reduce over (or copy) every particle.
+
+        `rms_emittance` allocates three arrays as long as the beam, which
+        raised the peak memory of a run from 28 to 52 B per macroparticle.
+        """
+        beam = Beam(intensity=1e9, particle_type=proton)
+        beam.setup_beam(dt=backend.linspace(0, 1e-9, 10), dE=backend.zeros(10))
+        names = ("dt_min", "dt_max", "dE_min", "dE_max", "rms_emittance")
+        reductions = {
+            name: mock.PropertyMock(return_value=0.0) for name in names
+        }
+        with mock.patch.multiple(Beam, **reductions):
+            find_instances_with_method(beam, "on_run_simulation")
+        for name, reduction in reductions.items():
+            self.assertEqual(reduction.call_count, 0, name)
 
 
 if __name__ == "__main__":
