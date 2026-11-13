@@ -265,6 +265,51 @@ warnings of the density function only for the final beam.
 
 ---
 
+Matching a Measured Line Density
+--------------------------------
+
+:class:`~blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon` matches the beam to a measured
+profile instead of a bunch length or emittance. It solves for the occupation
+of each contour of the Hamiltonian such that the line density of the bunch
+reproduces the profile, in every iteration of the intensity effects. Its
+``hamilton_to_density_function`` is passed to the matcher:
+
+.. code-block:: python
+
+   from blond.experimental import ProfileMatcherAddon, SemiEmpiricMatcher
+
+   matcher_addon = ProfileMatcherAddon(hist_x=hist_x, hist_y=hist_y)
+   matcher_addon.recenter = True  # place the profile at the bucket centre
+
+   SemiEmpiricMatcher(
+       time_limit=(0, 2.5e-9),
+       n_macroparticles=1e6,
+       hamilton_to_density_function=matcher_addon.hamilton_to_density_function,
+       hamilton_to_density_kwargs={},
+   )
+
+``hist_x`` are the times of the profile, in [s], ``hist_y`` its amplitude
+in arbitrary units. With ``recenter = False`` (default), the profile stays
+at its measured times; with ``recenter = True``, its mean is moved to the
+deepest minimum of the potential well.
+
+With windows (next section), the profile is given either
+
+- once for all buckets, to the addon or as one dict in
+  ``hamilton_to_density_kwargs``, with ``recenter = True`` so that it lands
+  in every bucket, or
+- per bucket, as one ``dict(hist_x=..., hist_y=...)`` per window, at the
+  measured time of its bucket or, with ``recenter = True``, anywhere.
+
+A profile that does not overlap its bucket raises a :class:`ValueError`.
+The fit smooths the occupation per contour by ``smoothness`` (default 0.05
+of the time points of the bucket), which broadens bunches that are not much
+longer than that; lower it for short bunches. See
+``blond/examples/scripts/EX_06_Acceleration_match_density.py`` and the
+tutorial notebook for complete examples.
+
+---
+
 Filling Selected Buckets (Windows)
 ----------------------------------
 

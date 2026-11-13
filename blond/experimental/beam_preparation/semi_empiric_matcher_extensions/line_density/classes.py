@@ -22,7 +22,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_de
     occupation_per_equipotential_to_density,
     occupation_per_equipotential_to_histogram,
 )
-from blond.generals.cupy_.no_cupy_import import copy_to_cpu, is_cupy_array
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.plotting_ import DEFAULT_CMAP
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -41,45 +41,62 @@ class SemiEmpiricMatcherAddon(ABC):
         hamilton_2D: NumpyArray,
     ) -> NumpyArray:
         """
-        This function is an endpoint for the `SemiEmpiricMatcher`.
+        Density on the grid, to pass as ``hamilton_to_density_function``.
 
         Parameters
         ----------
-        deltaE_grid
-            The time coordinates corresponding to `hamilton_2D`, in [eV].
         time_grid
-            The time coordinates corresponding to `hamilton_2D`, in [s].
+            Time coordinates of the grid, in [s].
+        deltaE_grid
+            Energy coordinates of the grid, in [eV].
         hamilton_2D
-            A 2D array representing the spatial Hamilton field.
+            Hamiltonian on the grid, in [eV].
 
         Returns
         -------
         density
-            A 2D array of the same shape as `hamilton_2D`, representing the
-            computed density distribution. Values are scaled between 0 and 1.
+            Density on the grid, of the same shape as ``hamilton_2D``,
+            scaled between 0 and 1.
         """
         pass
 
 
 class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
     """
-    Helper class to match a beam profile to a target simulation histogram.
+    Match the beam to a measured line density (bunch profile).
+
+    Its :meth:`hamilton_to_density_function` is passed to
+    :class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`.
+    It solves for the occupation of each contour of the Hamiltonian, such
+    that the line density of the bunch reproduces the profile, in every
+    iteration of the intensity effects.
+
+    With windows (one ``time_limit`` per bucket), the profile can be given
+
+    - once for all buckets, here or as one dict in
+      ``hamilton_to_density_kwargs``, with ``recenter = True``, so that it is
+      placed at the centre of each bucket, or
+    - per bucket, as one ``dict(hist_x=..., hist_y=...)`` per window in
+      ``hamilton_to_density_kwargs``, either at the measured times or, with
+      ``recenter = True``, at the centre of its bucket.
 
     Parameters
     ----------
-    hist_x : array-like
-        Time coordinates of the histogram [s].
-    hist_y : array-like
-        Histogram amplitude [arbitrary units].
+    hist_x : array-like, optional
+        Time coordinates of the profile, in [s]. The profile for all
+        buckets, unless given per bucket in ``hamilton_to_density_kwargs``.
+    hist_y : array-like, optional
+        Profile amplitude, in arbitrary units, at ``hist_x``.
 
     Attributes
     ----------
     smoothness : float
-        Controls how the internal state is smoothed to produce a stable
-        distribution that is less sensitive to noise.
-        From 0 to 1.
-        - 0: Inactive.
-        - 1: Gaussian smoothing with sigma = full witdth of `hist_x`.
+        Width of the Gaussian smoothing of the occupation per contour, as a
+        fraction of the number of time points of the grid (with windows:
+        of the bucket), from 0 (no smoothing) to 1. Smoothing makes the
+        result less sensitive to noise in the profile, but broadens bunches
+        that are not much longer than ``smoothness`` times the bucket.
+        Default is 0.05.
     maxiter : int
         Maximum number of iterations allowed when matching the density
         distribution to the target beam profile.
@@ -88,8 +105,11 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         two matched profiles, and stops early if changes are smaller
         than this threshold.
     recenter : bool
-        If True, recenters the mean of the profile to the minimum of the
-        potential. Only applicable for single-bucket simulations.
+        If True, the profile is shifted so that its mean lies at the deepest
+        minimum of the potential well, in every call: with windows, at the
+        bottom of each bucket. If False (default), the profile stays at its
+        measured times. With a single ``time_limit`` spanning several
+        buckets, only the deepest one is recentred on.
     animate_fitting : bool
         If True, displays an animation showing how the beam profile is
         matched to the histogram (`hist_y`). Useful for debugging and
@@ -104,8 +124,16 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
     plot_result_pause_time : float
         Time to pause after drawing the non-blocking result plot, in [s].
 
+    Raises
+    ------
+    ValueError
+        If only one of ``hist_x`` and ``hist_y`` is given, or the profile
+        has no positive value or a NaN.
+
     Examples
     --------
+    One profile for a single bucket:
+
     >>> from blond.experimental import (
     ...     SemiEmpiricMatcher,
     ...     ProfileMatcherAddon,
@@ -126,23 +154,34 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
     ...         animate=True,
     ...     ),
     ... )
+
+    One profile per bucket, each at the centre of its bucket:
+
+    >>> matcher_addon = ProfileMatcherAddon()
+    >>> matcher_addon.recenter = True
+    >>> SemiEmpiricMatcher(
+    ...     # one window of +- t_rf around each bucket to fill
+    ...     time_limit=[((k - 1) * t_rf, (k + 1) * t_rf) for k in buckets],
+    ...     n_macroparticles=1e6,
+    ...     hamilton_to_density_function=matcher_addon.hamilton_to_density_function,
+    ...     hamilton_to_density_kwargs=[
+    ...         dict(hist_x=hist_x, hist_y=hist_y)
+    ...         for hist_x, hist_y in profiles  # one per bucket
+    ...     ],
+    ... )
     """
 
     def __init__(
         self,
-        hist_x: NumpyArray | CupyArray,
-        hist_y: NumpyArray | CupyArray,
+        hist_x: NumpyArray | CupyArray | None = None,
+        hist_y: NumpyArray | CupyArray | None = None,
     ):
-        hist_x = copy_to_cpu(hist_x)
-        hist_y = copy_to_cpu(hist_y)
-
-        assert not is_cupy_array(hist_y)
-        assert not np.any(np.isnan(hist_x))
-        assert not np.any(np.isnan(hist_y))
-        assert np.any(hist_y > 0)
-
-        self._hist_x = hist_x
-        self._hist_y = hist_y
+        # profile for all buckets, or None if given per call
+        self._profile: tuple[NumpyArray, NumpyArray] | None = (
+            None
+            if hist_x is None and hist_y is None
+            else _checked_profile(hist_x, hist_y)
+        )
         self.recenter = False
         self.animate_fitting = False
         self.plot_result = False
@@ -160,14 +199,17 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         time_grid: NumpyArray,
         deltaE_grid: NumpyArray,
         hamilton_2D: NumpyArray,
+        hist_x: NumpyArray | CupyArray | None = None,
+        hist_y: NumpyArray | CupyArray | None = None,
     ) -> NumpyArray:
         """
-        Density in H whose line density matches the histogram.
+        Density in H whose line density matches the profile.
 
         Pass it as ``hamilton_to_density_function`` to
         :class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`,
-        with ``hamilton_to_density_kwargs={}``: the target is the histogram
-        given to the addon.
+        with ``hamilton_to_density_kwargs={}`` for the profile given to the
+        addon, or with the keys ``hist_x`` and ``hist_y``: one dict for all
+        buckets, or one per window.
 
         Parameters
         ----------
@@ -177,12 +219,24 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
             Energy coordinates of the grid, in [eV].
         hamilton_2D
             Hamiltonian on the grid, in [eV].
+        hist_x
+            Time coordinates of the profile, in [s]. Default is the profile
+            given to the addon.
+        hist_y
+            Profile amplitude, in arbitrary units, at ``hist_x``.
 
         Returns
         -------
         density : NumpyArray
             Density on the grid, of the same shape as ``hamilton_2D``,
             scaled between 0 and 1.
+
+        Raises
+        ------
+        ValueError
+            If there is no profile, here or given to the addon, or if the
+            profile does not overlap the time range of the grid, e.g. a
+            bucket of another window without ``recenter``.
 
         See Also
         --------
@@ -195,15 +249,16 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max :
             Fill up to a given Hamiltonian.
         """
+        hist_x, hist_y = self._profile_of_call(hist_x, hist_y)
         if self.recenter:
             correction = self._calculate_recentering_correction(
-                hamilton_2D, time_grid
+                hamilton_2D, time_grid, hist_x, hist_y
             )
         else:
             correction = 0.0
 
         hist_x_interp, hist_y_interp = self._interpolate_hist(
-            correction, time_grid
+            correction, time_grid, hist_x, hist_y
         )
 
         density = self._solve_for_density(
@@ -228,39 +283,116 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
         return density
 
-    def _interpolate_hist(self, correction: float, time_grid: NumpyArray):
+    def _profile_of_call(
+        self,
+        hist_x: NumpyArray | CupyArray | None,
+        hist_y: NumpyArray | CupyArray | None,
+    ) -> tuple[NumpyArray, NumpyArray]:
+        """The profile given to the call, else the one of the addon.
+
+        Parameters
+        ----------
+        hist_x
+            Time coordinates of the profile, in [s], or None.
+        hist_y
+            Profile amplitude, or None.
+
+        Returns
+        -------
+        hist_x, hist_y
+            The checked profile, on the host.
+
+        Raises
+        ------
+        ValueError
+            If there is no profile.
+        """
+        if hist_x is not None or hist_y is not None:
+            return _checked_profile(hist_x, hist_y)
+        if self._profile is None:
+            raise ValueError(
+                "ProfileMatcherAddon has no profile: give `hist_x` and"
+                " `hist_y` to the addon, or in `hamilton_to_density_kwargs`"
+                " (one dict for all buckets, or one per window)."
+            )
+        return self._profile
+
+    def _interpolate_hist(
+        self,
+        correction: float,
+        time_grid: NumpyArray,
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+    ) -> tuple[NumpyArray, NumpyArray]:
+        """The profile, shifted by ``correction``, on the time axis of the grid.
+
+        Parameters
+        ----------
+        correction
+            Shift of the profile in time, in [s].
+        time_grid
+            Time coordinates of the grid, in [s].
+        hist_x
+            Time coordinates of the profile, in [s].
+        hist_y
+            Profile amplitude.
+
+        Returns
+        -------
+        hist_x_interp, hist_y_interp
+            Time axis of the grid, and the profile on it.
+
+        Raises
+        ------
+        ValueError
+            If the profile does not overlap the time axis of the grid.
+        """
         hist_x_interp = time_grid[:, 0]
         hist_y_interp = np.interp(
             hist_x_interp,
-            self._hist_x + correction,
-            self._hist_y,
+            hist_x + correction,
+            hist_y,
             left=0,
             right=0,
         )
-
-        assert np.any(hist_y_interp > 0)
-
+        if not np.any(hist_y_interp > 0):
+            raise ValueError(
+                "The profile, at"
+                f" [{hist_x[0] + correction:.6e}, {hist_x[-1] + correction:.6e}]"
+                " s, does not overlap the time range"
+                f" [{hist_x_interp[0]:.6e}, {hist_x_interp[-1]:.6e}] s of the"
+                " bucket. Set `recenter = True` to place it at the centre of"
+                " each bucket, or give one profile per window, at the time"
+                " of its bucket."
+            )
         return hist_x_interp, hist_y_interp
 
     def _calculate_recentering_correction(
-        self, hamilton_2D: NumpyArray, time_grid: NumpyArray
+        self,
+        hamilton_2D: NumpyArray,
+        time_grid: NumpyArray,
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
     ) -> float:
         """
-        Calculate the difference between potential well minimum and histogram maximum.
+        Shift that moves the mean of the profile to the potential minimum.
 
         Parameters
         ----------
         hamilton_2D
-            A 2D array representing the spatial Hamilton field.
+            Hamiltonian on the grid, in [eV].
         time_grid
-            The time coordinates corresponding to `hamilton_2D`, in [s].
+            Time coordinates of the grid, in [s].
+        hist_x
+            Time coordinates of the profile, in [s].
+        hist_y
+            Profile amplitude.
 
         Returns
         -------
         correction
-            The difference between potential well
-            minimum and histogram maximum.
-
+            Time of the deepest minimum of the potential well minus the mean
+            of the profile, in [s].
         """
         mid = time_grid.shape[1] // 2
 
@@ -272,7 +404,7 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
         lowest_min_index = min_indices[np.argmin(y[min_indices])]
         # x-coordinate of the lowest local minimum
         center_ham = x[lowest_min_index]
-        center_prof = np.average(self._hist_x, weights=self._hist_y)
+        center_prof = np.average(hist_x, weights=hist_y)
         correction = float(center_ham - center_prof)
         return correction
 
@@ -559,3 +691,44 @@ class ProfileMatcherAddon(SemiEmpiricMatcherAddon):
 
         plt.legend()
         plt.tight_layout()
+
+
+def _checked_profile(
+    hist_x: NumpyArray | CupyArray | None,
+    hist_y: NumpyArray | CupyArray | None,
+) -> tuple[NumpyArray, NumpyArray]:
+    """Validate a profile and copy it to the host.
+
+    Parameters
+    ----------
+    hist_x
+        Time coordinates of the profile, in [s].
+    hist_y
+        Profile amplitude, at ``hist_x``.
+
+    Returns
+    -------
+    hist_x, hist_y
+        The profile, as float NumPy arrays.
+
+    Raises
+    ------
+    ValueError
+        If only one of them is given, their shapes differ, or the profile
+        has no positive value or a NaN.
+    """
+    if hist_x is None or hist_y is None:
+        raise ValueError("Give both `hist_x` and `hist_y`, or neither.")
+    hist_x = np.asarray(copy_to_cpu(hist_x), dtype=float)
+    hist_y = np.asarray(copy_to_cpu(hist_y), dtype=float)
+    if (
+        hist_x.shape != hist_y.shape
+        or np.any(np.isnan(hist_x))
+        or np.any(np.isnan(hist_y))
+        or not np.any(hist_y > 0)
+    ):
+        raise ValueError(
+            "The profile needs `hist_x` and `hist_y` of the same shape,"
+            " without NaN, and with a positive value."
+        )
+    return hist_x, hist_y

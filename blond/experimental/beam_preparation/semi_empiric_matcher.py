@@ -551,7 +551,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Hamiltonian, keys ``density_modifier``, ``hamilton_max``.
     blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon.hamilton_to_density_function :
         ``hamilton_to_density_function`` matching a measured line density,
-        no keys (``hamilton_to_density_kwargs={}``).
+        keys ``hist_x``, ``hist_y`` (optional, for one profile per window).
     blond.core.simulation.simulation.Simulation.get_potential_well_empiric :
         Potential well that the Hamiltonian is built from.
 

@@ -4,11 +4,16 @@ from unittest.mock import Mock, patch
 import matplotlib.pyplot as plt
 import numpy as np
 
+from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    SemiEmpiricMatcher,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes import (
     ProfileMatcherAddon,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.backend_testing import BLonDTestCase
+from blond.testing.simulation import ring_with_resonator_near_rf
 
 
 class TestProfileMatcherAddon(BLonDTestCase):
@@ -89,6 +94,7 @@ class TestProfileMatcherAddon(BLonDTestCase):
         addon.plot_result_blocking = False
         addon.plot_result_pause_time = 0.0
         addon._interpolate_hist.return_value = (None, None)
+        addon._profile_of_call.return_value = (None, None)
 
         with patch("matplotlib.pyplot.pause") as pause:
             ProfileMatcherAddon.hamilton_to_density_function(
@@ -103,6 +109,85 @@ class TestProfileMatcherAddon(BLonDTestCase):
         )
         self.assertEqual(addon.animate_fitting_pause_time, 1e-3)
         self.assertEqual(addon.plot_result_pause_time, 0.1)
+
+
+def _gaussian_profile(sigma, centre=0.0):
+    """Line density of a Gaussian bunch, +-6 sigma around ``centre``."""
+    hist_x = centre + np.linspace(-6 * sigma, 6 * sigma, 241)
+    return hist_x, np.exp(-0.5 * ((hist_x - centre) / sigma) ** 2)
+
+
+class TestProfileMatcherAddonWindows(BLonDTestCase):
+    """One measured profile per bucket, or one for all, with windows."""
+
+    buckets = (3, 7)
+
+    def _match(self, addon, hamilton_to_density_kwargs):
+        simulation, beam, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
+        addon.maxiter = 30
+        matcher = SemiEmpiricMatcher(
+            time_limit=[
+                ((k - 0.5) * t_rf, (k + 1.5) * t_rf) for k in self.buckets
+            ],
+            n_macroparticles=4e4,
+            hamilton_to_density_function=addon.hamilton_to_density_function,
+            hamilton_to_density_kwargs=hamilton_to_density_kwargs,
+            internal_grid_shape=(255, 255),
+            maxiter_intensity_effects=0,
+            verbose=False,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        dt = copy_to_cpu(beam.read_partial_dt())
+        bucket = np.floor(dt / t_rf).astype(int)
+        return [4 * dt[bucket == k].std() for k in self.buckets], t_rf
+
+    def test_one_recentred_profile_fills_every_bucket(self):
+        addon = ProfileMatcherAddon(*_gaussian_profile(sigma=8e-9))
+        addon.recenter = True
+        lengths, _ = self._match(addon, hamilton_to_density_kwargs={})
+        np.testing.assert_allclose(lengths, 32e-9, rtol=0.05)
+
+    def test_one_profile_per_bucket(self):
+        addon = ProfileMatcherAddon()
+        addon.recenter = True
+        # the default smoothing broadens the 6 ns bunch by 10 %
+        addon.smoothness = 0.01
+        sigmas = (6e-9, 10e-9)
+        lengths, _ = self._match(
+            addon,
+            hamilton_to_density_kwargs=[
+                dict(zip(("hist_x", "hist_y"), _gaussian_profile(sigma)))
+                for sigma in sigmas
+            ],
+        )
+        np.testing.assert_allclose(lengths, 4 * np.array(sigmas), rtol=0.05)
+
+    def test_profiles_at_measured_times_without_recentring(self):
+        _, _, t_rf = ring_with_resonator_near_rf(n_protons=1e10)
+        addon = ProfileMatcherAddon()
+        lengths, _ = self._match(
+            addon,
+            hamilton_to_density_kwargs=[
+                dict(
+                    zip(
+                        ("hist_x", "hist_y"),
+                        _gaussian_profile(8e-9, centre=(k + 0.5) * t_rf),
+                    )
+                )
+                for k in self.buckets
+            ],
+        )
+        np.testing.assert_allclose(lengths, 32e-9, rtol=0.05)
+
+    def test_profile_outside_bucket_raises(self):
+        # absolute times around t = 0, outside both windows
+        addon = ProfileMatcherAddon(*_gaussian_profile(sigma=8e-9))
+        with self.assertRaisesRegex(ValueError, "recenter"):
+            self._match(addon, hamilton_to_density_kwargs={})
+
+    def test_no_profile_raises(self):
+        with self.assertRaisesRegex(ValueError, "hist_x"):
+            self._match(ProfileMatcherAddon(), hamilton_to_density_kwargs={})
 
 
 if __name__ == "__main__":
