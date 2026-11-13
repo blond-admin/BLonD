@@ -62,7 +62,7 @@ extern "C" index_t count_flag(const int *__restrict__ flags, const int flag,
 
 #pragma omp parallel for reduction(+ : count)
   for (index_t idx = 0; idx < n; ++idx) {
-    count += (flags[idx] == flag);
+    count += static_cast<index_t>(flags[idx] == flag);
   }
 
   return count;
