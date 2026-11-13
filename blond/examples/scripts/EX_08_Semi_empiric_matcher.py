@@ -212,7 +212,7 @@ def main():
                 "n_buckets": 8,  # Number of buckets within time_limit
                 "max_emittance_diff": 0.01,
             },  # Greatest tolerated difference in generated emittance
-            animate=False,
+            animate=True,
             tolerance_potential_well=1e-3,
             increment_intensity_effects_until_iteration_i=increment_intensity_effects_until_iteration_i,
         ),

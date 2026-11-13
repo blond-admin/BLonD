@@ -228,6 +228,10 @@ of the fundamental RF harmonic:
    buckets = [4, 5, 6, 7]  # bucket k is centred at (k + 0.5) * t_rf here
    time_limit = [((k - 0.5) * t_rf, (k + 1.5) * t_rf) for k in buckets]
 
+A complete example with beam loading, per-bucket weights and per-bucket
+density arguments is ``blond/examples/scripts/EX_31_Multibunch_semi_empiric_matcher.py``,
+shown in the ``Examples`` section of :class:`SemiEmpiricMatcher`.
+
 In every iteration, each window is treated on its own:
 
 1. Its potential well is obtained as for a single ``time_limit`` and

@@ -121,6 +121,7 @@ def main(
             "density_modifier": 1.0,
             "hamilton_max": 100,
         },
+        animate=True,
     )
 
     sim.prepare_beam(beam=beam, preparation_routine=preparation_routine)
