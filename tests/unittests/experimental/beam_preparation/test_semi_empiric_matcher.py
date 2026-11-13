@@ -746,7 +746,7 @@ class TestSemiEmpiricMatcherAnimation(BLonDTestCase):
         )
         beam = ProbeBeam(dt=np.linspace(0, 1e-9, 10), particle_type=proton)
 
-        matcher._plot_current_state(beam=beam, i=0, scalar=0.0, ts=ts)
+        matcher._plot_current_state(beam=beam, i=0, scalar=0.0)
 
         histogram_axes, potential_well_axes = plt.figure(
             "SemiEmpiricMatcher"
@@ -795,7 +795,7 @@ class TestSemiEmpiricMatcherStagnation(BLonDTestCase):
             return grid_correction
 
         applied_corrections = []
-        populate = SemiEmpiricMatcher._populate_beam_from_hamiltonian
+        populate = SemiEmpiricMatcher._populate_beam
 
         def populate_and_record(matcher, **kwargs):
             applied_corrections.append(matcher._grid_correction)
@@ -811,7 +811,7 @@ class TestSemiEmpiricMatcherStagnation(BLonDTestCase):
             ),
             mock.patch.object(
                 SemiEmpiricMatcher,
-                "_populate_beam_from_hamiltonian",
+                "_populate_beam",
                 autospec=True,
                 side_effect=populate_and_record,
             ),
@@ -1281,7 +1281,7 @@ class TestSemiEmpiricMatcherDocstringExample(BLonDTestCase):
 
 class TestSemiEmpiricMatcherBackendDependentRandomNumbers(BLonDTestCase):
     def test_is_passed_to_populate_beam(self):
-        from blond.experimental.beam_preparation import semi_empiric_matcher
+        from blond.experimental.beam_preparation import bucket_windows
 
         matcher = SemiEmpiricMatcher(
             time_limit=(0.0, 1.0),
@@ -1289,23 +1289,29 @@ class TestSemiEmpiricMatcherBackendDependentRandomNumbers(BLonDTestCase):
                 hamilton_max=1.0, density_modifier=1.0
             ),
             n_macroparticles=100,
+            internal_grid_shape=(5, 5),
             verbose=False,
             backend_dependent_random_numbers=True,
         )
-        time_grid, deltaE_grid = np.meshgrid(
-            np.linspace(0, 1, 4), np.linspace(-1, 1, 5)
-        )
+        beam = mock.Mock()
+        beam.reference.total_energy = 1.0
+        beam.reference.beta = 1.0
+        simulation = mock.Mock()
+        simulation.ring.calc_average_eta_0.return_value = 1.0
         with mock.patch.object(
-            semi_empiric_matcher, "populate_beam"
-        ) as populate_beam:
-            matcher._populate_beam_from_hamiltonian(
-                beam=mock.Mock(),
-                time_grid=time_grid,
-                deltaE_grid=deltaE_grid,
-                hamilton_2D=time_grid**2 + deltaE_grid**2,
+            bucket_windows,
+            "generate_particle_coordinates",
+            return_value=(np.zeros(100), np.zeros(100)),
+        ) as generate_particle_coordinates:
+            matcher._populate_beam(
+                beam=beam,
+                simulation=simulation,
+                avg_potential_well=np.linspace(-1.0, 1.0, 5) ** 2,
             )
         self.assertIs(
-            populate_beam.call_args.kwargs["backend_dependent_random_numbers"],
+            generate_particle_coordinates.call_args.kwargs[
+                "backend_dependent_random_numbers"
+            ],
             True,
         )
 

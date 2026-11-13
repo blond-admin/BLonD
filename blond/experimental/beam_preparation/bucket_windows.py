@@ -6,12 +6,14 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""One window per bucket to fill, for the `SemiEmpiricMatcher`.
+"""Time windows of the `SemiEmpiricMatcher`, and the beam built from them.
 
 The bucket geometry (:func:`select_bucket`, :func:`check_bucket_continuity`)
 and :class:`BucketWindows`, the collaborator through which
 :class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`
-fills one bucket per window when ``time_limit`` is a list of windows.
+turns potential wells into a beam: one bucket per window when
+``time_limit`` is a list of windows, or the whole of a single
+``time_limit``.
 """
 
 from __future__ import annotations
@@ -300,12 +302,16 @@ def _is_window_list(time_limit: Any) -> bool:
 
 
 class BucketWindows:
-    """One window per bucket to fill, see `SemiEmpiricMatcher`.
+    """Time windows of `SemiEmpiricMatcher`, populating a beam from them.
 
-    Holds the windows and their per-bucket settings, selects the bucket in
-    each window and populates a beam bucket by bucket. Only the particle
-    coordinates of each bucket are kept, so that the memory does not grow
-    with the number of windows (except with ``debug_helper``).
+    Holds the windows and their per-window settings, and populates a beam
+    window by window: potential well, Hamiltonian, density, particles.
+    With ``per_bucket``, each window is centred on a bucket to fill: the
+    bucket is selected in it and its density cut at the separatrix.
+    Without, there is a single window, a plain ``time_limit``, filled as
+    it is. Only the particle coordinates of each window are kept, so that
+    the memory does not grow with the number of windows (except with
+    ``debug_helper``).
 
     Parameters
     ----------
@@ -320,6 +326,8 @@ class BucketWindows:
         windows or one per window.
     n_time
         Number of points of the potential well in each window.
+    per_bucket
+        Whether each window is centred on a bucket to fill, see above.
 
     Attributes
     ----------
@@ -335,7 +343,8 @@ class BucketWindows:
         Start of the first and end of the last window, in [s].
     selected_buckets
         ``(start, stop)`` of the bucket selected in each window by the last
-        call of :meth:`populate_beam`, in [s], or ``None`` before.
+        call of :meth:`populate_beam`, in [s], or ``None`` before and
+        without ``per_bucket``.
 
     Raises
     ------
@@ -350,7 +359,9 @@ class BucketWindows:
         bucket_weights: Sequence[float] | None,
         density_kwargs: dict[str, Any] | Sequence[dict[str, Any]],
         n_time: int,
+        per_bucket: bool = True,
     ) -> None:
+        self.per_bucket = per_bucket
         if any(len(window) != 2 for window in windows):  # noqa: PLR2004
             raise ValueError(
                 f"Every window must be (start, stop), but got {windows}."
@@ -400,7 +411,7 @@ class BucketWindows:
         hamilton_to_density_kwargs: dict[str, Any] | Sequence[dict[str, Any]],
         bucket_weights: Sequence[float] | None,
         n_time: int,
-    ) -> BucketWindows | None:
+    ) -> BucketWindows:
         """Windows from the arguments of `SemiEmpiricMatcher`.
 
         Parameters
@@ -417,7 +428,8 @@ class BucketWindows:
         Returns
         -------
         bucket_windows
-            ``None`` for a single ``(start, stop)``.
+            One window per bucket, or, for a single ``(start, stop)``, one
+            window without ``per_bucket``.
 
         Raises
         ------
@@ -433,7 +445,13 @@ class BucketWindows:
                     " per window require one window per bucket in"
                     " `time_limit`."
                 )
-            return None
+            return cls(
+                windows=[time_limit],
+                bucket_weights=None,
+                density_kwargs=hamilton_to_density_kwargs,
+                n_time=n_time,
+                per_bucket=False,
+            )
         return cls(
             windows=time_limit,
             bucket_weights=bucket_weights,
@@ -561,14 +579,16 @@ class BucketWindows:
         n_macroparticles: int,
         seed: int | None,
         backend_dependent_random_numbers: bool,
+        grid_correction: tuple[float, float] | None = None,
         debug_helper: DebuggingEndpoints | None = None,
     ) -> None:
-        """Populate ``beam``, bucket by bucket, from the potential wells.
+        """Populate ``beam``, window by window, from the potential wells.
 
-        In each window, the selected bucket gets its share of
-        ``n_macroparticles`` from ``hamilton_to_density_function`` on the
-        Hamiltonian of the bucket, zero at its bottom, with the density cut
-        at the separatrix. The grids of one bucket are dropped before the
+        Each window gets its share of ``n_macroparticles`` from
+        ``hamilton_to_density_function`` on the Hamiltonian of its
+        potential well. With ``per_bucket``, only the selected bucket is
+        used, its Hamiltonian is zero at its bottom, and the density is cut
+        at the separatrix. The grids of one window are dropped before the
         next one is built.
 
         Parameters
@@ -589,8 +609,14 @@ class BucketWindows:
             Random seed; window ``i`` uses ``seed + i``.
         backend_dependent_random_numbers
             See `SemiEmpiricMatcher`.
+        grid_correction
+            ``(shear_dt_per_dE, deltaE_scale)`` that moves the density onto
+            the invariant ellipse of the one-turn map, see
+            :func:`~blond.experimental.beam_preparation.semi_empiric_matcher.get_grid_correction_from_one_turn_map`,
+            or ``None``.
         debug_helper
-            If given, keeps the density and Hamiltonian of every bucket.
+            If given, keeps the density and Hamiltonian of every window, as
+            a list with ``per_bucket``, else as the arrays of the window.
 
         Warns
         -----
@@ -604,8 +630,12 @@ class BucketWindows:
         )
 
         wells = self.split_potential_wells(potential_well)
-        selections = self.select_buckets(wells)
-        n_per_bucket = split_macroparticles(
+        selections = (
+            self.select_buckets(wells)
+            if self.per_bucket
+            else [slice(None)] * len(wells)
+        )
+        n_per_window = split_macroparticles(
             self.bucket_weights, n_macroparticles
         )
         densities, hamiltons_2D = [], []
@@ -613,40 +643,46 @@ class BucketWindows:
         for i_window, (ts, well, selection) in enumerate(
             zip(self.windows_ts, wells, selections, strict=True)
         ):
+            well = well[selection]
+            if self.per_bucket:
+                # zero at the bottom of each bucket, so that e.g.
+                # `hamilton_max` means the same depth in every bucket
+                well = well - well.min()
             deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
                 ts=ts[selection],
-                potential_well=well[selection] - well[selection].min(),
+                potential_well=well,
                 reference_total_energy=beam.reference.total_energy,
                 beta=beam.reference.beta,
                 eta=eta,
-                shape=(len(ts[selection]), n_energy),
+                shape=(len(well), n_energy),
             )
-            density, fraction_outside = cut_at_separatrix(
-                density=hamilton_to_density_function(
-                    time_grid=time_grid,
-                    deltaE_grid=deltaE_grid,
-                    hamilton_2D=hamilton_2D,
-                    **self.density_kwargs[i_window],
-                ),
+            density = hamilton_to_density_function(
+                time_grid=time_grid,
+                deltaE_grid=deltaE_grid,
                 hamilton_2D=hamilton_2D,
+                **self.density_kwargs[i_window],
             )
-            if fraction_outside > _WARN_ABOVE_FRACTION_OUTSIDE:
-                warnings.warn(
-                    f"SemiEmpiricMatcher: {fraction_outside:.1%} of the"
-                    f" density in window {i_window} lies outside the"
-                    " separatrix and is removed.",
-                    stacklevel=2,
+            if self.per_bucket:
+                density = self._cut_at_separatrix(
+                    density, hamilton_2D, i_window
                 )
             if debug_helper is not None:
                 densities.append(density)
                 hamiltons_2D.append(hamilton_2D)
-            if n_per_bucket[i_window] == 0:
+            if n_per_window[i_window] == 0:
                 continue
+            if grid_correction is not None:
+                # The density stays a function of H, but sits on the
+                # invariant ellipse of the one-turn map instead of the
+                # contours of H
+                shear_dt_per_dE, deltaE_scale = grid_correction
+                deltaE_grid = deltaE_scale * deltaE_grid
+                time_grid = time_grid + shear_dt_per_dE * deltaE_grid
             dt, dE = generate_particle_coordinates(
                 time_grid=time_grid.T,
                 deltaE_grid=deltaE_grid.T,
                 density_grid=density.T,
-                n_macroparticles=int(n_per_bucket[i_window]),
+                n_macroparticles=int(n_per_window[i_window]),
                 seed=None if seed is None else seed + i_window,
                 backend_dependent_random_numbers=(
                     backend_dependent_random_numbers
@@ -656,15 +692,56 @@ class BucketWindows:
             dEs.append(dE)
 
         if debug_helper is not None:
-            debug_helper.last_density = densities
-            debug_helper.last_hamilton_2D = hamiltons_2D
+            if self.per_bucket:
+                debug_helper.last_density = densities
+                debug_helper.last_hamilton_2D = hamiltons_2D
+            else:
+                (debug_helper.last_density,) = densities
+                (debug_helper.last_hamilton_2D,) = hamiltons_2D
         # fresh arrays, a copy would double the memory
         beam.setup_beam(
-            dt=backend.concatenate(dts),
-            dE=backend.concatenate(dEs),
+            dt=dts[0] if len(dts) == 1 else backend.concatenate(dts),
+            dE=dEs[0] if len(dEs) == 1 else backend.concatenate(dEs),
             mpi_mode="all-ranks",
             copy=False,
         )
+
+    @staticmethod
+    def _cut_at_separatrix(
+        density: NumpyArray, hamilton_2D: NumpyArray, i_window: int
+    ) -> NumpyArray:
+        """:func:`cut_at_separatrix`, warning if much density is removed.
+
+        Parameters
+        ----------
+        density
+            Density of the bucket.
+        hamilton_2D
+            Hamiltonian of the bucket, in [eV].
+        i_window
+            Index of the window, for the warning.
+
+        Returns
+        -------
+        density_cut
+            ``density``, zero outside the separatrix.
+
+        Warns
+        -----
+        UserWarning
+            If more than 1 % of the density lies outside the separatrix.
+        """
+        density_cut, fraction_outside = cut_at_separatrix(
+            density=density, hamilton_2D=hamilton_2D
+        )
+        if fraction_outside > _WARN_ABOVE_FRACTION_OUTSIDE:
+            warnings.warn(
+                f"SemiEmpiricMatcher: {fraction_outside:.1%} of the"
+                f" density in window {i_window} lies outside the"
+                " separatrix and is removed.",
+                stacklevel=4,
+            )
+        return density_cut
 
     def plot_potential_well(
         self, potential_well: NumpyArray | CupyArray, color: str

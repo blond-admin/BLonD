@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 
 from blond.experimental.beam_preparation.bucket_windows import (
@@ -8,6 +10,7 @@ from blond.experimental.beam_preparation.bucket_windows import (
     select_bucket,
     split_macroparticles,
 )
+from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.generals.exceptions_ import SemiEmpiricMatcherError
 from blond.testing.backend_testing import BLonDTestCase
 
@@ -194,8 +197,11 @@ class TestBucketWindowsFromTimeLimit(BLonDTestCase):
         }
         return BucketWindows.from_time_limit(time_limit=time_limit, **kwargs)
 
-    def test_single_time_limit_is_no_window(self):
-        self.assertIsNone(self._from((0.0, 1.0)))
+    def test_single_time_limit_is_one_window_not_per_bucket(self):
+        bucket_windows = self._from((0.0, 1.0))
+        self.assertFalse(bucket_windows.per_bucket)
+        self.assertEqual(bucket_windows.windows, [(0.0, 1.0)])
+        self.assertEqual(bucket_windows.span, (0.0, 1.0))
 
     def test_windows(self):
         bucket_windows = self._from([(0.0, 2.0), (1.0, 3.0)])
@@ -223,3 +229,50 @@ class TestBucketWindowsFromTimeLimit(BLonDTestCase):
         with self.assertRaises(ValueError):
             # per-window arguments without windows
             self._from((0.0, 1.0), bucket_weights=[1.0])
+
+
+class TestBucketWindowsPopulateBeamSingleTimeLimit(BLonDTestCase):
+    def _populate(self, debug_helper=None):
+        bucket_windows = BucketWindows.from_time_limit(
+            time_limit=(0.0, 2.0),
+            hamilton_to_density_kwargs={},
+            bucket_weights=None,
+            n_time=201,
+        )
+        ts = bucket_windows.windows_ts[0]
+        beam = mock.Mock()
+        beam.reference.total_energy = 1.0
+        beam.reference.beta = 1.0
+        bucket_windows.populate_beam(
+            beam=beam,
+            # two buckets, minima at 0.5 and 1.5
+            potential_well=np.cos(2 * np.pi * ts) + 5.0,
+            eta=1.0,
+            n_energy=11,
+            hamilton_to_density_function=lambda **grids: np.ones_like(
+                grids["hamilton_2D"]
+            ),
+            n_macroparticles=1000,
+            seed=1,
+            backend_dependent_random_numbers=False,
+            debug_helper=debug_helper,
+        )
+        return bucket_windows, beam
+
+    def test_fills_whole_window_without_selection_or_cut(self):
+        bucket_windows, beam = self._populate()
+        dt = copy_to_cpu(beam.setup_beam.call_args.kwargs["dt"])
+        self.assertEqual(len(dt), 1000)
+        # both buckets, and outside the separatrix, around t = 1
+        self.assertLess(dt.min(), 0.1)
+        self.assertGreater(dt.max(), 1.9)
+        self.assertGreater(np.count_nonzero(np.abs(dt - 1.0) < 0.05), 0)
+        self.assertIsNone(bucket_windows.selected_buckets)
+
+    def test_hamiltonian_keeps_offset_of_potential_well(self):
+        debug_helper = mock.Mock()
+        self._populate(debug_helper=debug_helper)
+        # arrays of the single window, not a list per bucket
+        hamilton_2D = debug_helper.last_hamilton_2D
+        self.assertEqual(hamilton_2D.shape, (201, 11))
+        self.assertAlmostEqual(float(hamilton_2D.min()), 4.0, places=3)

@@ -19,7 +19,6 @@ import numpy as np
 from numpy import ndarray
 
 from blond.beam_preparation.base import MatchingRoutine
-from blond.beam_preparation.helpers import populate_beam
 from blond.core.backends.backend import (
     backend,
 )
@@ -127,17 +126,13 @@ def get_hamilton_semi_analytic(
     ts = copy_to_cpu(ts)
     potential_well = copy_to_cpu(potential_well)
 
-    E0 = reference_total_energy  # [eV]
-
-    # Compute kinetic energy term constant
-    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
+    drift_term = _drift_term(
+        eta=eta, beta=beta, reference_total_energy=reference_total_energy
+    )
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
-        dE_max = np.sqrt(
-            (potential_well.max() - potential_well.min())
-            / (0.5 * abs(drift_term))
-        )
+        dE_max = _deltaE_max(potential_well, drift_term)
         _energy_range = (-dE_max, dE_max)
     else:
         _energy_range = energy_range
@@ -160,6 +155,52 @@ def get_hamilton_semi_analytic(
     hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
+
+
+def _drift_term(
+    eta: float, beta: float, reference_total_energy: float
+) -> float:
+    r"""Coefficient of :math:`\Delta E^2 / 2` in the Hamiltonian, in [1/eV].
+
+    Parameters
+    ----------
+    eta
+        Zeroth-order slippage factor; only its absolute value is used.
+    beta
+        Relativistic velocity factor.
+    reference_total_energy
+        Reference total energy, in [eV].
+
+    Returns
+    -------
+    drift_term
+        :math:`|\eta| / (\beta^2 E_0)`.
+    """
+    return np.abs(eta) / (np.square(beta) * reference_total_energy)
+
+
+def _deltaE_max(
+    potential_well: NumpyArray | CupyArray, drift_term: float
+) -> float:
+    """Energy offset at which the drift term spans the depth of the well.
+
+    Parameters
+    ----------
+    potential_well
+        Potential well, in [eV].
+    drift_term
+        See :func:`_drift_term`, in [1/eV].
+
+    Returns
+    -------
+    deltaE_max
+        Half height of the default energy range of the Hamiltonian, in
+        [eV].
+    """
+    potential_well = copy_to_cpu(potential_well)
+    return np.sqrt(
+        (potential_well.max() - potential_well.min()) / (0.5 * abs(drift_term))
+    )
 
 
 def get_one_turn_map_empiric(
@@ -668,24 +709,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
             if seed is not None
             else None
         )
-        # One window per bucket to fill, or None for a single `time_limit`
+        # One window per bucket to fill, or one for a single `time_limit`
         self._bucket_windows = BucketWindows.from_time_limit(
             time_limit=time_limit,
             hamilton_to_density_kwargs=hamilton_to_density_kwargs,
             bucket_weights=bucket_weights,
             n_time=internal_grid_shape[0],
         )
-        if self._bucket_windows is not None and correct_to_one_turn_map:
+        if self._bucket_windows.per_bucket and correct_to_one_turn_map:
             raise NotImplementedError(
                 "`correct_to_one_turn_map` is not available with windows."
             )
         self.time_limit = time_limit
-        # Time range of all windows together, or `time_limit`, in [s]
-        self._time_span: tuple[float, float] = (
-            time_limit
-            if self._bucket_windows is None
-            else self._bucket_windows.span
-        )
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
@@ -711,10 +746,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ) = None
         self.debug_helper: DebuggingEndpoints | None = None
 
-        # Can be potentially replaced like `hamilton_to_density_function`,
-        #  for example using the `SymbolicSeparatrixHelper`.
-        self._get_hamilton = self._get_hamiltonian_semianalytic
-
         if debug:
             self.debug_helper = DebuggingEndpoints()
 
@@ -728,8 +759,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             Selection of the last iteration, or ``None`` without windows
             or before the first one.
         """
-        if self._bucket_windows is None:
-            return None
         return self._bucket_windows.selected_buckets
 
     def prepare_beam(
@@ -751,9 +780,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
-        if self._bucket_windows is not None:
-            # a matcher may be reused: no bucket identity from an earlier beam
-            self._bucket_windows.selected_buckets = None
+        # a matcher may be reused: no bucket identity from an earlier beam
+        self._bucket_windows.selected_buckets = None
 
         # make sure there is not a mixed state
         simulation.intensity_effect_manager.is_active_wakefields()
@@ -761,13 +789,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         sim_tmp = deepcopy(simulation)  # prevent side effects
 
-        ts = backend.linspace(
-            self._time_span[0], self._time_span[1], self.internal_grid_shape[0]
-        )
         # match beam without intensity effects
         sim_tmp.intensity_effect_manager.set_wakefields(active=False)
         sim_tmp.intensity_effect_manager.set_profiles(active=False)
-        self._match_beam(beam, sim_tmp, ts)
+        self._match_beam(beam, sim_tmp)
 
         # iterate solution with intensity effects
         intensity_original = beam.intensity
@@ -779,7 +804,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         if self.animate:
             plt.figure("SemiEmpiricMatcher")
             plt.clf()
-            self._plot_current_state(beam, 0, 0, ts)
+            self._plot_current_state(beam, 0, 0)
             plt.draw()
             plt.pause(self.animate_pause_time)
 
@@ -863,12 +888,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # This is intended as override, so that the line density
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
-                self._match_beam(beam, sim_tmp, ts)
+                self._match_beam(beam, sim_tmp)
 
                 if self.animate:
                     plt.figure("SemiEmpiricMatcher")
                     plt.clf()
-                    self._plot_current_state(beam, i_intensity, scalar, ts)
+                    self._plot_current_state(beam, i_intensity, scalar)
                     plt.draw()
                     plt.pause(self.animate_pause_time)
 
@@ -935,7 +960,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                         self._rematch_beam_to_potential_well(
                             beam=beam,
                             simulation=sim_tmp,
-                            ts=ts,
                             avg_potential_well=best_avg_potential_well,
                         )
                         break
@@ -975,9 +999,13 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self,
         beam: BeamBaseClass,
         simulation: Simulation,
-        ts: NumpyArray | CupyArray,
     ) -> None:
         """Matches the beam coordinates to the current potential well.
+
+        Observes the potential well of each window, averages it with the
+        previous observation to damp oscillations between successive
+        iterations, and populates the beam from it. Must be called on turn
+        zero only.
 
         Notes
         -----
@@ -991,47 +1019,65 @@ class SemiEmpiricMatcher(MatchingRoutine):
             Simulation beam object
         simulation
             `Simulation` context manager
-        ts
-            Time coordinate, in [s] for observation of the potential well.
-            Not used with windows, which have their own.
         """
-        if self._bucket_windows is not None:
-            self._populate_beam_from_windows(
+        assert simulation.turn_counter.value == 0
+        observations = [
+            self._observe_potential_well(
+                beam=beam, simulation=simulation, ts=window_ts
+            )
+            for window_ts in self._bucket_windows.windows_ts
+        ]
+        # concatenated, the error, the averaging and the roll-back in
+        # `prepare_beam` work as for a single window
+        avg_potential_well = self._average_with_previous(
+            backend.concatenate(
+                [potential_well for potential_well, _, _ in observations]
+            )
+        )
+        if self.correct_to_one_turn_map:
+            # a single window, see `__init__`
+            ((_, potential_well_oversampled, ts_oversampled),) = observations
+            eta = self._eta(beam, simulation)
+            self._grid_correction = self._measure_grid_correction(
                 beam=beam,
                 simulation=simulation,
-                avg_potential_well=self._average_with_previous(
-                    self._observe_potential_wells_of_windows(
-                        beam=beam, simulation=simulation
-                    )
+                ts=ts_oversampled,
+                # averaged like `avg_potential_well`, to which it
+                # down-samples
+                potential_well=self._average_oversampled_with_previous(
+                    potential_well_oversampled
+                ),
+                eta=eta,
+                deltaE_max=_deltaE_max(
+                    avg_potential_well,
+                    _drift_term(
+                        eta=eta,
+                        beta=beam.reference.beta,
+                        reference_total_energy=beam.reference.total_energy,
+                    ),
                 ),
             )
-            return
-        time_grid, deltaE_grid, hamilton_2D = self._get_hamilton(
-            beam=beam, simulation=simulation, ts=ts
-        )
-        self._populate_beam_from_hamiltonian(
+        self._populate_beam(
             beam=beam,
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            hamilton_2D=hamilton_2D,
+            simulation=simulation,
+            avg_potential_well=avg_potential_well,
         )
 
     def _rematch_beam_to_potential_well(
         self,
         beam: BeamBaseClass,
         simulation: Simulation,
-        ts: NumpyArray | CupyArray,
         avg_potential_well: NumpyArray | CupyArray,
     ) -> None:
         """Regenerate beam coordinates from a previously observed potential well.
 
         Unlike :meth:`_match_beam`, this does not query
         ``simulation.get_potential_well_empiric`` again; it rebuilds the
-        Hamiltonian directly from ``avg_potential_well``. Combined with the
-        fixed ``self.seed``, this deterministically reproduces the beam
-        state that ``avg_potential_well`` originally produced, without ever
-        having to keep a copy of the (potentially GB-sized) beam coordinates
-        around.
+        beam directly from ``avg_potential_well``. Combined with the fixed
+        ``self.seed``, this deterministically reproduces the beam state
+        that ``avg_potential_well`` originally produced, without ever
+        having to keep a copy of the (potentially GB-sized) beam
+        coordinates around.
 
         Parameters
         ----------
@@ -1039,167 +1085,65 @@ class SemiEmpiricMatcher(MatchingRoutine):
             Simulation beam object.
         simulation
             `Simulation` context manager, used only for ``ring`` parameters.
-        ts
-            Time coordinate, in [s] for observation of the potential well.
-            Not used with windows, which have their own.
         avg_potential_well
-            Previously observed (already-averaged) potential well [V].
+            Previously observed (already-averaged) potential wells of all
+            windows, concatenated, in [eV].
         """
-        if self._bucket_windows is not None:
-            self._populate_beam_from_windows(
-                beam=beam,
-                simulation=simulation,
-                avg_potential_well=avg_potential_well,
-            )
-            return
-        deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
-            ts=ts,
-            potential_well=avg_potential_well,
-            reference_total_energy=beam.reference.total_energy,
-            beta=beam.reference.beta,
-            eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference.gamma)
-            ),
-            shape=self.internal_grid_shape,
-        )
-        self._populate_beam_from_hamiltonian(
+        self._populate_beam(
             beam=beam,
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            hamilton_2D=hamilton_2D,
+            simulation=simulation,
+            avg_potential_well=avg_potential_well,
         )
 
-    def _populate_beam_from_hamiltonian(
+    def _populate_beam(
         self,
         beam: BeamBaseClass,
-        time_grid: NumpyArray | CupyArray,
-        deltaE_grid: NumpyArray | CupyArray,
-        hamilton_2D: NumpyArray | CupyArray,
+        simulation: Simulation,
+        avg_potential_well: NumpyArray | CupyArray,
     ) -> None:
-        """Turn a Hamiltonian grid into a density and populate ``beam`` with it.
+        """Populate ``beam`` from the potential wells, see `BucketWindows`.
 
         Parameters
         ----------
         beam
             Simulation beam object.
-        time_grid
-            2D grid of time coordinates :math:`t` [s].
-        deltaE_grid
-            2D grid of energy offset :math:`\\Delta E` [eV].
-        hamilton_2D
-            2D Hamiltonian evaluated on the grid [eV].
+        simulation
+            `Simulation` context manager, used only for ``ring`` parameters.
+        avg_potential_well
+            Averaged potential wells of all windows, concatenated, in [eV].
         """
-        density = self.hamilton_to_density_function(
-            time_grid=time_grid,
-            deltaE_grid=deltaE_grid,
-            hamilton_2D=hamilton_2D,
-            **self.hamilton_to_density_kwargs,
-        )
-
-        if self.debug_helper is not None:
-            self.debug_helper.last_density = density
-            self.debug_helper.last_hamilton_2D = hamilton_2D
-
-        if self._grid_correction is not None:
-            # The density stays a function of H, but sits on the invariant
-            # ellipse of the one-turn map instead of the contours of H
-            shear_dt_per_dE, deltaE_scale = self._grid_correction
-            deltaE_grid = deltaE_scale * deltaE_grid
-            time_grid = time_grid + shear_dt_per_dE * deltaE_grid
-
-        populate_beam(
+        self._bucket_windows.populate_beam(
             beam=beam,
-            time_grid=time_grid.T,
-            deltaE_grid=deltaE_grid.T,
-            density_grid=density.T,
+            potential_well=avg_potential_well,
+            eta=self._eta(beam, simulation),
+            n_energy=self.internal_grid_shape[1],
+            hamilton_to_density_function=self.hamilton_to_density_function,
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
             backend_dependent_random_numbers=(
                 self.backend_dependent_random_numbers
             ),
+            grid_correction=self._grid_correction,
+            debug_helper=self.debug_helper,
         )
 
-    def _get_hamiltonian_semianalytic(
-        self,
-        beam: BeamBaseClass,
-        simulation: Simulation,
-        ts: NumpyArray,
-    ) -> tuple[
-        NumpyArray,
-        NumpyArray,
-        NumpyArray,
-    ]:
-        r"""Build the semi-analytic 2D Hamiltonian for the current beam.
-
-        Queries the empirically determined potential well from the
-        simulation, averages it with the potential well of the previous
-        call to damp oscillations between successive matching iterations,
-        and feeds the result into :func:`get_hamilton_semi_analytic` to
-        obtain :math:`H_{2D}(t, \Delta E)`.
-
-        The potential well is sampled on a finer grid (oversampled by
-        ``_POTENTIAL_WELL_OVERSAMPLING``) and then down-sampled to the
-        resolution of ``ts`` to improve the accuracy of the empiric
-        estimate. Must be called on turn zero only.
+    @staticmethod
+    def _eta(beam: BeamBaseClass, simulation: Simulation) -> float:
+        """Average slippage factor of the analytic drift term.
 
         Parameters
         ----------
-        beam : BeamBaseClass
-            Beam whose particle type, intensity and reference parameters
-            (total energy, ``beta``, ``gamma``) define the potential well
-            and the analytic drift term.
-        simulation : Simulation
-            Simulation providing the empiric potential well via
-            :meth:`Simulation.get_potential_well_empiric` and the ring used
-            to compute the average slippage factor :math:`\eta_0`.
-        ts : ndarray
-            Time coordinates at which the Hamiltonian is evaluated [s].
+        beam
+            Beam whose reference ``gamma`` is used.
+        simulation
+            Simulation whose ring gives the slippage factor.
 
         Returns
         -------
-        time_grid : ndarray
-            2D grid of time coordinates :math:`t` [s].
-        deltaE_grid : ndarray
-            2D grid of energy offset :math:`\Delta E` [eV].
-        hamilton_2D : ndarray
-            2D semi-analytic Hamiltonian evaluated on the grid [eV].
-
+        eta
+            Zeroth-order slippage factor, averaged over the ring.
         """
-        assert simulation.turn_counter.value == 0
-        potential_well, potential_well_oversampled, ts_oversampled = (
-            self._observe_potential_well(
-                beam=beam, simulation=simulation, ts=ts
-            )
-        )
-        avg_potential_well = self._average_with_previous(potential_well)
-        eta = float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
-        deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
-            ts=ts,
-            potential_well=avg_potential_well,
-            reference_total_energy=beam.reference.total_energy,
-            beta=beam.reference.beta,
-            eta=eta,
-            shape=self.internal_grid_shape,
-        )
-        # averaged like `avg_potential_well`, to which it down-samples
-        if self._last_potential_well_oversampled is None:
-            avg_potential_well_oversampled = potential_well_oversampled
-        else:
-            avg_potential_well_oversampled = (
-                potential_well_oversampled
-                + self._last_potential_well_oversampled
-            ) / 2
-        self._last_potential_well_oversampled = potential_well_oversampled
-        if self.correct_to_one_turn_map:
-            self._grid_correction = self._measure_grid_correction(
-                beam=beam,
-                simulation=simulation,
-                ts=ts_oversampled,
-                potential_well=avg_potential_well_oversampled,
-                eta=eta,
-                deltaE_max=float(deltaE_grid.max()),
-            )
-        return time_grid, deltaE_grid, hamilton_2D
+        return float(simulation.ring.calc_average_eta_0(beam.reference.gamma))
 
     def _observe_potential_well(
         self,
@@ -1291,73 +1235,27 @@ class SemiEmpiricMatcher(MatchingRoutine):
             self.debug_helper.last_potential_well = avg_potential_well
         return avg_potential_well
 
-    def _observe_potential_wells_of_windows(
-        self,
-        beam: BeamBaseClass,
-        simulation: Simulation,
+    def _average_oversampled_with_previous(
+        self, potential_well_oversampled: NumpyArray | CupyArray
     ) -> NumpyArray | CupyArray:
-        """Potential wells of all windows, concatenated.
-
-        Each window is observed like a single `time_limit`; its offset is
-        arbitrary. Concatenated, the error, the averaging and the roll-back
-        in `prepare_beam` work as for a single `time_limit`.
+        """:meth:`_average_with_previous`, for the oversampled well.
 
         Parameters
         ----------
-        beam
-            Beam whose particle type and intensity define the wells.
-        simulation
-            `Simulation` context manager.
+        potential_well_oversampled
+            Newly observed oversampled potential well, in [eV].
 
         Returns
         -------
-        potential_well
-            Potential wells of all windows, concatenated, in [eV].
+        avg_potential_well_oversampled
+            Mean of ``potential_well_oversampled`` and the previous one, or
+            ``potential_well_oversampled`` itself in the first call.
         """
-        assert self._bucket_windows is not None
-        assert simulation.turn_counter.value == 0
-        return backend.concatenate(
-            [
-                self._observe_potential_well(
-                    beam=beam, simulation=simulation, ts=window_ts
-                )[0]
-                for window_ts in self._bucket_windows.windows_ts
-            ]
-        )
-
-    def _populate_beam_from_windows(
-        self,
-        beam: BeamBaseClass,
-        simulation: Simulation,
-        avg_potential_well: NumpyArray | CupyArray,
-    ) -> None:
-        """Populate ``beam`` bucket by bucket, see `BucketWindows`.
-
-        Parameters
-        ----------
-        beam
-            Simulation beam object.
-        simulation
-            `Simulation` context manager, used only for ``ring`` parameters.
-        avg_potential_well
-            Averaged potential wells of all windows, concatenated, in [eV].
-        """
-        assert self._bucket_windows is not None
-        self._bucket_windows.populate_beam(
-            beam=beam,
-            potential_well=avg_potential_well,
-            eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference.gamma)
-            ),
-            n_energy=self.internal_grid_shape[1],
-            hamilton_to_density_function=self.hamilton_to_density_function,
-            n_macroparticles=self.n_macroparticles,
-            seed=self.seed,
-            backend_dependent_random_numbers=(
-                self.backend_dependent_random_numbers
-            ),
-            debug_helper=self.debug_helper,
-        )
+        previous = self._last_potential_well_oversampled
+        self._last_potential_well_oversampled = potential_well_oversampled
+        if previous is None:
+            return potential_well_oversampled
+        return (potential_well_oversampled + previous) / 2
 
     def _measure_grid_correction(
         self,
@@ -1408,8 +1306,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
             potential_well=potential_well_cpu,
             half_width=3 * grid_step,
         )
-        drift_term = abs(eta) / (
-            beam.reference.beta**2 * beam.reference.total_energy
+        drift_term = _drift_term(
+            eta=eta,
+            beta=beam.reference.beta,
+            reference_total_energy=beam.reference.total_energy,
         )
         if not curvature > 0:
             warnings.warn(
@@ -1454,7 +1354,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam: BeamBaseClass,
         i: int,
         scalar: float,
-        ts: NumpyArray | CupyArray,
     ) -> None:
         """Make a plot of the current state of the matcher.
 
@@ -1466,10 +1365,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             Current iteration
         scalar
             Current strength if the intensity effects
-        ts
-            Time coordinate, in [s] for observation of the potential well.
-
-
         """
         plt.figure("SemiEmpiricMatcher")
         with AllowPlotting():
@@ -1480,7 +1375,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.hist(
                 copy_to_cpu(beam.read_partial_dt()),
                 bins=self.internal_grid_shape[0],
-                range=self._time_span,
+                range=self._bucket_windows.span,
                 density=True,
             )
             plt.xlabel("Time (s)")
@@ -1493,15 +1388,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ):
                 if potential_well is None:
                     continue
-                if self._bucket_windows is None:
-                    plt.plot(
-                        copy_to_cpu(ts),
-                        copy_to_cpu(potential_well),
-                        color=color,
-                    )
-                else:
-                    self._bucket_windows.plot_potential_well(
-                        potential_well, color=color
-                    )
+                self._bucket_windows.plot_potential_well(
+                    potential_well, color=color
+                )
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")
