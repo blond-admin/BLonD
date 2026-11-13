@@ -90,7 +90,7 @@ The matching routine proceeds as follows:
 
    The mapping from a Hamiltonian to a density distribution in phase space
    can be customized via the parameter ``hamilton_to_density_function``.
-   By default, the library uses :func:`hamilton_to_density_by_max`, which
+   By default, the library uses :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max`, which
    generates a density map according to
 
    .. math::
@@ -106,7 +106,7 @@ The matching routine proceeds as follows:
    This density map determines how macro-particles are distributed in phase space,
    with higher density in regions of lower Hamiltonian.
 
-   Users can supply a custom function in place of :func:`hamilton_to_density_by_max`
+   Users can supply a custom function in place of :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max`
    by providing it to ``hamilton_to_density_function``. The custom function must
    accept the keyword arguments
 
@@ -353,7 +353,7 @@ Practical Notes
 API Reference
 -------------
 
-.. autofunction:: hamilton_to_density_by_max
+.. autofunction:: blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_max
 
 .. autofunction:: blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length
 
