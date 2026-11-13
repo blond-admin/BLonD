@@ -991,7 +991,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                         "before the convergence error could be computed,"
                         " which needs three iterations"
                         if math.isnan(error)
-                        else f"with error {error:.3g}, above"
+                        else f" with error {error:.3g}, above"
                         " tolerance_potential_well="
                         f"{self.tolerance_potential_well}"
                     )
