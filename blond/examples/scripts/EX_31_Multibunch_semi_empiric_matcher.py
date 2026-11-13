@@ -14,8 +14,8 @@ cavities (with their direct feedback). Only some buckets are filled, one of
 them with a weaker pilot bunch. ``time_limit`` gets one window of
 :math:`\\pm T_\\mathrm{rf}` around each bucket to fill: in every iteration
 of the intensity effects, the matcher finds the bucket anew in its window,
-so it follows the bucket while beam loading shifts it, and fills it up to
-a fraction of its own separatrix.
+so it follows the bucket while beam loading shifts it, and fills it to the
+bunch length given for that bucket.
 """
 
 import matplotlib.pyplot as plt
@@ -37,6 +37,9 @@ from blond import (
     proton,
     setup_backend,
 )
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_bunch_length,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
@@ -48,41 +51,7 @@ if not pytest_active():  # pragma: no cover
 harmonic = 16
 # buckets to fill, bucket k is centred at k * t_rf
 filled_buckets = [1, 2, 3, 4, 5, 6, 9, 12]
-pilot_bucket = 9  # half the intensity, filled less deep
-
-
-def density_up_to_filling(
-    time_grid,  # required, [s]
-    deltaE_grid,  # required, [eV]
-    hamilton_2D,  # required, [eV]
-    filling,  # custom: fraction of the separatrix to fill
-):
-    r"""
-    Parabolic density in H, up to ``filling`` times the separatrix.
-
-    With windows, the grid is one bucket, cut out at its separatrix, and H
-    is zero at the bottom of the bucket, so the separatrix is the lower of
-    the two edges of the potential well :math:`H(t, \Delta E = 0)`.
-
-    Parameters
-    ----------
-    time_grid
-        Time coordinates of the grid, in [s]. Required by the matcher.
-    deltaE_grid
-        Energy coordinates of the grid, in [eV]. Required by the matcher.
-    hamilton_2D
-        Hamiltonian on the grid, in [eV]. Required by the matcher.
-    filling
-        Custom argument: fraction of the separatrix to fill.
-
-    Returns
-    -------
-    density
-        Density on the grid, zero above ``filling`` times the separatrix.
-    """
-    potential_well = hamilton_2D.min(axis=1)
-    hamilton_separatrix = min(potential_well[0], potential_well[-1])
-    return np.clip(1 - hamilton_2D / (filling * hamilton_separatrix), 0, 1)
+pilot_bucket = 9  # half the intensity, shorter
 
 
 def main(
@@ -148,10 +117,13 @@ def main(
         # one window of +- t_rf around the nominal centre of each bucket
         time_limit=[((k - 1) * t_rf, (k + 1) * t_rf) for k in filled_buckets],
         n_macroparticles=n_macroparticles,
-        hamilton_to_density_function=density_up_to_filling,
+        hamilton_to_density_function=hamilton_to_density_by_bunch_length,
         # one dict per window, or one dict for all
         hamilton_to_density_kwargs=[
-            {"filling": 0.4 if k == pilot_bucket else 0.8}
+            {
+                "bunch_length_4sigma": 25e-9 if k == pilot_bucket else 40e-9,
+                "exponent": 1.0,
+            }
             for k in filled_buckets
         ],
         # relative intensity of each bunch
@@ -166,13 +138,16 @@ def main(
     )
     simulation.prepare_beam(beam=beam, preparation_routine=matcher)
 
-    # where beam loading moved each bucket
+    # the bunch lengths reached, and where beam loading moved each bucket
+    dt = copy_to_cpu(beam.read_partial_dt())
     for k, (start, stop) in zip(
         filled_buckets, matcher.selected_buckets, strict=True
     ):
         shift = 0.5 * (start + stop) - k * t_rf
+        bunch_length_4sigma = 4 * dt[(start <= dt) & (dt <= stop)].std()
         print(
-            f"bucket {k:2d}: centre shifted by {360 * shift / t_rf:+5.1f} deg"
+            f"bucket {k:2d}: 4 sigma = {bunch_length_4sigma * 1e9:4.1f} ns,"
+            f" centre shifted by {360 * shift / t_rf:+5.1f} deg"
         )
 
     if not pytest_active():  # pragma: no cover

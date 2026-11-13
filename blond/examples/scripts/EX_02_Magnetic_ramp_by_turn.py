@@ -30,6 +30,7 @@ from blond import (
 )
 from blond.experimental import (
     SemiEmpiricMatcher,
+    hamilton_to_density_by_bunch_length,
 )
 from blond.testing import pytest_active
 
@@ -92,9 +93,10 @@ def main(
                 n_macroparticles=n_macroparticles,
                 seed=0,
                 maxiter_intensity_effects=0,
+                hamilton_to_density_function=hamilton_to_density_by_bunch_length,
                 hamilton_to_density_kwargs=dict(
-                    density_modifier=2.0,  # Controls density profile sharpness
-                    hamilton_max=40.0,  # Hamiltonian cutoff [eV]
+                    bunch_length_4sigma=1.0e-9,  # [s]
+                    exponent=2.0,  # shape: larger is more peaked
                 ),
                 animate=True,
             ),

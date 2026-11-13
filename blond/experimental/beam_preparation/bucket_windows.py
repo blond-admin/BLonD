@@ -613,7 +613,8 @@ class BucketWindows:
             ``(shear_dt_per_dE, deltaE_scale)`` that moves the density onto
             the invariant ellipse of the one-turn map, see
             :func:`~blond.experimental.beam_preparation.semi_empiric_matcher.get_grid_correction_from_one_turn_map`,
-            or ``None``.
+            or ``None`` ``hamilton_to_density_function`` gets the
+            corrected grids.
         debug_helper
             If given, keeps the density and Hamiltonian of every window, as
             a list with ``per_bucket``, else as the arrays of the window.
@@ -656,6 +657,14 @@ class BucketWindows:
                 eta=eta,
                 shape=(len(well), n_energy),
             )
+            if grid_correction is not None:
+                # The density stays a function of H, but sits on the
+                # invariant ellipse of the one-turn map instead of the
+                # contours of H. Before the density function, so that e.g.
+                # a fitted bunch length is the one of the particles.
+                shear_dt_per_dE, deltaE_scale = grid_correction
+                deltaE_grid = deltaE_scale * deltaE_grid
+                time_grid = time_grid + shear_dt_per_dE * deltaE_grid
             density = hamilton_to_density_function(
                 time_grid=time_grid,
                 deltaE_grid=deltaE_grid,
@@ -671,13 +680,6 @@ class BucketWindows:
                 hamiltons_2D.append(hamilton_2D)
             if n_per_window[i_window] == 0:
                 continue
-            if grid_correction is not None:
-                # The density stays a function of H, but sits on the
-                # invariant ellipse of the one-turn map instead of the
-                # contours of H
-                shear_dt_per_dE, deltaE_scale = grid_correction
-                deltaE_grid = deltaE_scale * deltaE_grid
-                time_grid = time_grid + shear_dt_per_dE * deltaE_grid
             dt, dE = generate_particle_coordinates(
                 time_grid=time_grid.T,
                 deltaE_grid=deltaE_grid.T,

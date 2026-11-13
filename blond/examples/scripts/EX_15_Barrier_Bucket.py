@@ -31,6 +31,9 @@ from blond import (
     proton,
     setup_backend,
 )
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_emittance,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
@@ -117,9 +120,12 @@ def main(
     preparation_routine = SemiEmpiricMatcher(
         time_limit,
         n_macroparticles,
+        # In a barrier bucket, the bunch length hardly depends on the
+        # filling (the flat bottom sets it), so the emittance is the target.
+        hamilton_to_density_function=hamilton_to_density_by_emittance,
         hamilton_to_density_kwargs={
-            "density_modifier": 1.0,
-            "hamilton_max": 100,
+            "emittance_4pi_rms": 15.5,  # [eVs]
+            "exponent": 1.0,  # shape: larger is more peaked
         },
         animate=True,
     )

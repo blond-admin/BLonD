@@ -436,7 +436,7 @@ def _(mo):
 
     A physics-based matching approach that uses the Hamiltonian to generate matched distributions:
 
-    For this, you need to know how your potential well looks like and how much of it to populate.
+    You give the bunch length (or the emittance) you want, and the matcher fills the bucket of the potential well below accordingly. A target that does not fit the bucket gives the largest bunch possible, with a warning.
     """)
     return
 
@@ -447,15 +447,15 @@ def _(np, plt, proton, sim):
         dt=np.linspace(0, 2.5e-9),
         particle_type=proton,
     )
-    hamilton_max = 40
-    plt.axhline(hamilton_max)
-    return (hamilton_max,)
+    plt.xlabel("Time (s)")
+    return
 
 
 @app.cell
-def _(beam1, hamilton_max, sim):
-    from blond.experimental.beam_preparation.semi_empiric_matcher import (
+def _(beam1, sim):
+    from blond.experimental import (
         SemiEmpiricMatcher,
+        hamilton_to_density_by_bunch_length,
     )
 
     sim.prepare_beam(
@@ -464,9 +464,10 @@ def _(beam1, hamilton_max, sim):
             time_limit=(0, 2.5e-9),
             n_macroparticles=1e6,
             seed=0,
+            hamilton_to_density_function=hamilton_to_density_by_bunch_length,
             hamilton_to_density_kwargs=dict(
-                density_modifier=2.0,  # Controls density profile sharpness
-                hamilton_max=hamilton_max,  # Hamiltonian cutoff [eV]
+                bunch_length_4sigma=1.0e-9,  # [s]
+                exponent=2.0,  # shape: larger is more peaked
             ),
             animate=True,
         ),

@@ -117,8 +117,9 @@ The matching routine proceeds as follows:
    plus every key of ``hamilton_to_density_kwargs`` (``density_modifier`` and
    ``hamilton_max`` are only the parameters of the default function), and
    return a non-negative 2D array of the same shape representing the density
-   distribution. A complete, runnable example is in the ``Examples`` section
-   of :class:`SemiEmpiricMatcher` below.
+   distribution, see also the Notes of :class:`SemiEmpiricMatcher` below.
+   Usually, the bunch length or the emittance is known rather than a cut in
+   :math:`H`, see the next section.
 
 
 4. **Particle population**
@@ -202,6 +203,65 @@ The matching routine proceeds as follows:
    ``stagnation_patience`` iterations (the beam of the best iteration is
    restored). If ``maxiter_intensity_effects`` ends the iteration first, the
    matcher warns that it did not converge.
+
+---
+
+Bunch Length and Emittance Targets
+----------------------------------
+
+:func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length`
+and
+:func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance`
+fill the bucket with the binomial density
+
+.. math::
+
+   \rho = \left( 1 - \frac{H - H_\mathrm{bottom}}{H_\mathrm{cut}}
+   \right)^\mathrm{exponent}
+
+inside the separatrix (``distribution="binomial"``, the default), or
+:math:`\rho = \exp(-(H - H_\mathrm{bottom}) / H_0)` cut at the separatrix
+(``distribution="gaussian"``, Gaussian in time and energy in a linear
+bucket), and solve for :math:`H_\mathrm{cut}` or :math:`H_0` (with
+:func:`scipy.optimize.brentq`) such that the bunch has the target
+``bunch_length_4sigma`` (four times the RMS length of the line density, in
+[s]) or ``emittance_4pi_rms`` (:math:`4 \pi` times the RMS emittance, in
+[eVs]):
+
+.. code-block:: python
+
+   from blond.experimental import hamilton_to_density_by_bunch_length
+
+   SemiEmpiricMatcher(
+       time_limit=(0, 2.5e-9),
+       n_macroparticles=1e6,
+       hamilton_to_density_function=hamilton_to_density_by_bunch_length,
+       hamilton_to_density_kwargs=dict(bunch_length_4sigma=1e-9, exponent=2),
+   )
+
+The bucket is the one around the minimum of the potential well, up to the
+lower of the highest barriers on its two sides; a single ``time_limit``
+should hold one bucket, several buckets need one window each (next
+section). With windows, the targets can differ per bucket, see
+``blond/examples/scripts/EX_08_Semi_empiric_matcher.py`` (emittances) and
+``blond/examples/scripts/EX_31_Multibunch_semi_empiric_matcher.py`` (bunch
+lengths). Any other metric that grows with the bunch, e.g. the RMS energy
+spread, can be fitted with
+:func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_metric`.
+
+**Intensity effects.** The density function is called in every iteration,
+on the potential well of that iteration, so the target holds for the
+matched beam, not only for the bucket without intensity effects.
+
+**Infeasible targets.** A target larger than a full bucket holds gives the
+full bucket, cut at the separatrix: the longest bunch, or the largest
+emittance, possible with this ``exponent`` (a smaller exponent gives more),
+with a warning that names the value reached. With intensity effects, this
+is the full bucket of the matched potential well. A target too small for the
+grid gives the smallest bunch the grid resolves, with a warning to increase
+``internal_grid_shape``. While the intensity is ramped up, a target may not
+fit in some iterations and fit in others; the matcher therefore reports the
+warnings of the density function only for the final beam.
 
 ---
 
@@ -294,6 +354,12 @@ API Reference
 -------------
 
 .. autofunction:: hamilton_to_density_by_max
+
+.. autofunction:: blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length
+
+.. autofunction:: blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance
+
+.. autofunction:: blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_metric
 
 .. autofunction:: get_hamilton_semi_analytic
 

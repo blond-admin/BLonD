@@ -44,6 +44,7 @@ def _():
     from blond.beam_preparation.helpers import populate_beam
     from blond.core.beam.beams import ProbeBeam
     from blond.experimental.beam_preparation.bucket_filler_functions import (
+        hamilton_to_density_by_bunch_length,
         hamilton_to_density_by_max,
     )
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
@@ -68,6 +69,7 @@ def _():
         backend,
         cumulative_simpson,
         deepcopy,
+        hamilton_to_density_by_bunch_length,
         hamilton_to_density_by_max,
         momentum_compaction_factor,
         np,
@@ -545,6 +547,8 @@ def _(mo):
     The four steps above are wrapped inside `SemiEmpiricMatcher`. Pass it to `sim.prepare_beam` and it handles probe tracking, potential integration, Hamiltonian construction, and particle sampling in a single call.
 
     Setting `maxiter_intensity_effects=0` disables the self-consistent loop for space-charge and impedance-driven potential distortion. Increase it to account for intensity effects.
+
+    Instead of a cut in $\mathcal{H}$ as above, you usually know the bunch length or the emittance you want. `hamilton_to_density_by_bunch_length` (and `hamilton_to_density_by_emittance`) fill the bucket with a binomial density $(1 - \mathcal{H}/\mathcal{H}_\text{cut})^\text{exponent}$ and solve for the cut that gives the target, in every iteration of the intensity effects. A target that does not fit the bucket gives the full bucket, the largest bunch possible, with a warning.
     """)
     return
 
@@ -553,8 +557,7 @@ def _(mo):
 def _(
     SemiEmpiricMatcher,
     deepcopy,
-    hamilton_to_density_by_max,
-    potential_well,
+    hamilton_to_density_by_bunch_length,
     probe_bunch,
     sim,
 ):
@@ -566,11 +569,11 @@ def _(
             n_macroparticles=1e6,
             seed=0,
             maxiter_intensity_effects=0,
-            hamilton_to_density_function=hamilton_to_density_by_max,
+            hamilton_to_density_function=hamilton_to_density_by_bunch_length,
             hamilton_to_density_kwargs=dict(
-                density_modifier=2.0,  # Controls density profile sharpness
-                hamilton_max=0.9
-                * potential_well[0],  # Hamiltonian cutoff [eV]
+                # the accelerating bucket holds at most 0.93 ns
+                bunch_length_4sigma=0.8e-9,  # [s]
+                exponent=2.0,  # shape: larger is more peaked
             ),
             animate=True,
         ),

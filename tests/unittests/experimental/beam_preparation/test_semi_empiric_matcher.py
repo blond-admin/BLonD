@@ -21,6 +21,9 @@ from blond import (
     momentum_compaction_factor,
     proton,
 )
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_bunch_length,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     _POTENTIAL_WELL_OVERSAMPLING,
     SemiEmpiricMatcher,
@@ -1233,6 +1236,55 @@ class TestSemiEmpiricMatcherWindows(BLonDTestCase):
         with self.assertRaises(ValueError):
             # per-window arguments without windows
             self._matcher((0.0, 1.0), bucket_weights=[1.0])
+
+
+class TestSemiEmpiricMatcherBunchLengthTarget(BLonDTestCase):
+    """Bunch length targets with intensity effects, see blond/BLonD#407."""
+
+    def _match(self, bunch_length_4sigma, **kwargs):
+        simulation, beam, t_rf = ring_with_resonator_near_rf(
+            n_protons=0.25 * _N_PROTONS_ISSUE_407
+        )
+        matcher = SemiEmpiricMatcher(
+            time_limit=_windows([4, 5], t_rf),
+            n_macroparticles=2e4,
+            hamilton_to_density_function=hamilton_to_density_by_bunch_length,
+            hamilton_to_density_kwargs=dict(
+                bunch_length_4sigma=bunch_length_4sigma
+            ),
+            internal_grid_shape=(127, 127),
+            seed=1,
+            verbose=False,
+            **kwargs,
+        )
+        simulation.prepare_beam(beam=beam, preparation_routine=matcher)
+        dt = copy_to_cpu(beam.read_partial_dt())
+        buckets = _bucket_of(dt, t_rf)
+        return [4 * dt[buckets == k].std() for k in (4, 5)], t_rf
+
+    def test_target_holds_for_matched_beam(self):
+        lengths, _ = self._match(
+            40e-9, maxiter_intensity_effects=30, tolerance_potential_well=1e-4
+        )
+        np.testing.assert_allclose(lengths, 40e-9, rtol=0.02)
+
+    def test_infeasible_target_warns_only_for_final_beam(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            lengths, t_rf = self._match(
+                1e-6,
+                maxiter_intensity_effects=6,
+                tolerance_potential_well=1e-15,
+                stagnation_patience=100,
+            )
+        does_not_fit = [
+            w for w in caught if "does not fit the bucket" in str(w.message)
+        ]
+        # one per window, not one per window and iteration
+        self.assertEqual(len(does_not_fit), 2)
+        # the largest bunches possible: the full buckets
+        for length in lengths:
+            self.assertGreater(length, 0.5 * t_rf)
 
 
 class TestSemiEmpiricMatcherNotConverged(BLonDTestCase):

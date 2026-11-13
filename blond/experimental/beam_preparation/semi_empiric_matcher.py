@@ -450,7 +450,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Number of macroparticles to inject into the beam.
     hamilton_to_density_kwargs : dict, or sequence of dict
         Keyword arguments passed to ``hamilton_to_density_function``. With
-        windows, either one dict for all buckets or one per window.
+        windows, either one dict for all buckets or one per window. E.g.
+        ``bunch_length_4sigma`` and ``exponent`` for
+        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length`.
         For the default function, the following keys may be used:
 
         - ``density_modifier`` : float
@@ -460,6 +462,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
           Tip: Set `animate=True` to see the internal state of the Hamilton values.
     hamilton_to_density_function : callable
         Function that converts the 2D Hamiltonian array into a density function.
+        To give the bunch length or the emittance instead of a cut in the
+        Hamiltonian, use
+        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length`
+        or
+        :func:`~blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance`.
         See also :func:`hamilton_to_density_by_max`.
     internal_grid_shape : tuple of int
         Shape of the internal grid as ``(n_time, n_energy)``, used to generate
@@ -527,13 +534,17 @@ class SemiEmpiricMatcher(MatchingRoutine):
         If ``maxiter_intensity_effects`` ends the intensity-effects
         iteration before it converged or stalled, or if, with windows, a
         noticeable part of the density lies outside the separatrix and is
-        removed.
+        removed. Warnings of ``hamilton_to_density_function``, e.g. that a
+        bunch length does not fit the bucket, are reported for the final
+        beam only, not for every iteration.
 
     See Also
     --------
     hamilton_to_density_by_max : Default ``hamilton_to_density_function``.
-    blond.experimental.beam_preparation.bucket_filler_functions.multibunch_match_metric_to_hamilton :
-        Fill several buckets, fitting e.g. the RMS emittance of each bunch.
+    blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_bunch_length :
+        Fill to a target bunch length.
+    blond.experimental.beam_preparation.bucket_filler_functions.hamilton_to_density_by_emittance :
+        Fill to a target emittance.
     blond.experimental.beam_preparation.semi_empiric_matcher_extensions.line_density.classes.ProfileMatcherAddon :
         Match to a measured line density.
     blond.core.simulation.simulation.Simulation.get_potential_well_empiric :
@@ -587,11 +598,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
     Examples
     --------
-    Fill a single LHC bucket with a density that decays exponentially in
-    the Hamiltonian, :math:`\rho \propto \exp(-H / H_\mathrm{decay})`,
-    cut at a fraction of the Hamiltonian at the separatrix.
+    Fill a single LHC bucket with a bunch of 1 ns, four times the RMS
+    length. A bunch length that does not fit the bucket gives the longest
+    possible, the full bucket, with a warning.
 
-    >>> import numpy as np
     >>> from blond import (
     ...     Beam,
     ...     ConstantMagneticCycle,
@@ -602,27 +612,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
     ...     momentum_compaction_factor,
     ...     proton,
     ... )
-    >>> from blond.experimental.beam_preparation.semi_empiric_matcher import (
+    >>> from blond.experimental import (
     ...     SemiEmpiricMatcher,
+    ...     hamilton_to_density_by_bunch_length,
     ... )
-    >>>
-    >>> def truncated_exponential_density(
-    ...     time_grid,  # required, [s]
-    ...     deltaE_grid,  # required, [eV]
-    ...     hamilton_2D,  # required, [eV]
-    ...     decay,  # custom: 1/e decay, as fraction of the well depth
-    ...     filling,  # custom: cut, as fraction of the well depth
-    ... ):
-    ...     # H(t, dE=0) = V(t), so the minimum along dE is the potential
-    ...     potential_well = hamilton_2D.min(axis=1)
-    ...     well_depth = potential_well.max() - potential_well.min()
-    ...     # 0 at the bucket centre, 1 at the separatrix
-    ...     hamilton_relative = (
-    ...         hamilton_2D - potential_well.min()
-    ...     ) / well_depth
-    ...     density = np.exp(-hamilton_relative / decay)
-    ...     density[hamilton_relative > filling] = 0.0
-    ...     return density
     >>>
     >>> ring = Ring(circumference=26658.883)
     >>> ring.add_elements(
@@ -648,8 +641,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
     ...     preparation_routine=SemiEmpiricMatcher(
     ...         time_limit=(0, 2.5e-9),  # one RF bucket
     ...         n_macroparticles=1e5,
-    ...         hamilton_to_density_function=truncated_exponential_density,
-    ...         hamilton_to_density_kwargs=dict(decay=0.2, filling=0.8),
+    ...         hamilton_to_density_function=hamilton_to_density_by_bunch_length,
+    ...         hamilton_to_density_kwargs=dict(
+    ...             bunch_length_4sigma=1e-9,  # [s]
+    ...             exponent=2.0,  # shape: larger is more peaked
+    ...         ),
     ...         maxiter_intensity_effects=0,  # no intensity effects here
     ...         animate=True,
     ...     ),
@@ -758,6 +754,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             NumpyArray | CupyArray | None
         ) = None
         self.debug_helper: DebuggingEndpoints | None = None
+        # Warnings while populating the beam last, see `prepare_beam`
+        self._warnings_of_last_beam: list[warnings.WarningMessage] = []
 
         if debug:
             self.debug_helper = DebuggingEndpoints()
@@ -1008,6 +1006,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
             beam.intensity = intensity_original
 
+        # Warnings of the density function, e.g. that a target does not fit
+        # the bucket, only for the beam that is kept: during the iteration,
+        # e.g. while the intensity is ramped, they are irrelevant.
+        for warning in self._warnings_of_last_beam:
+            warnings.warn(warning.message, stacklevel=3)
+
     def _match_beam(
         self,
         beam: BeamBaseClass,
@@ -1125,20 +1129,24 @@ class SemiEmpiricMatcher(MatchingRoutine):
         avg_potential_well
             Averaged potential wells of all windows, concatenated, in [eV].
         """
-        self._bucket_windows.populate_beam(
-            beam=beam,
-            potential_well=avg_potential_well,
-            eta=self._eta(beam, simulation),
-            n_energy=self.internal_grid_shape[1],
-            hamilton_to_density_function=self.hamilton_to_density_function,
-            n_macroparticles=self.n_macroparticles,
-            seed=self.seed,
-            backend_dependent_random_numbers=(
-                self.backend_dependent_random_numbers
-            ),
-            grid_correction=self._grid_correction,
-            debug_helper=self.debug_helper,
-        )
+        # kept for `prepare_beam`, which reports those of the final beam
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._bucket_windows.populate_beam(
+                beam=beam,
+                potential_well=avg_potential_well,
+                eta=self._eta(beam, simulation),
+                n_energy=self.internal_grid_shape[1],
+                hamilton_to_density_function=self.hamilton_to_density_function,
+                n_macroparticles=self.n_macroparticles,
+                seed=self.seed,
+                backend_dependent_random_numbers=(
+                    self.backend_dependent_random_numbers
+                ),
+                grid_correction=self._grid_correction,
+                debug_helper=self.debug_helper,
+            )
+        self._warnings_of_last_beam = caught
 
     @staticmethod
     def _eta(beam: BeamBaseClass, simulation: Simulation) -> float:

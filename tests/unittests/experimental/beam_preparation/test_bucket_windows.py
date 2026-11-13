@@ -269,6 +269,43 @@ class TestBucketWindowsPopulateBeamSingleTimeLimit(BLonDTestCase):
         self.assertGreater(np.count_nonzero(np.abs(dt - 1.0) < 0.05), 0)
         self.assertIsNone(bucket_windows.selected_buckets)
 
+    def test_density_function_gets_grid_after_one_turn_map_correction(self):
+        # so that e.g. a fitted bunch length is the one of the particles
+        received = {}
+
+        def record(**grids):
+            received.update(grids)
+            return np.ones_like(grids["hamilton_2D"])
+
+        bucket_windows = BucketWindows.from_time_limit(
+            time_limit=(0.0, 2.0),
+            hamilton_to_density_kwargs={},
+            bucket_weights=None,
+            n_time=21,
+        )
+        beam = mock.Mock()
+        beam.reference.total_energy = 1.0
+        beam.reference.beta = 1.0
+        ts = bucket_windows.windows_ts[0]
+        bucket_windows.populate_beam(
+            beam=beam,
+            potential_well=np.cos(2 * np.pi * ts) + 5.0,
+            eta=1.0,
+            n_energy=11,
+            hamilton_to_density_function=record,
+            n_macroparticles=100,
+            seed=1,
+            backend_dependent_random_numbers=False,
+            grid_correction=(0.01, 2.0),  # (shear_dt_per_dE, deltaE_scale)
+        )
+        deltaE_max = np.sqrt(2 / 0.5)  # well depth 2, drift term 1
+        np.testing.assert_allclose(
+            received["deltaE_grid"].max(), 2.0 * deltaE_max
+        )
+        np.testing.assert_allclose(
+            received["time_grid"][0, -1], 0.0 + 0.01 * 2.0 * deltaE_max
+        )
+
     def test_hamiltonian_keeps_offset_of_potential_well(self):
         debug_helper = mock.Mock()
         self._populate(debug_helper=debug_helper)

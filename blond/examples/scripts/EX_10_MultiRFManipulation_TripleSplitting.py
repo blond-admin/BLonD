@@ -30,6 +30,9 @@ from blond import (
     proton,
     setup_backend,
 )
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_emittance,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
@@ -122,17 +125,18 @@ def main(
     preparation_routine = SemiEmpiricMatcher(
         time_limit,
         n_macroparticles,
+        hamilton_to_density_function=hamilton_to_density_by_emittance,
         hamilton_to_density_kwargs={
-            "density_modifier": 1.0,
-            "hamilton_max": 400,
+            "emittance_4pi_rms": 1.7,  # [eVs]
+            "exponent": 1.0,  # shape: larger is more peaked
         },
         animate=True,
     )
 
     sim.prepare_beam(beam=beam, preparation_routine=preparation_routine)
 
-    # The initial emittance can be varied by changing hamilton_max in SemiEmpiricMatcher
-    # based on the potential well that can be plotted with
+    # The initial emittance is set by `emittance_4pi_rms` above. The bucket
+    # can be inspected with
     # sim.plot_potential_well_empiric(np.linspace(time_limit[0], time_limit[-1], 10000), proton)
 
     profile_observation = StaticProfileObservation(

@@ -55,6 +55,7 @@ def _():
     )
     from blond.experimental import (
         SemiEmpiricMatcher,
+        hamilton_to_density_by_bunch_length,
     )
     from blond.testing import pytest_active
 
@@ -71,6 +72,7 @@ def _():
         Simulation,
         SingleHarmonicRFStation,
         backend,
+        hamilton_to_density_by_bunch_length,
         momentum_compaction_factor,
         np,
         plt,
@@ -157,7 +159,13 @@ def _(mo):
 
 
 @app.cell
-def _(SemiEmpiricMatcher, beam1, pytest_is_active, sim):
+def _(
+    SemiEmpiricMatcher,
+    beam1,
+    hamilton_to_density_by_bunch_length,
+    pytest_is_active,
+    sim,
+):
     sim.prepare_beam(
         beam=beam1,
         preparation_routine=SemiEmpiricMatcher(
@@ -165,9 +173,10 @@ def _(SemiEmpiricMatcher, beam1, pytest_is_active, sim):
             n_macroparticles=1e3 if pytest_is_active else 1e6,
             seed=0,
             maxiter_intensity_effects=0,
+            hamilton_to_density_function=hamilton_to_density_by_bunch_length,
             hamilton_to_density_kwargs=dict(
-                density_modifier=2.0,  # Controls density profile sharpness
-                hamilton_max=40.0,  # Hamiltonian cutoff [eV]
+                bunch_length_4sigma=1.0e-9,  # [s]
+                exponent=2.0,  # shape: larger is more peaked
             ),
             animate=True,
         ),

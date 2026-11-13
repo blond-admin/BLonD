@@ -27,6 +27,9 @@ from blond import (
     mu_plus,
     setup_backend,
 )
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_bunch_length,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
@@ -108,9 +111,10 @@ def main():
         preparation_routine=SemiEmpiricMatcher(
             time_limit=(0, t_rf),  # Time window around bunch [s]
             n_macroparticles=100_000,  # Number of macro-particles
+            hamilton_to_density_function=hamilton_to_density_by_bunch_length,
             hamilton_to_density_kwargs=dict(
-                density_modifier=2.0,  # Controls density profile sharpness
-                hamilton_max=5000,  # Hamiltonian cutoff [eV]
+                bunch_length_4sigma=2.0e-12,  # [s]
+                exponent=2.0,  # shape: larger is more peaked
             ),
             internal_grid_shape=(1023, 1023),  # Resolution of phase space grid
             seed=42,  # For reproducibility

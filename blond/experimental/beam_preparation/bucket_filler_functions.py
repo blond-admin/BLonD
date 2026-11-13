@@ -6,237 +6,381 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Functions that turn the Hamiltonian of a bucket into a particle density.
+
+Each function has the signature of ``hamilton_to_density_function`` of
+:class:`~blond.experimental.beam_preparation.semi_empiric_matcher.SemiEmpiricMatcher`.
+:func:`hamilton_to_density_by_bunch_length` and
+:func:`hamilton_to_density_by_emittance` fill the bucket to a target bunch
+length or emittance, :func:`hamilton_to_density_by_metric` to a target of
+any metric, and :func:`hamilton_to_density_by_max` up to a given
+Hamiltonian.
+"""
+
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable  # NOQA
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.optimize import minimize
-
-from blond.experimental.beam_preparation.density_functions import (
-    gaussian_density,
-)
-from blond.experimental.beam_preparation.metric_functions import rms_emittance
+from scipy.optimize import brentq
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from collections.abc import Callable
+
     from numpy.typing import NDArray as NumpyArray
 
-
-def metric_fitter(
-    hamilton: NumpyArray,
-    dt_grid: NumpyArray,
-    dE_grid: NumpyArray,
-    desired_metric: float,
-    free_parameter_guess: float,
-    metric_function: callable(
-        [
-            NumpyArray,
-            NumpyArray,
-            NumpyArray,
-        ]
-    ),
-    density_function: callable([NumpyArray, float]),
-    max_metric_diff: float,
-    max_iterations: int = 100,
-) -> NumpyArray:
-    """
-    fits a density distribution with one free parameter to a metric of interest,
-    then returns the resulting density
-
-    Parameters
-    ----------
-    hamilton
-        2D hamiltonian, in [eV]
-    dt_grid
-        time array corresponding to hamiltonian, in [s]
-    dE_grid
-        energy array corresponding to hamiltonian, in [eV]
-    desired_metric
-        metric value to fit the distribution to
-    free_parameter_guess
-        initial guess for the free parameter.
-    metric_function
-        function that takes a density mass function
-        and outputs a metric to be fitted to an ideal value
-    density_function
-        function to convert a hamiltonian to density
-        with one free parameter e.g. rho(H, parameter)
-    max_metric_diff
-        The allowed difference between the desired metric
-        and the metric of the generated bunch
-    max_iterations
-        maximum number of iterations to search
-        before the search loop gets interrupted.
-
-    Returns
-    -------
-    density
-        the density mass function,
-        fitted to give the right metric of interest
-    """
-
-    # Absolute difference between desired and calculated metrics for any free parameter
-    def minimization_function(x):
-        return np.abs(
-            metric_function(density_function(hamilton, x), dt_grid, dE_grid)
-            - desired_metric
-        )
-
-    best = {"x": None, "f": float("inf")}
-
-    def callback(xk):  # abort if value is better than tolerance
-        fx = minimization_function(xk)
-        if fx < best["f"]:
-            best["x"] = xk
-            best["f"] = fx
-        if fx < max_metric_diff:
-            raise StopIteration
-
-    # minimize
-    optimize_result = minimize(
-        fun=minimization_function,
-        x0=free_parameter_guess,
-        method="Nelder-Mead",
-        options={"maxiter": max_iterations},
-        callback=callback,
-    )
-
-    if np.abs(optimize_result.fun - desired_metric) > max_metric_diff:
-        warnings.warn(
-            "Specified metric accuracy was not reached.", RuntimeWarning
-        )
-
-    ideal_free_parameter = optimize_result.x[
-        0
-    ]  # optimization is only 1 dimensional
-
-    # return best matching distribution density
-    density = density_function(hamilton, ideal_free_parameter)
-    return density
+# Smallest number of time steps that the fitted bunch should span; shorter
+# bunches are not resolved by the grid of the matcher.
+_MIN_RESOLVED_TIME_STEPS = 5
+# Decay of the Gaussian distribution, in units of the Hamiltonian at the
+# separatrix, beyond which it is a uniform filling of the bucket
+_GAUSSIAN_DECAY_MAX = 1e6
+_DISTRIBUTIONS = ("binomial", "gaussian")
 
 
-def multibunch_match_metric_to_hamilton(
+def hamilton_to_density_by_bunch_length(
     time_grid: NumpyArray,
     deltaE_grid: NumpyArray,
     hamilton_2D: NumpyArray,
-    metric_list: list[float],
-    intensity_frac_list: list[float],
-    n_buckets: int,
-    max_metric_diff: float,
-    density_function: callable([NumpyArray, float]) = gaussian_density,
-    metric_function: callable(
-        [
-            NumpyArray,
-            NumpyArray,
-            NumpyArray,
-        ]
-    ) = rms_emittance,
-    max_iterations: int = 100,
-    free_parameter_guess: float | None = None,
+    bunch_length_4sigma: float,
+    distribution: str = "binomial",
+    exponent: float = 1.0,
 ) -> NumpyArray:
-    """
-    Generalized method for generating density distributions for a hamiltonian.
-    Notes
-    -----
-    Allows for a density distribution 'rho(H, value)' with a free parameters value.
-    This value is then automatically selected to make the generated bunches
-    satisfy some metric that is also user defined.
+    r"""Density in :math:`H`, fitted to a 4 sigma bunch length.
 
-    This method does not have functionality for identifying the wells.
-    When the number of buckets is specified the time
-    axis is simply split into 'n_buckets' equal sized pieces.
-    If the edges of these slices do not neatly align with the
-    maxima of the potential, bunches may not be generated correctly.
-    These bounds can be changed by setting
-    different bounds in the matcher.
+    See :func:`hamilton_to_density_by_metric` for the distributions, the
+    bucket that is filled, and targets that do not fit. The matcher calls it
+    in every iteration, so the target holds for the matched beam, with its
+    intensity effects.
 
     Parameters
     ----------
     time_grid
-        Time coordinates of the hamiltonian, in [s].
+        Time coordinates of the grid, in [s].
     deltaE_grid
-        Energy coordinate of the hamiltonian, in [eV].
+        Energy coordinates of the grid, in [eV].
     hamilton_2D
-        Hamiltonian value, in [eV].
-    metric_list
-        List of values to for the metric to have for each bunch.
-        Metric definition specified by metric function
-    intensity_frac_list
-        Fraction of total intensity for each bunch to have.
-    n_buckets
-        Number of buckets spanned by the time axis.
-    max_metric_diff
-        The maximum allowed difference between the desired
-        metric and the metric of the generated bunch
-    density_function
-        Simplistic function for the density with one free parameter
-        rho(H, value). Value and metric must scale monotonically.
-    metric_function
-        Function of a hamiltonian. Must take the density,
-        time and energy as 2d arrays
-    free_parameter_guess
-        The initial guess for the free parameter
-    max_iterations
-        The maximum number of iterations allowed for fitting the metric.
-
+        Hamiltonian on the grid, in [eV].
+    bunch_length_4sigma
+        Target bunch length, four times the RMS length of the line density,
+        in [s], i.e. four times
+        :attr:`~blond.handle_results.observables.BeamStatisticsOncePerTurn.bunch_length`.
+    distribution
+        ``"binomial"`` or ``"gaussian"``, see
+        :func:`hamilton_to_density_by_metric`.
+    exponent
+        Shape of the binomial distribution, see
+        :func:`hamilton_to_density_by_metric`.
 
     Returns
     -------
-    _density
-        2D array containing the density distribution of the beam.
+    density
+        Density on the grid, zero outside the bucket.
+
+    Warns
+    -----
+    UserWarning
+        If the target does not fit the bucket, or is too short for the grid.
     """
-    _hamilton = hamilton_2D.copy()
-    density = np.zeros(hamilton_2D.shape)
+    return hamilton_to_density_by_metric(
+        time_grid=time_grid,
+        deltaE_grid=deltaE_grid,
+        hamilton_2D=hamilton_2D,
+        metric=_bunch_length_4sigma,
+        target=bunch_length_4sigma,
+        distribution=distribution,
+        exponent=exponent,
+        description="4 sigma bunch length",
+        unit="s",
+    )
 
-    if (
-        free_parameter_guess is None
-    ):  # typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
-        free_parameter_guess = np.max(_hamilton)
 
-    n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
-    min_hamilton = np.min(_hamilton)
-    _hamilton -= min_hamilton
+def hamilton_to_density_by_emittance(
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    hamilton_2D: NumpyArray,
+    emittance_4pi_rms: float,
+    distribution: str = "binomial",
+    exponent: float = 1.0,
+) -> NumpyArray:
+    r"""Density in :math:`H`, fitted to a longitudinal emittance.
 
-    for bucket in range(n_buckets):
-        # split phase space into each bucket
-        min_bucket_index = bucket * n_slices_per_bucket
-        max_bucket_index = (bucket + 1) * n_slices_per_bucket
+    The emittance is
+    :math:`4 \pi \sqrt{\sigma_t^2 \sigma_E^2 - \sigma_{tE}^2}`, the area of
+    the :math:`2 \sigma` ellipse of a Gaussian bunch. See
+    :func:`hamilton_to_density_by_metric` for the distributions, the bucket
+    that is filled, and targets that do not fit.
 
-        select_bucket = slice(min_bucket_index, max_bucket_index)
+    Parameters
+    ----------
+    time_grid
+        Time coordinates of the grid, in [s].
+    deltaE_grid
+        Energy coordinates of the grid, in [eV].
+    hamilton_2D
+        Hamiltonian on the grid, in [eV].
+    emittance_4pi_rms
+        Target emittance, in [eVs], i.e. :math:`4 \pi` times
+        :attr:`~blond.core.beam.beams.Beam.rms_emittance`.
+    distribution
+        ``"binomial"`` or ``"gaussian"``, see
+        :func:`hamilton_to_density_by_metric`.
+    exponent
+        Shape of the binomial distribution, see
+        :func:`hamilton_to_density_by_metric`.
 
-        sliced_time = time_grid[select_bucket, :]
-        sliced_energy = deltaE_grid[select_bucket, :]
-        sliced_hamilton = _hamilton[select_bucket, :]
+    Returns
+    -------
+    density
+        Density on the grid, zero outside the bucket.
 
-        # ensure the minimum hamilton in each slice is equal
-        sliced_hamilton -= np.min(sliced_hamilton) + min_hamilton
+    Warns
+    -----
+    UserWarning
+        If the target does not fit the bucket, or is too small for the grid.
+    """
+    return hamilton_to_density_by_metric(
+        time_grid=time_grid,
+        deltaE_grid=deltaE_grid,
+        hamilton_2D=hamilton_2D,
+        metric=_emittance_4pi_rms,
+        target=emittance_4pi_rms,
+        distribution=distribution,
+        exponent=exponent,
+        description="emittance",
+        unit="eVs",
+    )
 
-        if (
-            intensity_frac_list[bucket] == 0
-        ):  # if no intensity in bucket, just set density to zero
-            sliced_density = np.zeros(sliced_hamilton.shape)
-        else:  # otherwise fill bucket with a density that satisfies a desired metric
-            sliced_density = metric_fitter(
-                sliced_hamilton,
-                sliced_time,
-                sliced_energy,
-                metric_list[bucket],
-                free_parameter_guess,
-                metric_function,
-                density_function,
-                max_metric_diff,
-                max_iterations,
-            )
-            sliced_density *= intensity_frac_list[bucket]
 
-        density[select_bucket, :] = (
-            sliced_density  # concatenate density of each bucket
+def hamilton_to_density_by_metric(
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    hamilton_2D: NumpyArray,
+    metric: Callable[[NumpyArray, NumpyArray, NumpyArray], float],
+    target: float,
+    distribution: str = "binomial",
+    exponent: float = 1.0,
+    description: str = "metric",
+    unit: str = "",
+) -> NumpyArray:
+    r"""Density in :math:`H` with one parameter, fitted to a target metric.
+
+    Inside the separatrix, with :math:`h = H - H_\mathrm{bottom}`, the
+    density is
+
+    - ``"binomial"``: :math:`(1 - h / h_\mathrm{cut})^\mathrm{exponent}`
+      for :math:`h < h_\mathrm{cut}`, zero above. ``exponent=0`` fills the
+      bucket uniformly up to :math:`h_\mathrm{cut}`; larger values give
+      more peaked bunches.
+    - ``"gaussian"``: :math:`\exp(-h / h_0)`, cut at the separatrix. In a
+      linear bucket, :math:`h \propto t^2 + (\ldots) \Delta E^2`, so the
+      bunch is Gaussian in time and energy.
+
+    The parameter, :math:`h_\mathrm{cut}` or :math:`h_0`, is solved for
+    with :func:`scipy.optimize.brentq` such that ``metric`` of the density
+    equals ``target``.
+
+    Parameters
+    ----------
+    time_grid
+        Time coordinates of the grid, in [s].
+    deltaE_grid
+        Energy coordinates of the grid, in [eV].
+    hamilton_2D
+        Hamiltonian on the grid, in [eV]. The bucket around the minimum of
+        the potential well is filled, see Notes.
+    metric
+        ``metric(weights, ts, deltaEs)``, evaluated on the grid cells inside
+        the bucket: ``weights`` is the density there (not normalised), ``ts``
+        and ``deltaEs`` their coordinates, in [s] and [eV]. It must grow
+        with the parameter, as e.g. a bunch length or an emittance does.
+    target
+        Target value of ``metric``.
+    distribution
+        ``"binomial"`` or ``"gaussian"``, see above.
+    exponent
+        Exponent of the binomial distribution; not used for the Gaussian.
+    description
+        Name of the metric, for warnings.
+    unit
+        Unit of the metric, for warnings.
+
+    Returns
+    -------
+    density
+        Density on the grid, zero outside the bucket.
+
+    Raises
+    ------
+    ValueError
+        If ``distribution`` is unknown.
+
+    Warns
+    -----
+    UserWarning
+        If the target does not fit the bucket. The bucket is then filled as
+        far as the distribution allows (binomial: up to the separatrix,
+        Gaussian: uniformly), which gives the largest metric possible. Also
+        if the target is too small for the grid.
+
+    Notes
+    -----
+    The bucket is the one around the minimum of the potential well
+    :math:`H(t, \Delta E \approx 0)`, up to the lower of the highest
+    barriers on its two sides. A single ``time_limit`` should therefore hold
+    one bucket; to fill several, give one window per bucket.
+    """
+    if distribution not in _DISTRIBUTIONS:
+        raise ValueError(
+            f"`distribution` must be one of {_DISTRIBUTIONS}, but got"
+            f" {distribution!r}."
         )
+    hamilton_2D = np.asarray(hamilton_2D, dtype=float)
+    inside, hamilton_separatrix = _cells_of_bucket(hamilton_2D)
+    # only the cells inside the bucket, H from the bottom of the bucket
+    hamiltons = hamilton_2D[inside] - hamilton_2D.min()
+    ts = np.asarray(time_grid)[inside]
+    deltaEs = np.asarray(deltaE_grid)[inside]
 
+    if distribution == "binomial":
+
+        def weights_of(hamilton_cut: float) -> NumpyArray:
+            below = hamiltons < hamilton_cut
+            weights = np.zeros_like(hamiltons)
+            weights[below] = (1 - hamiltons[below] / hamilton_cut) ** exponent
+            return weights
+
+        parameter_largest = hamilton_separatrix
+        fullest = f"binomial distribution with exponent={exponent} (a smaller"
+        fullest += " exponent gives more)"
+    else:
+
+        def weights_of(hamilton_decay: float) -> NumpyArray:
+            return np.exp(-hamiltons / hamilton_decay)
+
+        parameter_largest = _GAUSSIAN_DECAY_MAX * hamilton_separatrix
+        fullest = "Gaussian distribution, which then fills the bucket"
+        fullest += " uniformly"
+
+    def achieved(parameter: float) -> float:
+        return float(metric(weights_of(parameter), ts, deltaEs))
+
+    # The smallest parameter that the grid resolves: the bunch spans a few
+    # time steps around the bottom of the bucket.
+    time_step = abs(float(time_grid[1, 0] - time_grid[0, 0]))
+    distance = np.abs(ts - ts[np.argmin(hamiltons)])
+    resolved = distance >= _MIN_RESOLVED_TIME_STEPS * time_step
+    parameter_smallest = float(
+        hamiltons[resolved].min() if resolved.any() else hamilton_separatrix
+    )
+
+    if achieved(parameter_largest) <= target:
+        parameter = parameter_largest
+        warnings.warn(
+            f"The target {description} {target:.4g} {unit} does not fit the"
+            f" bucket. It is filled up to the separatrix, giving"
+            f" {achieved(parameter):.4g} {unit}, the largest possible with"
+            f" the {fullest}.",
+            stacklevel=3,
+        )
+    elif achieved(parameter_smallest) >= target:
+        parameter = parameter_smallest
+        warnings.warn(
+            f"The target {description} {target:.4g} {unit} is not resolved"
+            f" by the grid, giving {achieved(parameter):.4g} {unit}."
+            " Increase `internal_grid_shape`, or narrow the time range.",
+            stacklevel=3,
+        )
+    else:
+        parameter = brentq(
+            lambda parameter: achieved(parameter) - target,
+            parameter_smallest,
+            parameter_largest,
+            rtol=1e-10,
+        )
+    density = np.zeros(hamilton_2D.shape)
+    density[inside] = weights_of(parameter)
     return density
+
+
+def _bunch_length_4sigma(
+    weights: NumpyArray, ts: NumpyArray, deltaEs: NumpyArray
+) -> float:
+    """Four times the RMS length of weighted points.
+
+    Parameters
+    ----------
+    weights
+        Density at the points.
+    ts
+        Time of the points, in [s].
+    deltaEs
+        Energy of the points, in [eV]; not used.
+
+    Returns
+    -------
+    bunch_length_4sigma
+        In [s].
+    """
+    mean = np.average(ts, weights=weights)
+    return float(4 * np.sqrt(np.average((ts - mean) ** 2, weights=weights)))
+
+
+def _emittance_4pi_rms(
+    weights: NumpyArray, ts: NumpyArray, deltaEs: NumpyArray
+) -> float:
+    r""":math:`4 \pi` times the RMS emittance of weighted points.
+
+    Parameters
+    ----------
+    weights
+        Density at the points.
+    ts
+        Time of the points, in [s].
+    deltaEs
+        Energy of the points, in [eV].
+
+    Returns
+    -------
+    emittance_4pi_rms
+        In [eVs].
+    """
+    t_centred = ts - np.average(ts, weights=weights)
+    deltaE_centred = deltaEs - np.average(deltaEs, weights=weights)
+    var_t = np.average(t_centred**2, weights=weights)
+    var_deltaE = np.average(deltaE_centred**2, weights=weights)
+    cov = np.average(t_centred * deltaE_centred, weights=weights)
+    return float(4 * np.pi * np.sqrt(max(var_t * var_deltaE - cov**2, 0.0)))
+
+
+def _cells_of_bucket(
+    hamilton_2D: NumpyArray,
+) -> tuple[NumpyArray, float]:
+    """Grid cells inside the separatrix of the bucket around the minimum.
+
+    Parameters
+    ----------
+    hamilton_2D
+        Hamiltonian on the grid, in [eV], shape ``(n_time, n_energy)``.
+
+    Returns
+    -------
+    inside
+        Boolean mask of the cells inside the separatrix.
+    hamilton_separatrix
+        Hamiltonian at the separatrix, counted from the bottom of the
+        bucket, in [eV].
+    """
+    potential_well = hamilton_2D.min(axis=1)  # H(t, dE = 0)
+    i_min = int(np.argmin(potential_well))
+    i_left = int(np.argmax(potential_well[: i_min + 1]))
+    i_right = i_min + int(np.argmax(potential_well[i_min:]))
+    hamilton_separatrix = min(potential_well[i_left], potential_well[i_right])
+    in_time = np.zeros(len(potential_well), dtype=bool)
+    in_time[i_left : i_right + 1] = True
+    inside = in_time[:, None] & (hamilton_2D < hamilton_separatrix)
+    return inside, float(hamilton_separatrix - potential_well[i_min])
 
 
 def hamilton_to_density_by_max(

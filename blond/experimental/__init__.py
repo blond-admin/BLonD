@@ -10,12 +10,20 @@
 
 __all__ = [
     "SemiEmpiricMatcher",
+    "hamilton_to_density_by_bunch_length",
+    "hamilton_to_density_by_emittance",
+    "hamilton_to_density_by_metric",
     "ProfileMatcherAddon",
     "PooledInterpolationKick",
     "warmup",
 ]
 import warnings
 
+from blond.experimental.beam_preparation.bucket_filler_functions import (
+    hamilton_to_density_by_bunch_length,
+    hamilton_to_density_by_emittance,
+    hamilton_to_density_by_metric,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
 )
