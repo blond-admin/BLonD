@@ -289,7 +289,7 @@ class LHCCavityFeedback(
     g_gen
         Overall driver chain gain [1]; default is 1.
     i_gen_offset
-        Generator current offset [A]; default is 0.
+        Complex (I/Q) generator current offset [A]; default is 0.
     n_pretrack
         Number of turns to pre-track without beam; default is 200.
     q_l
@@ -316,7 +316,7 @@ class LHCCavityFeedback(
         n_cavities: int = 8,
         f_c: float = 400.789e6,
         g_gen: float = 1,
-        i_gen_offset: float = 0,
+        i_gen_offset: complex = 0,
         n_pretrack: int = 200,
         q_l: float = 20000,
         r_over_q: float = 45,
@@ -882,7 +882,7 @@ class LHCCavityFeedback(
             tau_a=self.tau_a,
             tau_d=self.tau_d,
             tau_o=self.tau_o,
-            i_gen_offset=float(self.I_gen_offset),
+            i_gen_offset=complex(self.I_gen_offset),
             i_swap_threshold=float(self.i_swap_threshold),
             open_drive=float(commissioning.open_drive),
             open_drive_inv=float(commissioning.open_drive_inv),

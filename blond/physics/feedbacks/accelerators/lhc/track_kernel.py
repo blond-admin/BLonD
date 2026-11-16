@@ -154,7 +154,7 @@ class Settings(NamedTuple):
     tau_o
         OTFB AC coupling time constant [s].
     i_gen_offset
-        Generator current offset [A].
+        Complex (I/Q) generator current offset [A].
     i_swap_threshold
         Current [A] at which the switch-and-protect module acts.
     open_drive
@@ -194,7 +194,7 @@ class Settings(NamedTuple):
     tau_a: float
     tau_d: float
     tau_o: float
-    i_gen_offset: float
+    i_gen_offset: complex
     i_swap_threshold: float
     open_drive: float
     open_drive_inv: float
