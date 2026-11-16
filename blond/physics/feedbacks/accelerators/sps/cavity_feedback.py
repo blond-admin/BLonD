@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.signal import fftconvolve
 
-from blond import Simulation, backend
+from blond.core.backends.backend import backend
 from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.sps.helpers import (
@@ -59,7 +59,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
-    from blond.physics.cavities import (
+    from blond.core.simulation.simulation import Simulation
+    from blond.physics.rf_station import (
         MultiHarmonicRFStation,
         SingleHarmonicRFStation,
     )
@@ -503,7 +504,7 @@ class SPSOneTurnFeedback(
             )
 
             self.logger.debug(
-                f"Feed-forward delay in samples {self.n_ff_delay}"
+                "Feed-forward delay in samples %d", self.n_ff_delay
             )
 
             # Multiply gain by normalisation factors from filter and
@@ -513,8 +514,12 @@ class SPSOneTurnFeedback(
             )
 
         self.logger.debug(
-            f"SPS OTFB cavities: {self.n_cavities}, sections: {self.n_sections}, "
-            f"voltage partition {self.V_part:.2f}, gain: {self.G_tx:.2e}",
+            "SPS OTFB cavities: %d, sections: %d, voltage partition %.2f, "
+            "gain: %.2e",
+            self.n_cavities,
+            self.n_sections,
+            self.V_part,
+            self.G_tx,
         )
 
         # Length of arrays in LLRF
@@ -539,12 +544,12 @@ class SPSOneTurnFeedback(
 
         # Array to hold the bucket-by-bucket voltage with length LLRF
         self.logger.debug(
-            f"Length of arrays on coarse grid 2x {self.n_coarse}"
+            "Length of arrays on coarse grid 2x %d", self.n_coarse
         )
 
         # Initialize moving average
         self.n_mov_av = round(self.TWC.tau / self.T_s)
-        self.logger.debug(f"Moving average over {self.n_mov_av} points")
+        self.logger.debug("Moving average over %d points", self.n_mov_av)
 
         n_mov_av_thres = 2
         if self.n_mov_av < n_mov_av_thres:
@@ -788,7 +793,7 @@ class SPSOneTurnFeedback(
     def set_point_std(self):
         """Compute the desired set point voltage in I/Q."""
         self.logger.debug(
-            f"Entering {sys._getframe(0).f_code.co_name} function"
+            "Entering %s function", sys._getframe(0).f_code.co_name
         )
         # Read RF voltage from rf object
         self.V_set = self.set_point_from_rfstation()
@@ -809,7 +814,7 @@ class SPSOneTurnFeedback(
         That is, if the set point is non-constant over a turn with the periodicity of a turn.
         """
         self.logger.debug(
-            f"Entering {sys._getframe(0).f_code.co_name} function"
+            "Entering %s function", sys._getframe(0).f_code.co_name
         )
         pass
 

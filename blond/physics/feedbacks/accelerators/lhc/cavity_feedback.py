@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.signal import firwin
 
-from blond import Simulation, StaticProfile
 from blond.core.ring.helpers import requires
 from blond.generals.cupy_.no_cupy_import import copy_to_cpu
 from blond.physics.feedbacks.accelerators.lhc.helpers import (
@@ -51,11 +50,13 @@ from blond.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.physics.feedbacks.helpers import generate_white_noise
+from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 @dataclass
@@ -359,7 +360,7 @@ class LHCCavityFeedback(
         self.r_over_q = r_over_q
         self.tau_loop = tau_loop
         self.tau_otfb = tau_otfb
-        self.logger.debug(f"Cavity loaded Q is {self.q_l:.0f}")
+        self.logger.debug("Cavity loaded Q is %.0f", self.q_l)
 
         # Import RF FB properties
         self.alpha = self.commissioning.alpha
@@ -431,12 +432,12 @@ class LHCCavityFeedback(
         self.setup_feedback()
         self.update_rf_variables()
         self.update_fb_variables()
-        self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
+        self.logger.debug("Relative detuning is %.4e", self.detuning)
 
         self.get_next_setpoint = self.set_point_from_rfstation
 
         # Pre-track without beam
-        self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
+        self.logger.debug("Track without beam for %d turns", self.n_pretrack)
 
         self.logger.debug("Pre-tracking without beam")
         self.track_no_beam(self.n_pretrack)
@@ -476,10 +477,10 @@ class LHCCavityFeedback(
 
         self.get_next_setpoint = get_voltage
 
-        self.logger.debug(f"Relative detuning is {self.detuning:.4e}")
+        self.logger.debug("Relative detuning is %.4e", self.detuning)
 
         # Pre-track without beam
-        self.logger.debug(f"Track without beam for {self.n_pretrack} turns")
+        self.logger.debug("Track without beam for %d turns", self.n_pretrack)
         if self.excitation:
             self.logger.debug("Injecting noise in voltage set point")
             self.track_no_beam_excitation(self.n_pretrack)
@@ -496,7 +497,7 @@ class LHCCavityFeedback(
     def setup_feedback(self):
         """Method to setup the cavity feedback model."""
         self.logger.debug(
-            f"Length of arrays in generator path {self.n_coarse}"
+            "Length of arrays in generator path %d", self.n_coarse
         )
 
         # Initialise FIR filter for OTFB
@@ -508,7 +509,7 @@ class LHCCavityFeedback(
             fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps), dtype=float
         )
         self.logger.debug(
-            f"Sum of FIR coefficients {np.sum(self.fir_coeff):.4e}"
+            "Sum of FIR coefficients %.4e", np.sum(self.fir_coeff)
         )
 
         self.buffers_fine.i_gen = np.zeros(

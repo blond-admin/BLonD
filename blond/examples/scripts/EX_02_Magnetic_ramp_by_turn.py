@@ -150,6 +150,7 @@ def main(
                 bunch_observation.dEs[i, :],
                 bins=256,
                 range=[[0, 2.5e-9], [-4e8, 4e8]],
+                cmap="turbo",
             )
             plt.draw()
             plt.pause(0.1)

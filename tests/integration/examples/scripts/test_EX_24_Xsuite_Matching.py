@@ -7,6 +7,7 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 # NOTE: catch broad ``Exception`` rather than ``ImportError``. This import runs
 # at pytest collection time, and on some Python versions the installed xsuite
@@ -22,7 +23,7 @@ except Exception:
 
 
 @unittest.skipUnless(HAS_XSUITE, "XSUITE is not available")
-class TestEX_24_Xsuite_Matching(unittest.TestCase):
+class TestEX_24_Xsuite_Matching(BLonDTestCase):
     def setUp(self):
         try:
             import xpart

@@ -4,9 +4,10 @@ from blond.handle_results.helpers import (
     callers_relative_path,
     filesafe_datetime,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test_filesafe_datetime(self):
         datetime = filesafe_datetime()
         print(datetime)

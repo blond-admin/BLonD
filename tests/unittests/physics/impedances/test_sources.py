@@ -30,16 +30,17 @@ from blond.physics.impedances.sources import (
     TravelingWaveCavity,
     fit_poles,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestImpedanceTable(unittest.TestCase):
+class TestImpedanceTable(BLonDTestCase):
     @unittest.skip
     def test_from_file(self):
         # TODO: implement test for `from_file`
         self.impedance_table.from_file(filepath=None, reader=None)
 
 
-class TestImpedanceTableFreq(unittest.TestCase):
+class TestImpedanceTableFreq(BLonDTestCase):
     def setUp(self):
         pass
         # # TODO: implement test for `__init__`
@@ -95,7 +96,7 @@ class TestImpedanceTableFreq(unittest.TestCase):
         assert hash_before == freq_table_short._cache_impedance_hash
 
 
-class TestImpedanceTableTime(unittest.TestCase):
+class TestImpedanceTableTime(BLonDTestCase):
     def test_from_file(self):
         impedance_table = ImpedanceTableTime.from_file(
             filepath=callers_relative_path(
@@ -180,7 +181,7 @@ class TestImpedanceTableTime(unittest.TestCase):
         assert hash_before == impedance_table._cache_impedance_from_wake_hash
 
 
-class TestInductiveImpedance(unittest.TestCase):
+class TestInductiveImpedance(BLonDTestCase):
     def setUp(self):
         self.inductive_impedance = InductiveImpedance(
             Z_over_n=34.6669349520904 / 10e9 * 11e3
@@ -374,7 +375,7 @@ class TestInductiveImpedance(unittest.TestCase):
         assert not np.allclose(freq_y_1, freq_y_2)
 
 
-class TestResonators(unittest.TestCase):
+class TestResonators(BLonDTestCase):
     def setUp(self):
         self.resonators = Resonators(
             shunt_impedances=np.array([1, 2, 3]),
@@ -409,7 +410,7 @@ class TestResonators(unittest.TestCase):
         )
 
     def test___init__neg_freq(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([-400e6]),
@@ -417,15 +418,41 @@ class TestResonators(unittest.TestCase):
             )
 
     def test___init__small_Q(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=np.array([1]),
                 center_frequencies=np.array([400e6]),
                 quality_factors=np.array([0.49]),
             )
 
+    def test___init__Q_equal_0_5(self):
+        # Q = 0.5 makes omega_bar = 0, so the wake divides by zero.
+        with self.assertRaises(ValueError):
+            self.resonators = Resonators(
+                shunt_impedances=np.array([1]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.5]),
+            )
+
+    def test___init__small_Q_raises_before_computing_nan(self):
+        import warnings
+
+        with (
+            warnings.catch_warnings(record=True) as caught,
+            self.assertRaises(ValueError),
+        ):
+            warnings.simplefilter("always")
+            Resonators(
+                shunt_impedances=np.array([1.0]),
+                center_frequencies=np.array([400e6]),
+                quality_factors=np.array([0.49]),
+            )
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
+
     def test___init__float_values(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
                 center_frequencies=400e6,
@@ -531,7 +558,7 @@ class TestResonators(unittest.TestCase):
             plt.show()
         assert np.allclose(
             self.resonators._center_frequencies,
-            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y))[0]]),
+            copy_to_cpu(freq_x[find_peaks(copy_to_cpu(freq_y).real)[0]]),
             atol=(max_freq - min_freq) / num / 2,
         )  # closeness of peaks to centre frequency
         for freq_ind in range(
@@ -557,7 +584,7 @@ class TestResonators(unittest.TestCase):
             assert np.allclose(
                 copy_to_cpu(self.resonators._shunt_impedances[freq_ind]),
                 copy_to_cpu(
-                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y))[0]])
+                    np.abs(freq_y[find_peaks(copy_to_cpu(freq_y).real)[0]])
                 ),
             )
             assert np.isclose(
@@ -1007,7 +1034,7 @@ class TestResonators(unittest.TestCase):
         np.testing.assert_allclose(copy_to_cpu(freq), expected_freq)
 
 
-class TestFitPoles(unittest.TestCase):
+class TestFitPoles(BLonDTestCase):
     def test_recovers_resonator_impedance(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e6]),
@@ -1099,13 +1126,33 @@ class TestFitPoles(unittest.TestCase):
         _ = fit_poles(freqs=freq, Z=Z, n_pole=1)
 
 
-class TestTravelingWaveCavity(unittest.TestCase):
+class TestTravelingWaveCavity(BLonDTestCase):
     def setUp(self):
         R_S = [1, 2, 3]
         frequency_R = [1, 2, 3]
         a_factor = [1, 2, 3]
         self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
         self.twc_floats = TravelingWaveCavity(3.0, 3.0, 3.0)
+
+    def test_get_impedance_at_resonance_is_finite_without_warning(self):
+        import warnings
+
+        # Grid hits +f_R and -f_R, where (x - sin x) / x**2 is 0/0.
+        freq_x = backend.array([-3.0, -1.0, 0.5, 1.0, 2.0, 3.0])
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            impedance = copy_to_cpu(
+                self.twc.get_impedance(
+                    freq_x=freq_x,
+                    simulation=Mock(Simulation),
+                    beam=Mock(BeamBaseClass),
+                )
+            )
+
+        self.assertTrue(np.all(np.isfinite(impedance)))
+        self.assertEqual(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)], []
+        )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp

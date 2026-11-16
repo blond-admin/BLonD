@@ -3,9 +3,10 @@ import unittest
 import pytest
 
 from blond.core.backends.backend import Numpy64Bit, backend
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_29_MuSiC_resonator(unittest.TestCase):
+class TestEX_29_MuSiC_resonator(BLonDTestCase):
     @classmethod
     def tearDownClass(cls):
         backend.change_backend(Numpy64Bit)

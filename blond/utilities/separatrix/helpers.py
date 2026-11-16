@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.physics.cavities import RFStationBaseClass
+from blond.physics.rf_station import RFStationBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.ring.ring import Ring

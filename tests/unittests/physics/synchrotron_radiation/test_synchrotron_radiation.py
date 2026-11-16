@@ -14,10 +14,12 @@ from blond import (
     backend,
     positron,
 )
+from blond.core.backends.mpi_distributed.distributed_array import (
+    DistributedArray,
+)
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, electron
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.generals.distributed.distributed_array import DistributedArray
 from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
 )
@@ -26,6 +28,7 @@ from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
     _SynchrotronRadiationTracker,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from tests.unittests.core.beam.test_base import BeamBaseClassTester
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -33,7 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-class TestSynchrotronRadiationMaster(unittest.TestCase):
+class TestSynchrotronRadiationMaster(BLonDTestCase):
     def setUp(self):
         if backend.float == np.float32:
             raise TypeError("32 bit backends have been removed.")
@@ -157,7 +160,6 @@ class TestSynchrotronRadiationMaster(unittest.TestCase):
 
         ring = Ring(circumference=90.65874532 * 1e3)
         ring._radiation_integrals = self.synchrotron_radiation_integrals
-        ring._momentum_compaction_factor = 0
         SRM._set_radiation_integrals(
             ring=ring,
             radiation_integrals=self.synchrotron_radiation_integrals / 10,

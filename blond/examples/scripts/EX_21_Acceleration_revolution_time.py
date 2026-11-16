@@ -15,6 +15,8 @@ from matplotlib import pyplot as plt
 from blond import (
     DriftObservation,
     DriftSimple,
+    EmptyBeam,
+    MagneticCyclePerTurn,
     RFStationPhaseObservation,
     Ring,
     Simulation,
@@ -24,8 +26,6 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.core.beam.beams import EmptyBeam
-from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover

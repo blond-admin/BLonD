@@ -14,16 +14,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond import (
-    Beam,
-    BiGaussian,
-    ConstantMagneticCycle,
-    DriftSimple,
-    Ring,
-    Simulation,
-    SingleHarmonicRFStation,
-    positron,
-)
+from blond.beam_preparation.bigaussian import BiGaussian
+from blond.core.beam.beams import Beam
+from blond.core.beam.particle_types import positron
+from blond.core.ring.ring import Ring
+from blond.core.simulation.simulation import Simulation
+from blond.cycles.magnetic_cycle import ConstantMagneticCycle
+from blond.physics.drifts import DriftSimple
+from blond.physics.rf_station import SingleHarmonicRFStation
 from blond.physics.synchrotron_radiation.synchrotron_radiation_master import (
     SynchrotronRadiationMaster,
 )

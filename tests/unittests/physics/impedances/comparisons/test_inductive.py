@@ -23,11 +23,12 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import InductiveImpedance
+from blond.testing.backend_testing import BLonDTestCase
 
 DEV_PLOT = False
 
 
-class TestInductiveImpedances(unittest.TestCase):
+class TestInductiveImpedances(BLonDTestCase):
     def setUp(self):
         from blond.core.backends.backend import Numpy64Bit, backend
 
@@ -96,7 +97,6 @@ class TestInductiveImpedances(unittest.TestCase):
                 ),
             )
             profile.track(beam)
-            profile.invalidate_cache()
 
             sim = Simulation(
                 ring=ring,

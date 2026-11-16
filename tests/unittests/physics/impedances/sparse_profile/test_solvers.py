@@ -27,6 +27,7 @@ from blond import (
 )
 from blond.physics.impedances.solvers import MultiPoleSparseSolve
 from blond.physics.profiles_sparse import EquidistantMultiProfile
+from blond.testing.backend_testing import BLonDTestCase
 
 resonator_data = np.loadtxt(
     os.path.join(
@@ -225,7 +226,7 @@ def _assert_matches_reference(sparse_wf, ref_wf, x_shift=0.0):
 # ── test classes ──────────────────────────────────────────────────────────────
 
 
-class TestMultiPoleSparseMultiBunch(unittest.TestCase):
+class TestMultiPoleSparseMultiBunch(BLonDTestCase):
     """Multi-bunch: filling pattern every 10th slot (HARMONIC // BUNCH_SPACING = 462 bunches).
 
     Most important test case: verifies MultiPoleSparseSolve against a dense
@@ -274,7 +275,7 @@ class TestMultiPoleSparseMultiBunch(unittest.TestCase):
         _assert_matches_reference(wakefield_sparse, wakefield_ref)
 
 
-class TestMultiPoleSparseSingleBunch(unittest.TestCase):
+class TestMultiPoleSparseSingleBunch(BLonDTestCase):
     """Single-bunch edge case: only slot 0 in filling pattern.
 
     Sanity-checks that MultiPoleSparseSolve reduces correctly to the single-bunch
@@ -321,7 +322,7 @@ class TestMultiPoleSparseSingleBunch(unittest.TestCase):
         _assert_matches_reference(wakefield_sparse, wakefield_ref)
 
 
-class TestMultiPoleSparseMultiBunchMultiTurn(unittest.TestCase):
+class TestMultiPoleSparseMultiBunchMultiTurn(BLonDTestCase):
     """Multi-turn: verifies that wake contributions from previous turns are accumulated.
 
     Runs MultiPoleSparseSolve for 2 turns (same 462-bunch filling pattern).
@@ -402,7 +403,7 @@ class TestMultiPoleSparseMultiBunchMultiTurn(unittest.TestCase):
         )
 
 
-class TestMultiPoleSparseFinalize(unittest.TestCase):
+class TestMultiPoleSparseFinalize(BLonDTestCase):
     """Unit tests for `MultiPoleSparseSolve._finalize_solver` branches."""
 
     def _make_solver(self, sources):
@@ -422,6 +423,45 @@ class TestMultiPoleSparseFinalize(unittest.TestCase):
         solver._parent_wakefield = parent
         solver._profile = profile
         return solver
+
+
+class TestMultiPoleSparseInit(BLonDTestCase):
+    """Unit tests for `MultiPoleSparseSolve.on_wakefield_init_simulation`."""
+
+    def _init_with_profile(self, profile):
+        from unittest.mock import Mock
+
+        from blond import Simulation, WakeField
+
+        solver = MultiPoleSparseSolve()
+        parent = Mock(WakeField)
+        parent.profile = profile
+        solver.on_wakefield_init_simulation(
+            simulation=Mock(Simulation), parent_wakefield=parent
+        )
+        return solver
+
+    def test_accepts_static_profile(self):
+        from unittest.mock import Mock
+
+        profile = Mock(spec=StaticProfile)
+        solver = self._init_with_profile(profile)
+        self.assertIs(solver._profile, profile)
+
+    def test_accepts_equidistant_multi_profile(self):
+        from unittest.mock import Mock
+
+        profile = Mock(spec=EquidistantMultiProfile)
+        solver = self._init_with_profile(profile)
+        self.assertIs(solver._profile, profile)
+
+    def test_rejects_other_profiles(self):
+        from unittest.mock import Mock
+
+        from blond import DynamicProfileConstNBins
+
+        with self.assertRaises(TypeError):
+            self._init_with_profile(Mock(spec=DynamicProfileConstNBins))
 
 
 if __name__ == "__main__":

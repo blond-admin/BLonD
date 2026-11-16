@@ -3,9 +3,10 @@ import unittest
 import numpy as np
 
 from blond.core.backends.numba.callables import enforce_precision
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestCallables(unittest.TestCase):
+class TestCallables(BLonDTestCase):
     def test_enforce_precision(self):
         for floattype in (np.float64,):
 

@@ -77,3 +77,14 @@ class TestTwoTurnArray(unittest.TestCase):
         two_turn_array = TwoTurnArray(n_samples=n_points, dtype=float)
 
         self.assertEqual(n_points, len(two_turn_array))
+
+    def test_repr(self):
+        two_turn_array = TwoTurnArray(n_samples=3, dtype=float)
+        two_turn_array[:] = [1.0, 2.0, 3.0]
+        two_turn_array.shift()
+        two_turn_array[:] = [4.0, 5.0, 6.0]
+
+        self.assertEqual(
+            "TwoTurnArray(prev=array([1., 2., 3.]), curr=array([4., 5., 6.]))",
+            repr(two_turn_array),
+        )

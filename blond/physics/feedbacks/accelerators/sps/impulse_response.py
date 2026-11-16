@@ -70,7 +70,7 @@ def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
             "ERROR in impulse_response.rectangle(): time"
             + " array has multiple falling edges!"
         )
-    logger.debug(f"In rectangle(), index of rising edge is {llimit[0]}")
+    logger.debug("In rectangle(), index of rising edge is %d", llimit[0])
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     if len(ulimit) == 1:
@@ -114,7 +114,7 @@ def triangle(t: NumpyArray, tau: float) -> NumpyArray:
             "ERROR in impulse_response.triangle(): time"
             + " array doesn't start at rising edge!"
         )
-    logger.debug(f"In triangle(), index of rising edge is {llimit[0]}")
+    logger.debug("In triangle(), index of rising edge is %d", llimit[0])
     y = np.zeros(len(t))
     y[llimit[0]] = 0.5
     y[llimit[0] + 1 :] = 1 - t[llimit[0] + 1 :] / tau
@@ -257,7 +257,7 @@ class TravellingWaveCavity:
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
         self.logger.info("Class initialized")
-        self.logger.debug(f"Filling time {self.tau:.4e}%.4e s")
+        self.logger.debug("Filling time %.4e s", self.tau)
 
     def impulse_response_gen(self, omega_c: float, time_coarse: NumpyArray):
         r"""
