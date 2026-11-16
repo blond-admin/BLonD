@@ -37,8 +37,8 @@ from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.core.base import AltersReference, HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType
+from blond.core.ordering import requires
 from blond.core.reference_clock.reference_clock import ReferenceCoordinates
-from blond.core.ring.helpers import requires
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -52,8 +52,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.simulation.simulation import Simulation
     from blond.generals.protocols import AnyInterpolator
-
-    FloatOrArray = float | NumpyArray
 
     T = TypeVar("T")
 
@@ -542,7 +540,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._value_init = value_init
 
         assert len(values_after_turn.shape) == 1, (
             f"Expected 1D array, but got {values_after_turn.shape}"
@@ -600,7 +597,15 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 else None
             ),
         )
-        assert n_rf_stations > 0
+        if n_rf_stations < 1:
+            raise ValueError(
+                "`MagneticCyclePerTurn` requires at least one RF station in "
+                "the ring to apply the per-turn energy increment, but got "
+                f"{n_rf_stations=}. If your only cavity lives inside a "
+                "wrapped external element (e.g. `WrapXsuite4Blond`, which is "
+                "not an RF station by type), add a BLonD-side RF station to "
+                "drive the ramp, or use a constant magnetic cycle."
+            )
         shape = (n_rf_stations, n_turns_max)
         _magnetic_rigidity = np.empty(shape)
         stair_like = np.linspace(
@@ -668,7 +673,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 mass=particle_type.mass,
                 momentum=self._momentum_cached[key],
             )
-        return self._total_energy_cached[key][section_i, int(turn_i)]
+        # Python float: scalar math on `np.float64` is slow per turn
+        return float(self._total_energy_cached[key][section_i, int(turn_i)])
 
     @staticmethod
     def headless(
@@ -797,7 +803,6 @@ class MagneticCyclePerTurnAllRFStations(MagneticCycleBase):
             reference_particle=reference_particle,
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._value_init = value_init
         self._values_after_rf_station_per_turn = (
             values_after_rf_station_per_turn[:, :]
         )
@@ -1062,7 +1067,6 @@ class MagneticCycleByTime(MagneticCycleBase):
                 bending_radius if in_unit == "bending field" else None
             ),
         )
-        self._base_magnetic_rigidity: NumpyArray = base_magnetic_rigidity
 
         super().__init__(
             reference_particle=reference_particle,
@@ -1074,9 +1078,6 @@ class MagneticCycleByTime(MagneticCycleBase):
             **kwargs,
         )
         self._t_max = reference_time.max()
-        self._base_values = reference_values[:]  # only for debugging
-        self._in_unit = in_unit  # only for debugging
-        self._bending_radius = bending_radius  # only for debugging
 
     @requires(
         [

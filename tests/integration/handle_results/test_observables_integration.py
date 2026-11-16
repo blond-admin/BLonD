@@ -24,9 +24,10 @@ from blond.handle_results.observables import (
 from blond.physics.impedances.solvers import TimeDomainFftSolver
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestObservables(unittest.TestCase):
+class TestObservables(BLonDTestCase):
     def test_run_all(self):
         ring = Ring(circumference=123.4)
         beam = Beam(intensity=12, particle_type=uranium_29)

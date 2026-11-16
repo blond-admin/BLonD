@@ -6,7 +6,6 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-
 #ifndef _OPENMP_H_
 #define _OPENMP_H_
 

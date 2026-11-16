@@ -36,6 +36,7 @@ from scipy.interpolate import PchipInterpolator
 from blond import (
     AllowPlotting,
     Beam,
+    BeamStatisticsOncePerTurn,
     BiGaussian,
     DriftSimple,
     MagneticCycleByTime,
@@ -46,7 +47,6 @@ from blond import (
     proton,
     setup_backend,
 )
-from blond.handle_results.observables import BeamStatisticsOncePerTurn
 from blond.testing import pytest_active
 
 if not pytest_active():  # pragma: no cover

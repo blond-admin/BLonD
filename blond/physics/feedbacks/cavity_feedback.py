@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 import numpy as np
 
-from blond import MultiHarmonicRFStation, SingleHarmonicRFStation
 from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
@@ -38,14 +37,19 @@ from blond.physics.feedbacks.helpers import (
     polar_to_cartesian,
     rf_beam_current,
 )
+from blond.physics.rf_station import (
+    MultiHarmonicRFStation,
+    SingleHarmonicRFStation,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import Simulation, StaticProfile
     from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
+    from blond.physics.profiles import StaticProfile
 
 
 BufferCoarse = TypeVar(
@@ -103,7 +107,7 @@ class IQCavityFeedback(LocalFeedback, Generic[BufferCoarse, BufferFine]):
         section_index: int = 0,
         name: str | None = None,
     ):
-        from blond import StaticProfile  # cyclic import
+        from blond.physics.profiles import StaticProfile  # cyclic import
 
         assert isinstance(profile, StaticProfile)
         super().__init__(

@@ -9,13 +9,13 @@ import scipy.constants as cont
 
 from blond.acc_math.analytic import conversions as conv
 from blond.core.backends import backend
-from blond.testing.backend_testing import multi_backend_testcase
+from blond.testing.backend_testing import BLonDTestCase, multi_backend_testcase
 
 if TYPE_CHECKING:
     ...
 
 
-class TestConversionFunctions(unittest.TestCase):
+class TestConversionFunctions(BLonDTestCase):
     @multi_backend_testcase
     @pytest.mark.backend_mutation
     def test_magnetic_rigidity_to_momentum(self):
@@ -261,7 +261,9 @@ class TestConversionFunctions(unittest.TestCase):
         )
 
         beta = backend.backend.array([0.1, 0.5, 1])
-        gamma = conv.beta_to_gamma(beta)
+        # beta = 1 is the ultra-relativistic limit: gamma = inf on purpose.
+        with np.errstate(divide="ignore"):
+            gamma = conv.beta_to_gamma(beta)
         mass = cont.physical_constants["proton mass energy equivalent in MeV"][
             0
         ]

@@ -7,9 +7,10 @@ from blond.core.backends.backend import (
     Numpy64Bit,
     backend,
 )
+from blond.testing.backend_testing import BLonDTestCase
 
 
-class TestEX_08_Semi_empiric_matcher(unittest.TestCase):
+class TestEX_08_Semi_empiric_matcher(BLonDTestCase):
     @pytest.mark.backend_mutation
     def test_executable_numba64(self):
         self.skipTest("Too slow.")

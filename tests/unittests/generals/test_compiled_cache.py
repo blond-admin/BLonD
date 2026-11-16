@@ -10,6 +10,8 @@
 
 import json
 
+import pytest
+
 from blond.generals import compiled_cache
 
 
@@ -34,8 +36,10 @@ class TestMarkUsed:
         assert second["last_used"] >= first["last_used"]
 
     def test_never_raises_on_bad_path(self):
-        # A non-existent directory must not raise (best-effort bookkeeping).
-        compiled_cache.mark_used("/nonexistent/dir/xyz")
+        # A non-existent directory must not raise (best-effort bookkeeping),
+        # but it is surfaced as a warning.
+        with pytest.warns(RuntimeWarning, match="compiled-cache metadata"):
+            compiled_cache.mark_used("/nonexistent/dir/xyz")
 
     def test_corrupt_meta_is_replaced(self, tmp_path):
         # A garbled meta.json must not crash: it is discarded and rewritten

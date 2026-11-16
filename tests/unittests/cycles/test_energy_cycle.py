@@ -34,6 +34,7 @@ from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
 )
+from blond.testing.backend_testing import BLonDTestCase
 from blond.testing.simulation import (
     ExampleSimulation01,
     SimulationTwoRFStations,
@@ -65,7 +66,7 @@ def _to_momentum(
     )
 
 
-class TestRelativisticFunctions(unittest.TestCase):
+class TestRelativisticFunctions(BLonDTestCase):
     def setUp(self):
         self.mass = 938e6  # Proton mass in eV/c²
         self.p = 1e9  # 1 GeV/c
@@ -91,7 +92,7 @@ class TestRelativisticFunctions(unittest.TestCase):
         self.assertAlmostEqual(kin_energy, expected, places=8)
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(BLonDTestCase):
     def test__to_momentum_momentum(self):
         data = np.array([1e6, 2e6, 3e6])  # [eV/c]
         result = _to_momentum(
@@ -166,7 +167,7 @@ class TestFunctions(unittest.TestCase):
         pass
 
 
-class TestConstantEnergyCycle(unittest.TestCase):
+class TestConstantEnergyCycle(BLonDTestCase):
     def setUp(self):
         self.constant_magnetic_cycle = ConstantMagneticCycle(
             value=2000e6,
@@ -244,7 +245,7 @@ class MagneticCycleBaseHelper(MagneticCycleBase):
         pass
 
 
-class TestEnergyCycleBase(unittest.TestCase):
+class TestEnergyCycleBase(BLonDTestCase):
     def setUp(self):
         self.momentum_init = 16
         self.magnetic_cycle_base = MagneticCycleBaseHelper(
@@ -281,7 +282,7 @@ class TestEnergyCycleBase(unittest.TestCase):
         )
 
 
-class TestEnergyCycleByTime(unittest.TestCase):
+class TestEnergyCycleByTime(BLonDTestCase):
     def setUp(self):
         self.magnetic_cycle_by_time = MagneticCycleByTime(
             reference_time=np.linspace(1, 12, 12),
@@ -424,7 +425,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
         self.assertEqual(n_turns_explicit, n_turns_auto)
 
 
-class TestBaseFunctions(unittest.TestCase):
+class TestBaseFunctions(BLonDTestCase):
     def test_error_throwing_to_magnetic_rigidity(self):
         with self.assertRaisesRegex(
             ValueError, "must be provided and cannot be None"
@@ -446,7 +447,7 @@ class TestBaseFunctions(unittest.TestCase):
             )
 
 
-class TestEnergyCyclePerTurn(unittest.TestCase):
+class TestEnergyCyclePerTurn(BLonDTestCase):
     def setUp(self):
         self.momentum = np.linspace(1, 10, 11)
         self.magnetic_cycle_per_turn = MagneticCyclePerTurn(
@@ -499,7 +500,7 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
         self.assertEqual(evpt._magnetic_rigidity.shape, (2, 10))
 
 
-class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
+class TestEnergyCyclePerTurnAllCavities(BLonDTestCase):
     def setUp(self):
         self.momentum = np.ones((1, 10))
         self.magnetic_cycle_per_turn_all_cavities = (

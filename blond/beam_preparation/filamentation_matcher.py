@@ -21,7 +21,7 @@ from blond.beam_preparation.base import MatchingRoutine
 from blond.core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond import Simulation
+    from blond.core.simulation.simulation import Simulation
 
 
 class FilamentationMatcher(MatchingRoutine):
@@ -169,7 +169,7 @@ class FilamentationMatcher(MatchingRoutine):
     >>>
     >>> sim.run_simulation(
     ...     n_turns=20,
-    ...     beams=(beam,),
+    ...     beams=beam,
     ... )
     ...
     """
@@ -214,7 +214,8 @@ class FilamentationMatcher(MatchingRoutine):
         beam
             Beam instance to be initialized and matched.
         """
-        from blond import BoxLosses, backend
+        from blond.core.backends.backend import backend
+        from blond.physics.losses import BoxLosses
 
         n = int(np.sqrt(self.n_macroparticles))
 
@@ -276,9 +277,9 @@ class FilamentationMatcher(MatchingRoutine):
             # --------------------------------------------------
         for i in range(self.n_iter):
             sim_copy = deepcopy(simulation)
-            sim_copy.turn_i.value = 0
+            sim_copy.turn_counter.value = 0
             sim_copy.run_simulation(
-                beams=[beam], n_turns=1, show_progressbar=False
+                beams=beam, n_turns=1, show_progressbar=False
             )
 
             if self.animate and (i % step == 0 or i == self.n_iter - 1):
@@ -286,7 +287,7 @@ class FilamentationMatcher(MatchingRoutine):
                 scat = beam.plot_scatter(ax=ax, s=8, label="Beam", color="C0")
                 ax.set_title(f"Iteration {i + 1}/{self.n_iter}")
 
-                plt.pause(0.1)
+                plt.pause(self.animate_pause_time)
 
         if self.animate:
             plt.ioff()

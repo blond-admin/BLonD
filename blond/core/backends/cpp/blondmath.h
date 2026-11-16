@@ -35,10 +35,10 @@ void where_more_less_than(const real_t *__restrict__ data, const int n,
 void where_less_thanf(const float *__restrict__ data, const int n,
                       const float c1, bool *__restrict__ res);
 
-int where(const real_t *__restrict__ dt, const int n_macroparticles,
+int where(const real_t *__restrict__ dt, const index_t n_macroparticles,
           const real_t constant1, const real_t constant2);
 
-// int wheref(const float *__restrict__ dt, const int n_macroparticles,
+// int wheref(const float *__restrict__ dt, const index_t n_macroparticles,
 //            const float constant1, const float constant2);
 
 void where_more_than(const real_t *__restrict__ data, const int n,
